@@ -11,7 +11,8 @@ import { seedState } from "./seed";
 
 export const ME = "me";
 
-const STORAGE_KEY = "splitwiser-state-v1";
+// Bumped to v2 to drop the old Apartment/Lisbon demo and load the Portugal seed.
+const STORAGE_KEY = "splitwiser-state-v2";
 
 export function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
