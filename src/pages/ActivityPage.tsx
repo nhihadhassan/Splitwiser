@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ME, useStore } from "../store";
 import { formatMoney } from "../utils/money";
 import { relativeTime } from "../utils/dates";
@@ -14,10 +14,14 @@ interface ActivityItem {
 
 export function ActivityPage() {
   const { state, peopleById } = useStore();
+  const [groupFilter, setGroupFilter] = useState("all");
+  const [kindFilter, setKindFilter] = useState<"all" | "expenses" | "payments">("all");
 
   const items = useMemo<ActivityItem[]>(() => {
     const list: ActivityItem[] = [];
     for (const e of state.expenses) {
+      if (kindFilter === "payments") continue;
+      if (groupFilter !== "all" && (e.groupId ?? "none") !== groupFilter) continue;
       const actor = peopleById.get(e.createdBy);
       const groupName = e.groupId ? state.groups.find((g) => g.id === e.groupId)?.name : null;
       const mySplit = e.splits.find((s) => s.personId === ME);
@@ -44,6 +48,8 @@ export function ActivityPage() {
       });
     }
     for (const s of state.settlements) {
+      if (kindFilter === "expenses") continue;
+      if (groupFilter !== "all" && (s.groupId ?? "none") !== groupFilter) continue;
       const from = peopleById.get(s.fromId);
       const to = peopleById.get(s.toId);
       const groupName = s.groupId ? state.groups.find((g) => g.id === s.groupId)?.name : null;
@@ -62,31 +68,58 @@ export function ActivityPage() {
     }
     list.sort((a, b) => b.createdAt - a.createdAt);
     return list;
-  }, [state, peopleById]);
+  }, [state, peopleById, groupFilter, kindFilter]);
 
   return (
     <>
-      <main className="pane">
-        <div className="pane-header">
-          <h1>Recent activity</h1>
+      <main className="pane pane-wide">
+        <div className="pane-header hero-header">
+          <div>
+            <p className="eyebrow">Audit Trail</p>
+            <h1>Detailed Activity</h1>
+          </div>
+        </div>
+        <div className="filter-bar">
+          <select value={kindFilter} onChange={(event) => setKindFilter(event.target.value as typeof kindFilter)}>
+            <option value="all">All Activity</option>
+            <option value="expenses">Expenses</option>
+            <option value="payments">Payments</option>
+          </select>
+          <select value={groupFilter} onChange={(event) => setGroupFilter(event.target.value)}>
+            <option value="all">All Groups</option>
+            <option value="none">Non-group</option>
+            {state.groups.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.name}
+              </option>
+            ))}
+          </select>
         </div>
         {items.length === 0 && (
           <div className="empty-state">
-            <div className="big">🔔</div>
-            <div>Nothing here yet. Add an expense to see activity.</div>
+            <div className="big">A</div>
+            <div>No activity matches these filters.</div>
           </div>
         )}
-        {items.map((item) => (
-          <div key={item.key} className="activity-row">
-            <Avatar person={peopleById.get(item.actorId)} size={34} />
-            <div className="text">
-              <div>{item.text}</div>
-              <div className="when">{relativeTime(item.createdAt)}</div>
+        <div className="activity-timeline">
+          {items.map((item) => (
+            <div key={item.key} className="activity-row">
+              <Avatar person={peopleById.get(item.actorId)} size={38} />
+              <div className="text">
+                <div>{item.text}</div>
+                <div className="when">{relativeTime(item.createdAt)}</div>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </main>
-      <aside className="rail" />
+      <aside className="rail">
+        <div className="rail-card">
+          <h3>Visible Records</h3>
+          <strong className="rail-number">{items.length}</strong>
+          <p className="muted-copy">Expenses and settlements shown in reverse chronological order.</p>
+        </div>
+      </aside>
     </>
   );
 }

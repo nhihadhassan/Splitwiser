@@ -4,6 +4,7 @@ import { ME, useStore } from "../store";
 import { balancesWith, buildLedger } from "../utils/balances";
 import { formatMoney } from "../utils/money";
 import { Avatar } from "./Avatar";
+import { AddExpenseModal } from "./AddExpenseModal";
 import { AddFriendModal } from "./AddFriendModal";
 import { GroupModal, GROUP_ICONS } from "./GroupModal";
 
@@ -11,6 +12,7 @@ export function Layout() {
   const { state, peopleById } = useStore();
   const [addingFriend, setAddingFriend] = useState(false);
   const [addingGroup, setAddingGroup] = useState(false);
+  const [addingExpense, setAddingExpense] = useState(false);
 
   const friendBalances = useMemo(() => {
     const ledger = buildLedger(state);
@@ -23,9 +25,12 @@ export function Layout() {
     <>
       <header className="topbar">
         <NavLink to="/" className="brand">
-          <span className="logo">S</span> Splitwiser
+          <span className="logo">A</span> AUREUM
         </NavLink>
         <div className="spacer" />
+        <button className="btn btn-plain top-action" onClick={() => setAddingExpense(true)}>
+          Add Expense
+        </button>
         <div className="user">
           <Avatar person={me} size={26} />
           <span>{me?.name}</span>
@@ -35,13 +40,19 @@ export function Layout() {
       <div className="layout">
         <nav className="nav">
           <NavLink to="/" end className="nav-link">
-            📊 Dashboard
+            <span className="nav-mark">OV</span> Overview
+          </NavLink>
+          <NavLink to="/groups" end className="nav-link">
+            <span className="nav-mark">LG</span> Groups
           </NavLink>
           <NavLink to="/activity" className="nav-link">
-            🔔 Recent activity
+            <span className="nav-mark">AC</span> Recent Activity
           </NavLink>
           <NavLink to="/all" className="nav-link">
-            📋 All expenses
+            <span className="nav-mark">EX</span> All Expenses
+          </NavLink>
+          <NavLink to="/settlements" className="nav-link">
+            <span className="nav-mark">ST</span> Settlements
           </NavLink>
 
           <div className="nav-section">
@@ -82,8 +93,31 @@ export function Layout() {
         <Outlet />
       </div>
 
+      <nav className="mobile-nav">
+        <NavLink to="/" end>
+          <span>OV</span>
+          Overview
+        </NavLink>
+        <NavLink to="/activity">
+          <span>AC</span>
+          Activity
+        </NavLink>
+        <button type="button" onClick={() => setAddingExpense(true)} aria-label="Add expense">
+          +
+        </button>
+        <NavLink to="/groups">
+          <span>LG</span>
+          Groups
+        </NavLink>
+        <NavLink to="/settlements">
+          <span>ST</span>
+          Settle
+        </NavLink>
+      </nav>
+
       {addingFriend && <AddFriendModal onClose={() => setAddingFriend(false)} />}
       {addingGroup && <GroupModal onClose={() => setAddingGroup(false)} />}
+      {addingExpense && <AddExpenseModal onClose={() => setAddingExpense(false)} />}
     </>
   );
 }
