@@ -1,100 +1,60 @@
 # Splitwiser — Handoff
 
-A complete recreation of the **Splitwise** expense-splitting app as a single-page
-web app. React + TypeScript + Vite, with all data persisted in the browser
-(`localStorage`) — no backend, no database, no accounts.
+A Splitwise-style expense-splitting web app. React + TypeScript + Vite, all data
+persisted in the browser (`localStorage`) — no backend, no accounts, no sync.
 
 - **Repo:** https://github.com/nhihadhassan/Splitwiser
-- **Working branch:** `claude/splitwise-app-recreation-o7qscn`
-- **Pull request:** https://github.com/nhihadhassan/Splitwiser/pull/1 (open, draft)
-- **Status:** feature-complete, builds clean, smoke-tested end-to-end in headless Chromium
+- **Live app:** https://splitwiser-xi.vercel.app
+- **Default branch:** `main` (full app; PR #1 merged)
+- **Hosting:** Vercel project `splitwiser` (scope `nhihadhassan-2432s-projects`),
+  linked to the GitHub repo — pushes to `main` auto-deploy.
 
 ---
 
-## Current state at a glance
+## Current state
 
 | Thing | State |
 | --- | --- |
-| App code | Complete and working on the PR branch |
-| `npm run build` | Passes (strict TypeScript + Vite production build) |
-| End-to-end smoke test | Passed (dashboard, groups, all 4 split methods, settle up, activity) |
-| CI | None configured in the repo |
-| `main` branch | **Empty placeholder commit only** — see "Gotchas" below |
-| Deployment | Not deployed yet — see "Deploying" below |
+| App code | Complete, on `main` |
+| `npm run build` | Passes (strict TS + Vite prod build) |
+| Deployment | Live on Vercel (production) |
+| Seed data | The real **Portugal 2026** trip (see below) |
+| Backend / CI | None |
 
 ---
 
-## Running it locally (~2 min)
+## Run it locally
 
 ```bash
 git clone https://github.com/nhihadhassan/Splitwiser.git
 cd Splitwiser
-git checkout claude/splitwise-app-recreation-o7qscn
 npm install
-npm run dev          # http://localhost:5173
+npm run dev        # http://localhost:5173
+npm run build      # type-check + prod build to dist/
 ```
 
-Other scripts:
+## Deploy
+
+Linked to Vercel + GitHub, so **push to `main` = auto-deploy**. Manual deploy:
 
 ```bash
-npm run build        # type-check (tsc -b) + production build to dist/
-npm run preview      # serve the production build locally
+npx vercel deploy --prod --yes
 ```
-
-The app opens with **seeded demo data** (an "Apartment 4B" home group, a
-"Lisbon Trip" group, four friends, eight expenses, one settlement) so it looks
-alive immediately. **All expenses → Reset demo data** restores the original state.
-
-### What to click to exercise everything
-
-1. **Dashboard** — total balance + "you owe" / "you are owed" columns
-2. **Add an expense** (orange button) — the split tabs cover Equally, Exact
-   amounts, Percentages, and Shares, each with live validation
-   ("$90.00 of $100.00 entered — $10.00 left", "n% of 100%")
-3. **Lisbon Trip group** — right rail shows per-member balances and
-   "Suggested repayments" (the simplify-debts algorithm); the ✓ next to a
-   suggestion records that payment prefilled
-4. **Any expense row** — click to expand the per-person breakdown, edit, delete
-5. **A friend** in the sidebar — pairwise balance + "Settle up" prefilled with
-   the exact amount owed; the balance flips to "all settled up"
-6. **Recent activity** — chronological feed of every expense and payment
 
 ---
 
-## Deploying to the web
+## Seed data — Portugal 2026
 
-The app is a static SPA (Vite → `dist/`), so any static host works. Vercel is
-easiest.
+The app opens with a real completed trip instead of fake demo data:
 
-### Option A — Import the repo on Vercel (recommended)
+- Source: [`portugal-2026-actual-trip.md`](portugal-2026-actual-trip.md) (103 expenses).
+- Modeled as a **two-person equal split**: You + Rachel, every expense paid by You.
+- EUR converted to CAD at the trip's blended rate **€1 = CA$1.622829**.
+- Totals **CA$4,563.78** (matches the source's authoritative CA$4,563.76 ± rounding).
+- Generated into [`src/seed.ts`](src/seed.ts) at build time from that markdown.
 
-1. Go to https://vercel.com/new
-2. Import **nhihadhassan/Splitwiser** (connect the GitHub app if prompted)
-3. Vercel auto-detects Vite; defaults are correct (build `npm run build`,
-   output directory `dist`). Click **Deploy**.
-
-> **Important:** `main` is currently an empty placeholder commit — the real app
-> lives on the PR branch. So either **merge PR #1 into `main` first** (then the
-> import deploys the real app and auto-redeploys on every push), **or** set the
-> production branch to `claude/splitwise-app-recreation-o7qscn` in the import
-> screen.
-
-### Option B — Vercel CLI
-
-```bash
-npm i -g vercel
-vercel login
-vercel deploy --prod
-```
-
-(This could not be run from the Claude Code cloud session because the CLI login
-flow needs a browser and no `VERCEL_TOKEN` was configured. Setting
-`VERCEL_TOKEN` in the environment would let an agent deploy non-interactively.)
-
-### Any other static host
-
-`npm run build`, then serve the `dist/` folder (Netlify, GitHub Pages, S3, etc.).
-Routing uses `HashRouter`, so no server-side rewrite rules are needed.
+To regenerate the seed from an updated markdown, re-run the parser logic that
+produced `src/seed.ts` (category map + EUR→CAD conversion), or edit the file directly.
 
 ---
 
@@ -102,65 +62,35 @@ Routing uses `HashRouter`, so no server-side rewrite rules are needed.
 
 | Path | What it is |
 | --- | --- |
-| `src/types.ts` | Data model: people, groups, expenses (splits in cents), settlements |
-| `src/store.tsx` | React context + reducer; persisted to `localStorage` on every change |
-| `src/seed.ts` | Demo data the app starts with, plus the avatar color palette |
-| `src/utils/money.ts` | Integer-cent math: parse, format, fair equal/weighted splitting |
-| `src/utils/balances.ts` | Pairwise debt ledger, net balances, debt simplification |
-| `src/utils/categories.ts` | Expense categories + emoji icons |
-| `src/utils/dates.ts` | Date/month formatting and relative time |
-| `src/components/` | `Layout`, `Avatar`, `Modal`, `ExpenseList`, and the Add-Expense / Settle-Up / Add-Friend / Group modals |
-| `src/pages/` | `Dashboard`, `GroupPage`, `FriendPage`, `ActivityPage`, `AllExpensesPage` |
-| `src/App.tsx` | Routes (HashRouter) |
-| `src/main.tsx` | Entry point |
+| `src/types.ts` | Data model (money in integer cents) |
+| `src/store.tsx` | React context + reducer, persisted to `localStorage` |
+| `src/seed.ts` | Starting data (Portugal 2026) + avatar palette |
+| `src/utils/money.ts` | Cent math; fair equal/weighted splitting (largest-remainder) |
+| `src/utils/balances.ts` | Pairwise debts, net balances, debt simplification |
+| `src/components/`, `src/pages/` | UI: modals, layout, Dashboard/Group/Friend/Activity pages |
+| `src/App.tsx` | Routes (`HashRouter` — works on any static host) |
 
-### How balances work (the core logic)
-
-Everything derives from `src/utils/balances.ts`, recomputed on each render:
-
-1. **Each expense** becomes pairwise debts: every participant's net position is
-   `paid − owed`; debtors (net < 0) owe creditors (net > 0), allocated
-   proportionally.
-2. **Settlements** reduce debts (paying someone cancels what you owe them).
-3. **Net balances** collapse the pairwise ledger to one number per person
-   (positive = is owed money).
-4. **Simplify debts** runs a greedy max-creditor / max-debtor match over net
-   balances to produce the minimum set of payments — the same behavior
-   Splitwise's "simplify debts" gives. Toggleable per group; when off, the raw
-   pairwise debts are shown instead.
-
-All money is stored as **integer cents**. Equal and weighted splits distribute
-leftover cents (largest-remainder) so every expense always sums exactly to its
-total — no rounding drift.
+All money is integer cents. Splits always sum exactly to the total (no drift).
 
 ---
 
-## Gotchas / things a successor should know
+## Gotchas
 
-- **`main` is a fabricated empty root commit.** The repository had no commits
-  and no default branch when the app was created, so a PR needs a base. An empty
-  "Initial commit" was pushed as `main` and merged into the feature branch to
-  give PR #1 a valid base. Merging the PR puts the full app on `main`.
-- **No backend by design.** State is per-browser in `localStorage` under the key
-  `splitwiser-state-v1`. Clearing site data resets the app. There are no user
-  accounts and no sync across devices.
-- **`playwright-core` is a devDependency** used only for the local smoke test; it
-  is not part of the app bundle.
-- **Routing uses `HashRouter`** (URLs look like `/#/groups/…`) so the app works
-  on any static host with zero rewrite configuration.
+- **State is per-browser** under the `localStorage` key `splitwiser-state-v2`.
+  The loader prefers saved state over the seed, so **the seed only appears on a
+  fresh browser or after a key bump / "Reset demo data"**. Bump the key version
+  in `src/store.tsx` when you change the seed and want existing browsers to reload it.
+- **Single-currency.** Amounts render with a `$` glyph but the numbers are CAD.
+- **No backend by design** — clearing site data resets the app; no cross-device sync.
 
----
+## Possible next steps
 
-## Possible next steps (not started)
-
-- Merge PR #1 and deploy (see above)
-- Multi-currency support (amounts are currently USD-formatted)
-- Comments / receipt photos on expenses
-- Charts of spending by category or over time
-- Export to CSV
-- A real backend (e.g. Supabase) for accounts and cross-device sync
-- CI: a GitHub Action running `npm run build` on PRs
+- Multi-currency (show EUR natively instead of pre-converting)
+- Mark some expenses as solo / uneven splits (seed currently splits everything equally)
+- Charts, CSV export, receipt photos
+- Real backend (e.g. Supabase) for accounts + sync
+- CI: GitHub Action running `npm run build` on PRs
 
 ---
 
-_Generated as a project handoff for Splitwiser._
+_Project handoff for Splitwiser._
