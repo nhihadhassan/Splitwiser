@@ -37,7 +37,7 @@ export function Dashboard() {
       <main className="pane pane-wide">
         <div className="pane-header hero-header">
           <div>
-            <p className="eyebrow">Executive Ledger</p>
+            <p className="eyebrow">Splitwiser Ledger</p>
             <h1>Overview</h1>
           </div>
           <button className="btn btn-gold" onClick={() => setAddingExpense(true)}>

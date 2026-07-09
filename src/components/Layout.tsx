@@ -25,7 +25,7 @@ export function Layout() {
     <>
       <header className="topbar">
         <NavLink to="/" className="brand">
-          <span className="logo">A</span> AUREUM
+          <span className="logo">S</span> Splitwiser
         </NavLink>
         <div className="spacer" />
         <button className="btn btn-plain top-action" onClick={() => setAddingExpense(true)}>
@@ -39,6 +39,9 @@ export function Layout() {
 
       <div className="layout">
         <nav className="nav">
+          <NavLink to="/" className="side-brand">
+            <span className="logo">S</span> Splitwiser
+          </NavLink>
           <NavLink to="/" end className="nav-link">
             <span className="nav-mark">OV</span> Overview
           </NavLink>

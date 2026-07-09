@@ -37,7 +37,7 @@ export function GroupsPage() {
       <main className="pane pane-wide">
         <div className="pane-header hero-header">
           <div>
-            <p className="eyebrow">Private Ledgers</p>
+            <p className="eyebrow">Splitwiser Groups</p>
             <h1>Active Groups</h1>
           </div>
           <button className="btn btn-gold" onClick={() => setAddingGroup(true)}>
