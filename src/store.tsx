@@ -95,12 +95,16 @@ function loadInitialState(): AppState {
         ];
         const groupIds = new Set(parsed.groups.map((group) => group.id));
         const peopleIds = new Set(parsed.people.map((person) => person.id));
+        const importedTripExpenses = seedState().expenses.filter((expense) =>
+          expense.id.startsWith("e-ny-") || expense.id.startsWith("e-peru-"),
+        );
+        const expenseIds = new Set(parsed.expenses.map((expense) => expense.id));
         return {
           ...parsed,
           people: parsed.people
             .map((person) => (person.id === ME ? { ...person, name: "Nhihad" } : person))
             .concat(peopleIds.has("p-bijan") ? [] : [{ id: "p-bijan", name: "Bijan", color: "#C57C55" }]),
-            groups: parsed.groups.map((group) =>
+          groups: parsed.groups.map((group) =>
             group.name === "Portugal 2026 🇵🇹"
               ? { ...group, name: "Portugal 2026" }
               : group.id === "g-new-york"
@@ -109,6 +113,7 @@ function loadInitialState(): AppState {
                   ? { ...group, memberIds: ["me", "p-rachel"] }
                   : group,
           ).concat(tripGroups.filter((group) => !groupIds.has(group.id))),
+          expenses: parsed.expenses.concat(importedTripExpenses.filter((expense) => !expenseIds.has(expense.id))),
         };
       }
     }
