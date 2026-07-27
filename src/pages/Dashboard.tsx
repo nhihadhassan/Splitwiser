@@ -1,18 +1,14 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { ME, useStore } from "../store";
 import { balancesWith, buildLedger } from "../utils/balances";
 import { formatMoney } from "../utils/money";
 import { Avatar } from "../components/Avatar";
-import { AddExpenseModal } from "../components/AddExpenseModal";
-import { SettleUpModal } from "../components/SettleUpModal";
 import { relativeTime } from "../utils/dates";
-import { CategoryIcon, GroupBadge } from "../components/Icons";
+import { CategoryIcon } from "../components/Icons";
 
 export function Dashboard() {
   const { state, peopleById } = useStore();
-  const [addingExpense, setAddingExpense] = useState(false);
-  const [settling, setSettling] = useState(false);
 
   const balances = useMemo(() => {
     const ledger = buildLedger(state);
@@ -23,158 +19,119 @@ export function Dashboard() {
   const iOwe = [...balances.entries()].filter(([, v]) => v < 0);
   const totalOwedToMe = owedToMe.reduce((sum, [, v]) => sum + v, 0);
   const totalIOwe = iOwe.reduce((sum, [, v]) => sum - v, 0);
-  const total = totalOwedToMe - totalIOwe;
-  const recentExpenses = [...state.expenses].sort((a, b) => b.createdAt - a.createdAt).slice(0, 4);
-  const activeGroups = state.groups.slice(0, 4).map((group) => {
-    const groupLedger = buildLedger(state, { groupId: group.id });
-    const groupBalances = balancesWith(groupLedger, ME);
-    const balance = [...groupBalances.values()].reduce((sum, value) => sum + value, 0);
-    return { group, balance };
-  });
+  const recentExpenses = [...state.expenses]
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 4);
+  const openBalances = [...balances.entries()]
+    .filter(([, value]) => value !== 0)
+    .sort(([, a], [, b]) => Math.abs(b) - Math.abs(a));
 
   return (
-    <>
-      <main className="pane pane-wide">
-        <div className="pane-header hero-header">
+    <main className="pane pane-wide overview-page">
+      <div className="pane-header hero-header">
+        <div>
+          <p className="eyebrow">Shared Ledger</p>
+          <h1>Overview</h1>
+        </div>
+      </div>
+
+      <section
+        className="overview-balances"
+        aria-labelledby="overview-balances-title"
+      >
+        <div className="overview-section-heading">
           <div>
-            <p className="eyebrow">Splitwiser Ledger</p>
-            <h1>Overview</h1>
+            <p className="eyebrow">Current position</p>
+            <h2 id="overview-balances-title">Balances</h2>
           </div>
-          <button className="btn btn-primary" onClick={() => setAddingExpense(true)}>
-            Add Expense
-          </button>
-          <button className="btn btn-secondary" onClick={() => setSettling(true)}>
-            Settle Up
-          </button>
+          <Link to="/settlements">Review settlements</Link>
         </div>
 
-        <section className="bento-grid">
-          <div className="module-card balance-module span-8">
-            <p className="eyebrow">Total Balance</p>
-            <strong className={total > 0 ? "pos" : total < 0 ? "neg" : "zero"}>
-              {total === 0 ? "$0.00" : `${total > 0 ? "+" : "-"}${formatMoney(Math.abs(total))}`}
+        <div className="overview-totals">
+          <div>
+            <span>You are owed</span>
+            <strong className={totalOwedToMe > 0 ? "pos" : "zero"}>
+              {formatMoney(totalOwedToMe)}
             </strong>
-            <div className="balance-meter" aria-hidden="true">
-              <span style={{ width: `${Math.min(100, Math.max(8, (totalOwedToMe / Math.max(1, totalOwedToMe + totalIOwe)) * 100))}%` }} />
-            </div>
-            <div className="ledger-stats">
-              <div>
-                <span>You owe</span>
-                <strong className={totalIOwe > 0 ? "neg" : "zero"}>{formatMoney(totalIOwe)}</strong>
-              </div>
-              <div>
-                <span>You are owed</span>
-                <strong className={totalOwedToMe > 0 ? "pos" : "zero"}>{formatMoney(totalOwedToMe)}</strong>
-              </div>
-            </div>
           </div>
-
-          <div className="module-card quick-add span-4">
-            <h2>Quick Add</h2>
-            <p className="muted-copy">Log a shared cost, record a repayment, or open a new ledger.</p>
-            <button className="btn btn-primary" onClick={() => setAddingExpense(true)}>
-              Add Expense
-            </button>
-            <button className="btn btn-secondary" onClick={() => setSettling(true)}>
-              Record Payment
-            </button>
+          <div>
+            <span>You owe</span>
+            <strong className={totalIOwe > 0 ? "neg" : "zero"}>
+              {formatMoney(totalIOwe)}
+            </strong>
           </div>
+        </div>
+      </section>
 
-          <div className="module-card span-6">
-            <div className="module-heading">
-              <h2>Recent Activity</h2>
-              <Link to="/activity">View all</Link>
-            </div>
+      <div className="overview-columns">
+        <section
+          className="overview-section"
+          aria-labelledby="recent-expenses-title"
+        >
+          <div className="overview-section-heading">
+            <h2 id="recent-expenses-title">Recent expenses</h2>
+            <Link to="/activity">View activity</Link>
+          </div>
+          <div className="overview-list">
             {recentExpenses.map((expense) => {
               const payer = expense.splits.find((split) => split.paid > 0);
-              const payerPerson = payer ? peopleById.get(payer.personId) : undefined;
+              const payerPerson = payer
+                ? peopleById.get(payer.personId)
+                : undefined;
               return (
                 <div className="feed-line" key={expense.id}>
-                  <span className={`activity-icon activity-icon-${expense.category}`}>
+                  <span
+                    className={`activity-icon activity-icon-${expense.category}`}
+                  >
                     <CategoryIcon category={expense.category} size={20} />
                   </span>
                   <div>
                     <strong>{expense.description}</strong>
-                    <span>{payerPerson?.id === ME ? "You" : payerPerson?.name} paid, {relativeTime(expense.createdAt)}</span>
+                    <span>
+                      {payerPerson?.id === ME ? "You" : payerPerson?.name} paid,{" "}
+                      {relativeTime(expense.createdAt)}
+                    </span>
                   </div>
                   <strong>{formatMoney(expense.amount)}</strong>
                 </div>
               );
             })}
-            {recentExpenses.length === 0 && <div className="empty-inline">No expenses yet.</div>}
+            {recentExpenses.length === 0 && (
+              <div className="empty-inline">No expenses yet.</div>
+            )}
           </div>
+        </section>
 
-          <div className="module-card span-6">
-            <div className="module-heading">
-              <h2>Active Ledgers</h2>
-              <Link to="/groups">Manage</Link>
-            </div>
-            {activeGroups.map(({ group, balance }) => (
-              <Link className="ledger-shortcut" key={group.id} to={`/groups/${group.id}`}>
-                <span className="ledger-icon"><GroupBadge type={group.type} name={group.name} /></span>
-                <div>
-                  <strong>{group.name}</strong>
-                  <span>{group.memberIds.length} members</span>
-                </div>
-                <span className={`status-chip ${balance === 0 ? "settled" : "owed"}`}>
-                  {balance === 0 ? "Settled" : formatMoney(Math.abs(balance))}
-                </span>
-              </Link>
-            ))}
-            {activeGroups.length === 0 && <div className="empty-inline">No groups yet.</div>}
+        <section
+          className="overview-section"
+          aria-labelledby="open-balances-title"
+        >
+          <div className="overview-section-heading">
+            <h2 id="open-balances-title">Open balances</h2>
           </div>
-
-          <div className="module-card span-6">
-            <div className="module-heading">
-              <h2>You Owe</h2>
-            </div>
-            {iOwe.length === 0 && <div className="empty-inline">No outbound balances.</div>}
-            {iOwe.slice(0, 4).map(([id, v]) => {
+          <div className="overview-list">
+            {openBalances.length === 0 && (
+              <div className="empty-inline">Everyone is settled.</div>
+            )}
+            {openBalances.map(([id, value]) => {
               const person = peopleById.get(id);
+              const owedToMe = value > 0;
               return (
                 <Link key={id} to={`/friends/${id}`} className="person-row">
                   <Avatar person={person} size={32} />
-                  <span className="name">{person?.name}</span>
-                  <span className="detail neg">
-                    {formatMoney(-v)}
+                  <span className="name">
+                    {person?.name}
+                    <small>{owedToMe ? "Owes you" : "You owe"}</small>
                   </span>
-                </Link>
-              );
-            })}
-          </div>
-
-          <div className="module-card span-6">
-            <div className="module-heading">
-              <h2>You Are Owed</h2>
-            </div>
-            {owedToMe.length === 0 && <div className="empty-inline">No inbound balances.</div>}
-            {owedToMe.slice(0, 4).map(([id, v]) => {
-              const person = peopleById.get(id);
-              return (
-                <Link key={id} to={`/friends/${id}`} className="person-row">
-                  <Avatar person={person} size={32} />
-                  <span className="name">{person?.name}</span>
-                  <span className="detail pos">
-                    {formatMoney(v)}
+                  <span className={`detail ${owedToMe ? "pos" : "neg"}`}>
+                    {formatMoney(Math.abs(value))}
                   </span>
                 </Link>
               );
             })}
           </div>
         </section>
-      </main>
-
-      <aside className="rail">
-        <div className="rail-card">
-          <h2>Ledger Notes</h2>
-          <p className="muted-copy">
-            All balances use cent-accurate math and are stored locally in this browser.
-          </p>
-        </div>
-      </aside>
-
-      {addingExpense && <AddExpenseModal onClose={() => setAddingExpense(false)} />}
-      {settling && <SettleUpModal onClose={() => setSettling(false)} />}
-    </>
+      </div>
+    </main>
   );
 }

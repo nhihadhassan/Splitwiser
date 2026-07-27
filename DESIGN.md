@@ -36,3 +36,7 @@ Button styling is controlled by the `--button-*` tokens in `:root`. Do not add c
 - Standard buttons are at least 38px high on desktop and 44px on touch layouts.
 - Focus uses `--color-focus-ring`; selected states use accent background and border roles.
 - Disabled opacity uses `--button-disabled-opacity`.
+
+## Overview
+
+Overview answers two questions: what balances are open, and what changed recently. It intentionally avoids a large net-balance hero, duplicate quick actions, an Active Ledgers card, and instructional sidebar copy. Those tasks remain available through Groups, Activity, and Settlements.
