@@ -561,10 +561,17 @@ a {
   min-width: 0;
 }
 
-.activity-icon {
+.activity-icon,
+.expense-row .cat {
   --activity-color: var(--gold);
   --activity-background: rgba(233, 193, 118, 0.09);
   --activity-border: rgba(233, 193, 118, 0.25);
+  color: var(--activity-color);
+  border-color: var(--activity-border);
+  background: var(--activity-background);
+}
+
+.activity-icon {
   width: 34px;
   height: 34px;
   display: grid;
@@ -576,37 +583,45 @@ a {
   background: var(--activity-background);
 }
 
-.activity-icon .semantic-icon {
+.activity-icon .semantic-icon,
+.expense-row .cat .semantic-icon {
   color: inherit;
 }
 
 .activity-icon-food,
-.activity-icon-groceries {
+.activity-icon-groceries,
+.expense-row .cat.activity-icon-food,
+.expense-row .cat.activity-icon-groceries {
   --activity-color: oklch(78% 0.13 145);
   --activity-background: oklch(66% 0.11 145 / 0.12);
   --activity-border: oklch(74% 0.12 145 / 0.28);
 }
 
 .activity-icon-transport,
-.activity-icon-travel {
+.activity-icon-travel,
+.expense-row .cat.activity-icon-transport,
+.expense-row .cat.activity-icon-travel {
   --activity-color: oklch(78% 0.11 230);
   --activity-background: oklch(63% 0.1 230 / 0.13);
   --activity-border: oklch(75% 0.1 230 / 0.28);
 }
 
-.activity-icon-entertainment {
+.activity-icon-entertainment,
+.expense-row .cat.activity-icon-entertainment {
   --activity-color: oklch(78% 0.12 305);
   --activity-background: oklch(63% 0.12 305 / 0.13);
   --activity-border: oklch(75% 0.1 305 / 0.28);
 }
 
-.activity-icon-shopping {
+.activity-icon-shopping,
+.expense-row .cat.activity-icon-shopping {
   --activity-color: oklch(79% 0.12 28);
   --activity-background: oklch(64% 0.12 28 / 0.13);
   --activity-border: oklch(76% 0.1 28 / 0.28);
 }
 
-.activity-icon-medical {
+.activity-icon-medical,
+.expense-row .cat.activity-icon-medical {
   --activity-color: oklch(78% 0.14 18);
   --activity-background: oklch(63% 0.13 18 / 0.13);
   --activity-border: oklch(75% 0.11 18 / 0.28);
@@ -935,6 +950,18 @@ a {
   border-radius: var(--radius-sm);
   background: rgba(0, 0, 0, 0.18);
   flex-shrink: 0;
+}
+
+.expense-row .cat {
+  border-color: var(--activity-border);
+  color: var(--activity-color);
+  background: var(--activity-background);
+}
+
+.settlement-row .payment-icon {
+  color: oklch(78% 0.13 165);
+  border-color: oklch(74% 0.12 165 / 0.28);
+  background: oklch(66% 0.11 165 / 0.12);
 }
 
 .expense-row .desc {

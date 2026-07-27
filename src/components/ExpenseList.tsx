@@ -5,7 +5,7 @@ import { formatMoney } from "../utils/money";
 import { monthDay, monthLabel } from "../utils/dates";
 import { Avatar } from "./Avatar";
 import { AddExpenseModal } from "./AddExpenseModal";
-import { CategoryIcon } from "./Icons";
+import { CategoryIcon, PaymentIcon } from "./Icons";
 
 type FeedItem =
   | { kind: "expense"; date: string; createdAt: number; expense: Expense }
@@ -74,7 +74,7 @@ export function ExpenseList({
                   <div className="month">{m}</div>
                   <div className="day">{day}</div>
                 </div>
-                <div className="cash">💵</div>
+                <div className="cash payment-icon"><PaymentIcon size={20} /></div>
                 <div style={{ flex: 1 }}>
                   <strong>{from?.id === ME ? "You" : from?.name}</strong> paid{" "}
                   <strong>{to?.id === ME ? "you" : to?.name}</strong> {formatMoney(s.amount)}
@@ -111,7 +111,9 @@ export function ExpenseList({
                 <div className="month">{m}</div>
                 <div className="day">{day}</div>
               </div>
-              <div className="cat"><CategoryIcon category={e.category} size={20} /></div>
+              <div className={`cat activity-icon-${e.category}`}>
+                <CategoryIcon category={e.category} size={20} />
+              </div>
               <div className="desc">
                 <div className="title">{e.description}</div>
                 {groupName && <div className="where">{groupName}</div>}

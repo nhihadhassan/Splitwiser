@@ -26,6 +26,16 @@ export function CategoryIcon({ category, size = 22 }: { category: ExpenseCategor
   return <span className="semantic-icon"><Svg size={size}>{icons[category]}</Svg></span>;
 }
 
+export function PaymentIcon({ size = 20 }: { size?: number }) {
+  return (
+    <span className="semantic-icon">
+      <Svg size={size}>
+        <path d="M5 8h13M15 5l3 3-3 3M19 16H6M9 13l-3 3 3 3" />
+      </Svg>
+    </span>
+  );
+}
+
 export function GroupIcon({ type, size = 20 }: { type: GroupType; size?: number }) {
   const icons: Record<GroupType, React.ReactNode> = {
     trip: <><path d="m3 12 18-7-7 18-2-7-9-4Z" /><path d="m12 16 3-3" /></>,
