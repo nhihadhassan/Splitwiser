@@ -36,6 +36,25 @@ export function GroupIcon({ type, size = 20 }: { type: GroupType; size?: number 
   return <span className="semantic-icon group-semantic-icon"><Svg size={size}>{icons[type]}</Svg></span>;
 }
 
+export function CountryFlagIcon({ country, size = 44 }: { country: "peru" | "portugal"; size?: number }) {
+  const flagWidth = size * 0.68;
+  const flagHeight = size * 0.44;
+  return (
+    <span className="country-flag-icon" style={{ width: size, height: size }} aria-label={`${country} flag`} role="img">
+      <svg width={flagWidth} height={flagHeight} viewBox="0 0 60 40" fill="none" aria-hidden="true">
+        {country === "peru" ? <><rect width="20" height="40" fill="#D91023" /><rect x="20" width="20" height="40" fill="#FFF" /><rect x="40" width="20" height="40" fill="#D91023" /></> : <><rect width="24" height="40" fill="#046A38" /><rect x="24" width="36" height="40" fill="#DA291C" /><circle cx="24" cy="20" r="9" fill="#F7D117" /><circle cx="24" cy="20" r="6.5" fill="#FFF" /></>}
+      </svg>
+    </span>
+  );
+}
+
+export function GroupBadge({ type, name, size = 44 }: { type: GroupType; name: string; size?: number }) {
+  const normalized = name.toLowerCase();
+  if (type === "trip" && normalized.includes("peru")) return <CountryFlagIcon country="peru" size={size} />;
+  if (type === "trip" && normalized.includes("portugal")) return <CountryFlagIcon country="portugal" size={size} />;
+  return <GroupIcon type={type} size={size * 0.5} />;
+}
+
 export function NavIcon({ type }: { type: "overview" | "groups" | "activity" | "expenses" | "settlements" | "reconciliation" }) {
   const icons = {
     overview: <><circle cx="12" cy="12" r="8" /><path d="m12 8 1.5 3.5L17 13l-3.5 1.5L12 18l-1.5-3.5L7 13l3.5-1.5L12 8Z" /></>,

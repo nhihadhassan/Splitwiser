@@ -6,8 +6,8 @@ import { formatMoney } from "../utils/money";
 import { Avatar } from "./Avatar";
 import { AddExpenseModal } from "./AddExpenseModal";
 import { AddFriendModal } from "./AddFriendModal";
-import { GroupModal, GROUP_ICONS } from "./GroupModal";
-import { BrandMark, NavIcon } from "./Icons";
+import { GroupModal } from "./GroupModal";
+import { BrandMark, GroupBadge, NavIcon } from "./Icons";
 
 export function Layout() {
   const { state, peopleById } = useStore();
@@ -69,7 +69,7 @@ export function Layout() {
           {state.groups.length === 0 && <div className="nav-empty">No groups yet</div>}
           {state.groups.map((g) => (
             <NavLink key={g.id} to={`/groups/${g.id}`} className="nav-sub">
-              {GROUP_ICONS[g.type]} {g.name}
+              <GroupBadge type={g.type} name={g.name} size={28} /> {g.name}
             </NavLink>
           ))}
 

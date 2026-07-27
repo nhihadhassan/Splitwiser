@@ -5,7 +5,8 @@ import { buildLedger, netBalances } from "../utils/balances";
 import { formatMoney } from "../utils/money";
 import { Avatar } from "../components/Avatar";
 import { AddExpenseModal } from "../components/AddExpenseModal";
-import { GroupModal, GROUP_ICONS } from "../components/GroupModal";
+import { GroupModal } from "../components/GroupModal";
+import { GroupBadge } from "../components/Icons";
 
 export function GroupsPage() {
   const { state, peopleById } = useStore();
@@ -55,7 +56,7 @@ export function GroupsPage() {
             {groups.map(({ group, expenses, myBalance, total, lastActivity }) => (
               <article key={group.id} className="ledger-card">
                 <div className="ledger-card-top">
-                  <span className="ledger-icon">{GROUP_ICONS[group.type]}</span>
+                  <span className="ledger-icon"><GroupBadge type={group.type} name={group.name} /></span>
                   <span className={`status-chip ${myBalance === 0 ? "settled" : "owed"}`}>
                     {myBalance === 0 ? "Settled" : myBalance > 0 ? "Owed" : "Payable"}
                   </span>

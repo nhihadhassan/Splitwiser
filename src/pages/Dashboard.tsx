@@ -6,9 +6,8 @@ import { formatMoney } from "../utils/money";
 import { Avatar } from "../components/Avatar";
 import { AddExpenseModal } from "../components/AddExpenseModal";
 import { SettleUpModal } from "../components/SettleUpModal";
-import { GROUP_ICONS } from "../components/GroupModal";
 import { relativeTime } from "../utils/dates";
-import { CategoryIcon } from "../components/Icons";
+import { CategoryIcon, GroupBadge } from "../components/Icons";
 
 export function Dashboard() {
   const { state, peopleById } = useStore();
@@ -110,7 +109,7 @@ export function Dashboard() {
             </div>
             {activeGroups.map(({ group, balance }) => (
               <Link className="ledger-shortcut" key={group.id} to={`/groups/${group.id}`}>
-                <span className="ledger-icon">{GROUP_ICONS[group.type]}</span>
+                <span className="ledger-icon"><GroupBadge type={group.type} name={group.name} /></span>
                 <div>
                   <strong>{group.name}</strong>
                   <span>{group.memberIds.length} members</span>

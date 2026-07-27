@@ -100,9 +100,9 @@ function loadInitialState(): AppState {
           people: parsed.people
             .map((person) => (person.id === ME ? { ...person, name: "Nhihad" } : person))
             .concat(peopleIds.has("p-bijan") ? [] : [{ id: "p-bijan", name: "Bijan", color: "#C57C55" }]),
-          groups: parsed.groups.map((group) =>
-            group.name === "Portugal 2026"
-              ? { ...group, name: "Portugal 2026 🇵🇹" }
+            groups: parsed.groups.map((group) =>
+            group.name === "Portugal 2026 🇵🇹"
+              ? { ...group, name: "Portugal 2026" }
               : group.id === "g-new-york"
                 ? { ...group, memberIds: ["me", "p-bijan"] }
                 : group.id === "g-peru"

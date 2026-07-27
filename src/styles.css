@@ -176,6 +176,28 @@ a {
   color: var(--gold);
 }
 
+.country-flag-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #ff9800;
+  box-shadow: 0 5px 14px rgba(255, 152, 0, 0.16);
+}
+
+.country-flag-icon svg {
+  display: block;
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+.group-page-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .nav-link:hover,
 .nav-sub:hover {
   color: var(--text);

@@ -13,7 +13,8 @@ import { Avatar } from "../components/Avatar";
 import { ExpenseList } from "../components/ExpenseList";
 import { AddExpenseModal } from "../components/AddExpenseModal";
 import { SettleUpModal } from "../components/SettleUpModal";
-import { GroupModal, GROUP_ICONS } from "../components/GroupModal";
+import { GroupModal } from "../components/GroupModal";
+import { GroupBadge } from "../components/Icons";
 
 export function GroupPage() {
   const { groupId } = useParams();
@@ -54,7 +55,7 @@ export function GroupPage() {
       <main className="pane">
         <div className="pane-header">
           <h1>
-            {GROUP_ICONS[group.type]} {group.name}
+            <span className="group-page-title"><GroupBadge type={group.type} name={group.name} size={44} /> {group.name}</span>
             <span className="sub">{group.memberIds.length} people</span>
           </h1>
           <button className="btn btn-orange" onClick={() => setAddingExpense(true)}>
