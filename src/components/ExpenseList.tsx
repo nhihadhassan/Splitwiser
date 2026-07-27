@@ -85,7 +85,7 @@ export function ExpenseList({
                   <strong>{to?.id === ME ? "you" : to?.name}</strong> {formatMoney(s.amount)}
                 </div>
                 <button
-                  className="btn-danger-link"
+                  className="btn-link-danger"
                   title="Delete payment"
                   onClick={() => dispatch({ type: "deleteSettlement", settlementId: s.id })}
                 >
@@ -175,7 +175,7 @@ export function ExpenseList({
                 <div>
                   <strong>{payerPerson?.id === ME ? "You" : payerPerson?.name}</strong> paid{" "}
                   {formatMoney(e.amount)}
-                  {e.notes && <span style={{ color: "#888" }}> — “{e.notes}”</span>}
+                  {e.notes && <span className="detail-note"> — “{e.notes}”</span>}
                 </div>
                 <ul className="breakdown">
                   {e.splits.map((s) => {
@@ -191,7 +191,7 @@ export function ExpenseList({
                 </ul>
                 <div className="actions">
                   <button
-                    className="btn btn-plain"
+                    className="btn btn-secondary"
                     onClick={(ev) => {
                       ev.stopPropagation();
                       setEditing(e);
@@ -200,7 +200,7 @@ export function ExpenseList({
                     Edit
                   </button>
                   <button
-                    className="btn-danger-link"
+                    className="btn-link-danger"
                     onClick={(ev) => {
                       ev.stopPropagation();
                       if (confirm(`Delete "${e.description}"?`)) {

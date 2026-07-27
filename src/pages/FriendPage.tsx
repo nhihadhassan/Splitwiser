@@ -46,10 +46,10 @@ export function FriendPage() {
           <h1>
             <Avatar person={friend} size={34} /> {friend.name}
           </h1>
-          <button className="btn btn-orange" onClick={() => setAddingExpense(true)}>
+          <button className="btn btn-primary" onClick={() => setAddingExpense(true)}>
             Add an expense
           </button>
-          <button className="btn btn-teal" onClick={() => setSettling(true)}>
+          <button className="btn btn-primary" onClick={() => setSettling(true)}>
             Settle up
           </button>
         </div>
@@ -77,7 +77,7 @@ export function FriendPage() {
       <aside className="rail">
         <div className="rail-card">
           <h2>About</h2>
-          <div style={{ fontSize: 13, color: "#666", lineHeight: 1.7 }}>
+          <div className="friend-about-copy">
             {friend.email && <div>✉️ {friend.email}</div>}
             <div>
               👥 {sharedGroups.length === 0 ? "No shared groups" : "Groups together:"}

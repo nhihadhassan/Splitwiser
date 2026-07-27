@@ -41,7 +41,7 @@ export function GroupsPage() {
             <p className="eyebrow">Splitwiser Groups</p>
             <h1>Active Groups</h1>
           </div>
-          <button className="btn btn-gold" onClick={() => setAddingGroup(true)}>
+          <button className="btn btn-primary" onClick={() => setAddingGroup(true)}>
             New Group
           </button>
         </div>
@@ -86,10 +86,10 @@ export function GroupsPage() {
                   {group.memberIds.length > 5 && <span>+{group.memberIds.length - 5}</span>}
                 </div>
                 <div className="ledger-actions">
-                  <Link className="btn btn-plain" to={`/groups/${group.id}`}>
+                  <Link className="btn btn-secondary" to={`/groups/${group.id}`}>
                     Open Ledger
                   </Link>
-                  <button className="btn btn-gold" onClick={() => setAddingExpenseFor(group.id)}>
+                  <button className="btn btn-primary" onClick={() => setAddingExpenseFor(group.id)}>
                     Add Expense
                   </button>
                 </div>

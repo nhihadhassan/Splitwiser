@@ -40,10 +40,10 @@ export function Dashboard() {
             <p className="eyebrow">Splitwiser Ledger</p>
             <h1>Overview</h1>
           </div>
-          <button className="btn btn-gold" onClick={() => setAddingExpense(true)}>
+          <button className="btn btn-primary" onClick={() => setAddingExpense(true)}>
             Add Expense
           </button>
-          <button className="btn btn-plain" onClick={() => setSettling(true)}>
+          <button className="btn btn-secondary" onClick={() => setSettling(true)}>
             Settle Up
           </button>
         </div>
@@ -72,10 +72,10 @@ export function Dashboard() {
           <div className="module-card quick-add span-4">
             <h2>Quick Add</h2>
             <p className="muted-copy">Log a shared cost, record a repayment, or open a new ledger.</p>
-            <button className="btn btn-gold" onClick={() => setAddingExpense(true)}>
+            <button className="btn btn-primary" onClick={() => setAddingExpense(true)}>
               Add Expense
             </button>
-            <button className="btn btn-plain" onClick={() => setSettling(true)}>
+            <button className="btn btn-secondary" onClick={() => setSettling(true)}>
               Record Payment
             </button>
           </div>

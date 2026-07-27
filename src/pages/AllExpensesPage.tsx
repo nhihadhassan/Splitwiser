@@ -31,10 +31,10 @@ export function AllExpensesPage() {
             <p className="eyebrow">Transaction Feed</p>
             <h1>All Expenses</h1>
           </div>
-          <button className="btn btn-gold" onClick={() => setAddingExpense(true)}>
+          <button className="btn btn-primary" onClick={() => setAddingExpense(true)}>
             Add Expense
           </button>
-          <button className="btn btn-plain" onClick={() => setSettling(true)}>
+          <button className="btn btn-secondary" onClick={() => setSettling(true)}>
             Settle Up
           </button>
         </div>
@@ -76,7 +76,7 @@ export function AllExpensesPage() {
             Reset restores the Portugal 2026 ledger and clears local edits in this browser.
           </p>
           <button
-            className="btn btn-plain"
+            className="btn btn-secondary"
             onClick={() => {
               if (confirm("Reset all data back to the demo state?")) {
                 dispatch({ type: "reset" });

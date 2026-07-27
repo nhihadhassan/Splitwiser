@@ -58,10 +58,10 @@ export function GroupPage() {
             <span className="group-page-title"><GroupBadge type={group.type} name={group.name} size={44} /> {group.name}</span>
             <span className="sub">{group.memberIds.length} people</span>
           </h1>
-          <button className="btn btn-orange" onClick={() => setAddingExpense(true)}>
+          <button className="btn btn-primary" onClick={() => setAddingExpense(true)}>
             Add an expense
           </button>
-          <button className="btn btn-teal" onClick={() => setSettlingBlank(true)}>
+          <button className="btn btn-primary" onClick={() => setSettlingBlank(true)}>
             Settle up
           </button>
         </div>
@@ -105,8 +105,7 @@ export function GroupPage() {
                 </span>
                 <span className="neg">{formatMoney(d.amount)}</span>
                 <button
-                  className="btn-danger-link"
-                  style={{ color: "var(--teal-dark)" }}
+                  className="btn-link-success"
                   title="Record this payment"
                   onClick={() => setSettling({ fromId: d.fromId, toId: d.toId, amount: d.amount })}
                 >
@@ -120,10 +119,10 @@ export function GroupPage() {
         <div className="rail-card">
           <h2>Group settings</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
-            <button className="btn btn-plain" onClick={() => setEditingGroup(true)}>
+            <button className="btn btn-secondary" onClick={() => setEditingGroup(true)}>
               Edit group
             </button>
-            <button className="btn-danger-link" onClick={deleteGroup}>
+            <button className="btn-link-danger" onClick={deleteGroup}>
               Delete group
             </button>
           </div>

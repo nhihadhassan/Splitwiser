@@ -34,10 +34,10 @@ export function AddFriendModal({ onClose }: { onClose: () => void }) {
       onClose={onClose}
       footer={
         <>
-          <button className="btn btn-plain" onClick={onClose}>
+          <button className="btn btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn btn-teal" onClick={save}>
+          <button className="btn btn-primary" onClick={save}>
             Add friend
           </button>
         </>

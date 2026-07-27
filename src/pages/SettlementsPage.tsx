@@ -49,7 +49,7 @@ export function SettlementsPage() {
             <p className="eyebrow">Settlement Center</p>
             <h1>Settlement Overview</h1>
           </div>
-          <button className="btn btn-plain" onClick={() => setAddingExpense(true)}>
+          <button className="btn btn-secondary" onClick={() => setAddingExpense(true)}>
             Add Expense
           </button>
         </div>
@@ -63,7 +63,7 @@ export function SettlementsPage() {
             <span>Total Expected</span>
             <strong className="pos">{formatMoney(totalInbound)}</strong>
           </div>
-          <button className="btn btn-gold" disabled={payable.length === 0} onClick={settleAllPayable}>
+          <button className="btn btn-primary" disabled={payable.length === 0} onClick={settleAllPayable}>
             Settle All
           </button>
         </section>
@@ -170,7 +170,7 @@ function SettlementAction({
         <button title="Wire transfer" className="tool-button">
           WT
         </button>
-        <button title="Record payment" className="btn btn-gold" onClick={() => onSettle(debt)}>
+        <button title="Record payment" className="btn btn-primary" onClick={() => onSettle(debt)}>
           Settle
         </button>
       </div>

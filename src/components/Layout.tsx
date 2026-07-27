@@ -30,7 +30,7 @@ export function Layout() {
         </NavLink>
         <div className="spacer" />
         <button
-          className="btn btn-plain top-action"
+          className="btn btn-secondary top-action"
           onClick={() => setAddingExpense(true)}
           aria-label="Add expense"
         >
