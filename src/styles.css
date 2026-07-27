@@ -177,10 +177,12 @@ a {
 }
 
 .country-flag-icon {
-  display: inline-grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 auto;
   overflow: hidden;
+  vertical-align: middle;
   border-radius: 18px;
   background: #ff9800;
   box-shadow: 0 5px 14px rgba(255, 152, 0, 0.16);
@@ -188,8 +190,17 @@ a {
 
 .country-flag-icon svg {
   display: block;
+  flex: 0 0 auto;
+  margin: 0;
   border-radius: 3px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+.ledger-icon:has(.country-flag-icon) {
+  width: 44px;
+  height: 44px;
+  border-color: transparent;
+  background: transparent;
 }
 
 .group-page-title {
