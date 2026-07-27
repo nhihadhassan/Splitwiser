@@ -75,11 +75,30 @@ function loadInitialState(): AppState {
     if (raw) {
       const parsed = JSON.parse(raw) as AppState;
       if (parsed.people && parsed.groups && parsed.expenses && parsed.settlements) {
+        const tripGroups: Group[] = [
+          {
+            id: "g-new-york",
+            name: "New York 2026",
+            type: "trip",
+            memberIds: ["me", "p-rachel"],
+            createdAt: new Date("2026-06-25T12:00:00Z").getTime(),
+            simplifyDebts: true,
+          },
+          {
+            id: "g-peru",
+            name: "Peru 2026",
+            type: "trip",
+            memberIds: ["me", "p-rachel"],
+            createdAt: new Date("2026-07-11T12:00:00Z").getTime(),
+            simplifyDebts: true,
+          },
+        ];
+        const groupIds = new Set(parsed.groups.map((group) => group.id));
         return {
           ...parsed,
           groups: parsed.groups.map((group) =>
             group.name === "Portugal 2026" ? { ...group, name: "Portugal 2026 🇵🇹" } : group,
-          ),
+          ).concat(tripGroups.filter((group) => !groupIds.has(group.id))),
         };
       }
     }
