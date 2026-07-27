@@ -7,7 +7,7 @@ function Svg({ children, size = 20, strokeWidth = 1.8 }: IconProps & { children:
 }
 
 export function BrandMark({ size = 32 }: { size?: number }) {
-  return <span className="brand-mark" style={{ width: size, height: size }} aria-hidden="true"><svg viewBox="0 0 32 32" width={size} height={size} fill="none"><path d="M7 8.5h7.2c3.7 0 6.1 1.7 6.1 4.6 0 1.9-1 3.3-2.7 4 2.3.6 3.5 2.1 3.5 4.2 0 3.2-2.7 5.2-7 5.2H7V8.5Z" fill="currentColor" opacity=".94" /><path d="M16.1 8.5v18" stroke="var(--gold-ink)" strokeWidth="2.2" /><path d="M8.5 14h5.3M8.5 20h5.8" stroke="var(--gold-ink)" strokeWidth="1.8" strokeLinecap="round" /></svg></span>;
+  return <span className="brand-mark" style={{ width: size, height: size }} aria-hidden="true"><svg viewBox="0 0 40 40" width={size} height={size} fill="none"><path d="M7 9C9 5 14 3 20 4h13l-7 8H16c-2 0-3 1-3 3 0 2 2 3 5 3h6l-5 6h-5C8 24 4 21 4 16c0-3 1-5 3-7Z" fill="#E7BF67" /><path d="M33 31c-2 4-7 6-13 5H7l7-8h10c2 0 3-1 3-3 0-2-2-3-5-3h-5l5-6h5c5 0 9 3 9 8 0 3-1 5-3 7Z" fill="#8BE0B6" /></svg></span>;
 }
 
 export function CategoryIcon({ category, size = 22 }: { category: ExpenseCategory; size?: number }) {
