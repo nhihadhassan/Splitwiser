@@ -1,0 +1,290 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-27T20:50:23Z",
+  "title": "Design System: Splitwiser",
+  "extensions": {
+    "colorMeta": {
+      "ledger-charcoal": {
+        "role": "neutral",
+        "displayName": "Ledger Charcoal",
+        "canonical": "oklch(18% 0.006 70)",
+        "tonalRamp": ["oklch(15% 0.006 70)", "oklch(25% 0.006 70)", "oklch(36% 0.006 70)", "oklch(48% 0.006 70)", "oklch(60% 0.006 70)", "oklch(72% 0.006 70)", "oklch(84% 0.006 70)", "oklch(95% 0.006 70)"]
+      },
+      "sidebar-charcoal": {
+        "role": "neutral",
+        "displayName": "Sidebar Charcoal",
+        "canonical": "oklch(22% 0.006 70 / 0.92)",
+        "tonalRamp": ["oklch(15% 0.006 70)", "oklch(25% 0.006 70)", "oklch(36% 0.006 70)", "oklch(48% 0.006 70)", "oklch(60% 0.006 70)", "oklch(72% 0.006 70)", "oklch(84% 0.006 70)", "oklch(95% 0.006 70)"]
+      },
+      "panel-charcoal": {
+        "role": "neutral",
+        "displayName": "Panel Charcoal",
+        "canonical": "oklch(24% 0.006 70 / 0.84)",
+        "tonalRamp": ["oklch(15% 0.006 70)", "oklch(25% 0.006 70)", "oklch(36% 0.006 70)", "oklch(48% 0.006 70)", "oklch(60% 0.006 70)", "oklch(72% 0.006 70)", "oklch(84% 0.006 70)", "oklch(95% 0.006 70)"]
+      },
+      "row-charcoal": {
+        "role": "neutral",
+        "displayName": "Row Charcoal",
+        "canonical": "oklch(24% 0.006 70 / 0.74)",
+        "tonalRamp": ["oklch(15% 0.006 70)", "oklch(25% 0.006 70)", "oklch(36% 0.006 70)", "oklch(48% 0.006 70)", "oklch(60% 0.006 70)", "oklch(72% 0.006 70)", "oklch(84% 0.006 70)", "oklch(95% 0.006 70)"]
+      },
+      "raised-charcoal": {
+        "role": "neutral",
+        "displayName": "Raised Charcoal",
+        "canonical": "oklch(29% 0.006 70)",
+        "tonalRamp": ["oklch(15% 0.006 70)", "oklch(25% 0.006 70)", "oklch(36% 0.006 70)", "oklch(48% 0.006 70)", "oklch(60% 0.006 70)", "oklch(72% 0.006 70)", "oklch(84% 0.006 70)", "oklch(95% 0.006 70)"]
+      },
+      "control-charcoal": {
+        "role": "neutral",
+        "displayName": "Control Charcoal",
+        "canonical": "oklch(12% 0.004 70 / 0.72)",
+        "tonalRamp": ["oklch(15% 0.004 70)", "oklch(25% 0.004 70)", "oklch(36% 0.004 70)", "oklch(48% 0.004 70)", "oklch(60% 0.004 70)", "oklch(72% 0.004 70)", "oklch(84% 0.004 70)", "oklch(95% 0.004 70)"]
+      },
+      "ledger-ivory": {
+        "role": "neutral",
+        "displayName": "Ledger Ivory",
+        "canonical": "oklch(91% 0.006 55)",
+        "tonalRamp": ["oklch(15% 0.006 55)", "oklch(25% 0.006 55)", "oklch(36% 0.006 55)", "oklch(48% 0.006 55)", "oklch(60% 0.006 55)", "oklch(72% 0.006 55)", "oklch(84% 0.006 55)", "oklch(95% 0.006 55)"]
+      },
+      "muted-parchment": {
+        "role": "neutral",
+        "displayName": "Muted Parchment",
+        "canonical": "oklch(82% 0.02 70)",
+        "tonalRamp": ["oklch(15% 0.02 70)", "oklch(25% 0.02 70)", "oklch(36% 0.02 70)", "oklch(48% 0.02 70)", "oklch(60% 0.02 70)", "oklch(72% 0.02 70)", "oklch(84% 0.02 70)", "oklch(95% 0.02 70)"]
+      },
+      "quiet-taupe": {
+        "role": "neutral",
+        "displayName": "Quiet Taupe",
+        "canonical": "oklch(66% 0.02 70)",
+        "tonalRamp": ["oklch(15% 0.02 70)", "oklch(25% 0.02 70)", "oklch(36% 0.02 70)", "oklch(48% 0.02 70)", "oklch(60% 0.02 70)", "oklch(72% 0.02 70)", "oklch(84% 0.02 70)", "oklch(95% 0.02 70)"]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(98% 0.006 70 / 0.1)",
+        "tonalRamp": ["oklch(15% 0.006 70)", "oklch(25% 0.006 70)", "oklch(36% 0.006 70)", "oklch(48% 0.006 70)", "oklch(60% 0.006 70)", "oklch(72% 0.006 70)", "oklch(84% 0.006 70)", "oklch(95% 0.006 70)"]
+      },
+      "sand-gold": {
+        "role": "primary",
+        "displayName": "Sand Gold",
+        "canonical": "oklch(82% 0.1 78)",
+        "tonalRamp": ["oklch(15% 0.04 78)", "oklch(25% 0.06 78)", "oklch(36% 0.08 78)", "oklch(48% 0.1 78)", "oklch(60% 0.1 78)", "oklch(72% 0.1 78)", "oklch(84% 0.08 78)", "oklch(95% 0.03 78)"]
+      },
+      "deep-gold": {
+        "role": "primary",
+        "displayName": "Deep Gold",
+        "canonical": "oklch(70% 0.1 78)",
+        "tonalRamp": ["oklch(15% 0.04 78)", "oklch(25% 0.06 78)", "oklch(36% 0.08 78)", "oklch(48% 0.1 78)", "oklch(60% 0.1 78)", "oklch(72% 0.1 78)", "oklch(84% 0.08 78)", "oklch(95% 0.03 78)"]
+      },
+      "ink-on-gold": {
+        "role": "primary",
+        "displayName": "Ink on Gold",
+        "canonical": "oklch(31% 0.07 78)",
+        "tonalRamp": ["oklch(15% 0.04 78)", "oklch(25% 0.06 78)", "oklch(36% 0.07 78)", "oklch(48% 0.07 78)", "oklch(60% 0.07 78)", "oklch(72% 0.07 78)", "oklch(84% 0.05 78)", "oklch(95% 0.02 78)"]
+      },
+      "balance-mint": {
+        "role": "secondary",
+        "displayName": "Balance Mint",
+        "canonical": "oklch(82% 0.15 160)",
+        "tonalRamp": ["oklch(15% 0.05 160)", "oklch(25% 0.08 160)", "oklch(36% 0.11 160)", "oklch(48% 0.14 160)", "oklch(60% 0.15 160)", "oklch(72% 0.15 160)", "oklch(84% 0.11 160)", "oklch(95% 0.04 160)"]
+      },
+      "balance-coral": {
+        "role": "tertiary",
+        "displayName": "Balance Coral",
+        "canonical": "oklch(74% 0.17 20)",
+        "tonalRamp": ["oklch(15% 0.06 20)", "oklch(25% 0.1 20)", "oklch(36% 0.13 20)", "oklch(48% 0.16 20)", "oklch(60% 0.17 20)", "oklch(72% 0.17 20)", "oklch(84% 0.12 20)", "oklch(95% 0.04 20)"]
+      },
+      "error-rose": {
+        "role": "tertiary",
+        "displayName": "Error Rose",
+        "canonical": "oklch(84% 0.08 25)",
+        "tonalRamp": ["oklch(15% 0.03 25)", "oklch(25% 0.05 25)", "oklch(36% 0.07 25)", "oklch(48% 0.08 25)", "oklch(60% 0.08 25)", "oklch(72% 0.08 25)", "oklch(84% 0.07 25)", "oklch(95% 0.03 25)"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Ledger Display",
+        "purpose": "Primary desktop page headings."
+      },
+      "headline": {
+        "displayName": "Section Headline",
+        "purpose": "Major in-page introductions."
+      },
+      "title": {
+        "displayName": "Module Title",
+        "purpose": "Dialogs and compact section titles."
+      },
+      "body": {
+        "displayName": "Product Body",
+        "purpose": "Controls, data, explanations, and activity copy."
+      },
+      "label": {
+        "displayName": "Ledger Label",
+        "purpose": "Field labels, dates, eyebrows, and table headers."
+      }
+    },
+    "shadows": [
+      {
+        "name": "navigation-ambient",
+        "value": "18px 0 60px rgba(0, 0, 0, 0.28)",
+        "purpose": "Desktop sidebar only."
+      },
+      {
+        "name": "dialog-lift",
+        "value": "0 24px 80px rgba(0, 0, 0, 0.48)",
+        "purpose": "Modal dialogs above the scrim."
+      },
+      {
+        "name": "status-halo",
+        "value": "0 0 0 4px var(--color-positive-subtle)",
+        "purpose": "Online-save status indicators."
+      }
+    ],
+    "motion": [
+      {
+        "name": "press",
+        "value": "transform 160ms ease",
+        "purpose": "Button press feedback."
+      },
+      {
+        "name": "state",
+        "value": "background 180ms ease, color 180ms ease, border-color 180ms ease",
+        "purpose": "Hover, active, and selection state changes."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0.01ms",
+        "purpose": "Collapses all animation and transition duration when reduced motion is requested."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "navigation-collapse",
+        "value": "1120px"
+      },
+      {
+        "name": "compact-layout",
+        "value": "680px"
+      },
+      {
+        "name": "notes-reveal",
+        "value": "1400px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single dominant action in a section or dialog.",
+      "html": "<button class=\"ds-btn-primary\">Save expense</button>",
+      "css": ".ds-btn-primary { min-height: 38px; border: 1px solid oklch(90% 0.08 78 / 0.4); border-radius: var(--button-radius, 8px); padding: 9px 14px; color: var(--color-on-accent, oklch(31% 0.07 78)); background: linear-gradient(135deg, var(--color-accent, oklch(82% 0.1 78)), var(--color-accent-strong, oklch(70% 0.1 78))); font: 700 14px Geist, sans-serif; transition: transform 160ms ease, background 180ms ease; cursor: pointer; } .ds-btn-primary:hover { background: linear-gradient(135deg, oklch(89% 0.09 78), var(--color-accent, oklch(82% 0.1 78))); } .ds-btn-primary:active { transform: scale(0.98); } .ds-btn-primary:focus-visible { outline: 2px solid var(--color-focus-ring, oklch(82% 0.1 78 / 0.78)); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Supporting, cancel, and neutral actions.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { min-height: 38px; border: 1px solid var(--color-border-default, oklch(98% 0.006 70 / 0.1)); border-radius: var(--button-radius, 8px); padding: 9px 14px; color: var(--color-text-primary, oklch(91% 0.006 55)); background: var(--color-bg-subtle, oklch(98% 0.006 70 / 0.04)); font: 700 14px Geist, sans-serif; transition: background 180ms ease, border-color 180ms ease; cursor: pointer; } .ds-btn-secondary:hover { border-color: var(--color-border-emphasis, oklch(82% 0.1 78 / 0.34)); background: var(--color-bg-accent-subtle, oklch(82% 0.1 78 / 0.08)); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--color-focus-ring, oklch(82% 0.1 78 / 0.78)); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "A labeled financial or descriptive value.",
+      "html": "<label class=\"ds-field\"><span>Description</span><input type=\"text\" placeholder=\"Enter a description\"></label>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 6px; color: var(--color-text-tertiary, oklch(66% 0.02 70)); font: 700 11px Geist, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; } .ds-field input { min-height: 38px; border: 1px solid var(--color-border-default, oklch(98% 0.006 70 / 0.1)); border-radius: var(--radius-sm, 8px); padding: 9px 10px; color: var(--color-text-primary, oklch(91% 0.006 55)); background: var(--color-bg-control, oklch(12% 0.004 70 / 0.72)); font: 400 14px Geist, sans-serif; letter-spacing: normal; text-transform: none; } .ds-field input:focus-visible { outline: 2px solid var(--color-focus-ring-soft, oklch(82% 0.1 78 / 0.6)); outline-offset: 1px; }"
+    },
+    {
+      "name": "Selection Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "A compact participant or split-method selection.",
+      "html": "<button class=\"ds-chip\" aria-pressed=\"true\"><span class=\"ds-avatar\">R</span> Rachel</button>",
+      "css": ".ds-chip { min-height: 38px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--color-accent, oklch(82% 0.1 78)); border-radius: 999px; padding: 6px 10px; color: var(--color-on-accent, oklch(31% 0.07 78)); background: var(--color-accent, oklch(82% 0.1 78)); font: 600 13px Geist, sans-serif; cursor: pointer; } .ds-avatar { width: 18px; height: 18px; display: inline-grid; place-items: center; border-radius: 50%; color: var(--color-text-primary, oklch(91% 0.006 55)); background: var(--color-bg-raised, oklch(29% 0.006 70)); font-size: 10px; font-weight: 800; } .ds-chip:hover { filter: brightness(1.05); } .ds-chip:focus-visible { outline: 2px solid var(--color-focus-ring, oklch(82% 0.1 78 / 0.78)); outline-offset: 2px; }"
+    },
+    {
+      "name": "Navigation Item",
+      "kind": "nav",
+      "description": "A current desktop navigation destination.",
+      "html": "<a class=\"ds-nav-item\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M7 3.5h7l3 3v14H7z\"></path><path d=\"M14 3.5v4h4M10 12h4M10 16h4\"></path></svg>All Expenses</a>",
+      "css": ".ds-nav-item { min-height: 38px; display: inline-flex; align-items: center; gap: 10px; border: 1px solid var(--color-border-emphasis, oklch(82% 0.1 78 / 0.34)); border-radius: var(--radius-sm, 8px); padding: 9px 10px; color: var(--color-accent, oklch(82% 0.1 78)); background: var(--color-bg-accent-subtle, oklch(82% 0.1 78 / 0.08)); font: 600 14px Geist, sans-serif; text-decoration: none; transition: background 180ms ease, color 180ms ease, border-color 180ms ease; } .ds-nav-item:hover { background: var(--color-bg-accent-active, oklch(82% 0.1 78 / 0.14)); } .ds-nav-item:focus-visible { outline: 2px solid var(--color-focus-ring, oklch(82% 0.1 78 / 0.78)); outline-offset: 2px; }"
+    },
+    {
+      "name": "Ledger Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "A bounded module for a coherent financial task.",
+      "html": "<section class=\"ds-panel\"><p class=\"ds-eyebrow\">Open balances</p><h2>Friends to settle with</h2><p>Balances stay direct, readable, and free of decorative metrics.</p></section>",
+      "css": ".ds-panel { max-width: 420px; border: 1px solid var(--color-border-default, oklch(98% 0.006 70 / 0.1)); border-radius: var(--radius-lg, 16px); padding: 22px; color: var(--color-text-secondary, oklch(82% 0.02 70)); background: var(--color-bg-panel, oklch(24% 0.006 70 / 0.84)); font: 400 14px/1.6 Geist, sans-serif; } .ds-panel h2 { margin: 0; color: var(--color-text-primary, oklch(91% 0.006 55)); font: 700 20px/1.25 \"Source Serif 4\", Georgia, serif; } .ds-panel p:last-child { margin: 10px 0 0; } .ds-eyebrow { margin: 0 0 7px; color: var(--color-text-tertiary, oklch(66% 0.02 70)); font: 700 11px/1.2 Geist, sans-serif; letter-spacing: 0.13em; text-transform: uppercase; } .ds-panel:focus-within { border-color: var(--color-border-emphasis, oklch(82% 0.1 78 / 0.34)); }"
+    },
+    {
+      "name": "Expense Row",
+      "kind": "custom",
+      "description": "A compact ledger entry with category context and aligned figures.",
+      "html": "<article class=\"ds-expense\"><time>JUL<br><strong>25</strong></time><span class=\"ds-expense-icon\" aria-hidden=\"true\"><svg viewBox=\"0 0 24 24\" width=\"22\" height=\"22\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M7 3v8M4.5 3v5a2.5 2.5 0 0 0 5 0V3M7 11v10M16 3v18M16 3c2.2 1.6 3.5 4.1 3.5 6.7H16\"></path></svg></span><span class=\"ds-expense-copy\"><strong>Breakfast</strong><small>Food · Peru 2026</small></span><span class=\"ds-expense-figure\"><small>you paid</small><strong>$21.84</strong></span><span class=\"ds-expense-figure ds-expense-lent\"><small>you lent</small><strong>$10.92</strong></span></article>",
+      "css": ".ds-expense { display: grid; grid-template-columns: 38px 44px minmax(0, 1fr) minmax(88px, auto) minmax(88px, auto); gap: 12px; align-items: center; padding: 16px 18px; border-top: 1px solid var(--color-border-default, oklch(98% 0.006 70 / 0.1)); color: var(--color-text-tertiary, oklch(66% 0.02 70)); background: var(--color-bg-row, oklch(24% 0.006 70 / 0.74)); font: 500 11px/1.2 Geist, sans-serif; } .ds-expense time strong { color: var(--color-text-primary, oklch(91% 0.006 55)); font-size: 22px; } .ds-expense-icon { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--color-border-default, oklch(98% 0.006 70 / 0.1)); border-radius: var(--radius-sm, 8px); color: var(--color-accent, oklch(82% 0.1 78)); } .ds-expense-copy { display: flex; flex-direction: column; gap: 4px; min-width: 0; } .ds-expense-copy strong, .ds-expense-figure strong { color: var(--color-text-primary, oklch(91% 0.006 55)); font-size: 14px; } .ds-expense-copy small, .ds-expense-figure small { color: var(--color-text-tertiary, oklch(66% 0.02 70)); font-size: 11px; } .ds-expense-figure { text-align: right; } .ds-expense-figure strong { display: block; margin-top: 3px; } .ds-expense-lent strong { color: var(--color-positive, oklch(82% 0.15 160)); } .ds-expense:focus-visible { outline: 2px solid var(--color-focus-ring, oklch(82% 0.1 78 / 0.78)); outline-offset: -2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Warm Ledger",
+    "overview": "Splitwiser should feel like a carefully kept account book used after dinner or while reviewing a trip: calm charcoal paper, warm metallic markers, and exact figures that remain easy to scan. This is product UI, so design serves the task. Familiar controls, stable grids, restrained motion, and explicit labels take priority over spectacle.",
+    "keyCharacteristics": [
+      "Warm, low-chroma charcoal surfaces with one sand-gold action voice.",
+      "Clear mint and coral balance semantics that never rely on position alone.",
+      "Serif section headings paired with compact sans-serif controls and figures.",
+      "Flat rows and bounded panels, with depth reserved for navigation and dialogs.",
+      "Desktop density that becomes structural, touch-safe layout below 1120px."
+    ],
+    "rules": [
+      {
+        "name": "The Ledger First Rule",
+        "body": "Every screen must answer a financial question before it adds decoration.",
+        "section": "overview"
+      },
+      {
+        "name": "The One Gold Voice Rule",
+        "body": "Sand Gold is reserved for actions, current selection, focus, and meaningful ledger emphasis. It is never ambient decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Balance Meaning Rule",
+        "body": "Mint always means value returning to the user or a completed constructive state. Coral always means value leaving the user or an unresolved negative state.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Voices Rule",
+        "body": "Serif introduces a place or section. Sans-serif operates it. Never use the display face for buttons, form labels, navigation, or table data.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat by Default Rule",
+        "body": "If an ordinary expense, balance, or activity panel needs a shadow to separate it, fix its surface contrast or border first.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use Sand Gold for the current action, selected state, or keyboard focus.",
+      "Do use Mint and Coral consistently for incoming and outgoing balance meaning.",
+      "Do preserve visible categories and stable figure alignment in every expense-row layout.",
+      "Do keep desktop controls at least 38px high and touch controls at least 44px high.",
+      "Do use a single contextual Add Expense action per screen.",
+      "Do keep trip flags, the New York Statue of Liberty, and category icons locally expressive.",
+      "Do use semantic button variants, explicit form labels, progressbar semantics, focus trapping, and visible focus rings.",
+      "Do adapt layout structurally at 1120px and 680px rather than shrinking type fluidly."
+    ],
+    "donts": [
+      "Don't use generic fintech navy and gold, neon crypto styling, purple gradients, or decorative glassmorphism.",
+      "Don't create a giant net-balance hero, duplicate quick actions, an Active Ledgers card, or instructional sidebar copy on Overview.",
+      "Don't put every fact in an identical card or nest cards inside cards.",
+      "Don't add a colored border-left or border-right thicker than 1px as an accent.",
+      "Don't use gradient text, ornamental blur, bounce motion, or orchestrated page-load animation.",
+      "Don't use Source Serif 4 for controls, labels, navigation, or dense financial data.",
+      "Don't hide category context to make an expense row fit. Reflow the row instead.",
+      "Don't open a modal when an inline status, setup panel, or progressive disclosure pattern can finish the task.",
+      "Don't invent color-named button variants. Use primary, secondary, success-link, danger-link, or utility roles."
+    ]
+  }
+}
