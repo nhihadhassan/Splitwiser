@@ -37,12 +37,12 @@ export function GroupIcon({ type, size = 20 }: { type: GroupType; size?: number 
 }
 
 export function CountryFlagIcon({ country, size = 44 }: { country: "peru" | "portugal"; size?: number }) {
-  const flagWidth = size * 0.68;
-  const flagHeight = size * 0.68;
+  const flagWidth = size * 0.6;
+  const flagHeight = size * 0.4;
   return (
     <span className="country-flag-icon" style={{ width: size, height: size }} aria-label={`${country} flag`} role="img">
-      <svg width={flagWidth} height={flagHeight} viewBox="0 0 60 60" fill="none" aria-hidden="true">
-        {country === "peru" ? <><rect y="10" width="20" height="40" fill="#D91023" /><rect x="20" y="10" width="20" height="40" fill="#FFF" /><rect x="40" y="10" width="20" height="40" fill="#D91023" /></> : <><rect y="10" width="24" height="40" fill="#046A38" /><rect x="24" y="10" width="36" height="40" fill="#DA291C" /><circle cx="24" cy="30" r="9" fill="#F7D117" /><circle cx="24" cy="30" r="6.5" fill="#FFF" /></>}
+      <svg className="country-flag-art" width={flagWidth} height={flagHeight} viewBox="0 0 60 40" fill="none" aria-hidden="true">
+        {country === "peru" ? <><rect width="20" height="40" fill="#D91023" /><rect x="20" width="20" height="40" fill="#FFF" /><rect x="40" width="20" height="40" fill="#D91023" /></> : <><rect width="24" height="40" fill="#046A38" /><rect x="24" width="36" height="40" fill="#DA291C" /><circle cx="24" cy="20" r="9" fill="#F7D117" /><circle cx="24" cy="20" r="6.5" fill="#FFF" /></>}
       </svg>
     </span>
   );
