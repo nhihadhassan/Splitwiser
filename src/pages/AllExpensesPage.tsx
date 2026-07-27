@@ -58,6 +58,7 @@ export function AllExpensesPage() {
           settlements={state.settlements}
           emptyMessage="No expenses match the current filters."
           showCategory
+          showNotes
         />
       </main>
       <aside className="rail">

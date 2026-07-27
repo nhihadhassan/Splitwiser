@@ -17,11 +17,13 @@ export function ExpenseList({
   settlements,
   emptyMessage,
   showCategory = false,
+  showNotes = false,
 }: {
   expenses: Expense[];
   settlements: Settlement[];
   emptyMessage: string;
   showCategory?: boolean;
+  showNotes?: boolean;
 }) {
   const { state, dispatch, peopleById } = useStore();
   const [openId, setOpenId] = useState<string | null>(null);
@@ -105,6 +107,7 @@ export function ExpenseList({
           ? state.groups.find((g) => g.id === e.groupId)?.name
           : undefined;
         const isOpen = openId === e.id;
+        const notePreview = e.notes?.replace(/^Imported from Wanderlog:\s*/i, "") ?? "No note";
 
         return (
           <div key={e.id}>
@@ -127,6 +130,12 @@ export function ExpenseList({
                   </div>
                 )}
               </div>
+              {showNotes && (
+                <div className="row-note" title={e.notes ?? "No note"} aria-label={`Note: ${e.notes ?? "No note"}`}>
+                  <span>note</span>
+                  <strong className={e.notes ? "" : "empty"}>{notePreview}</strong>
+                </div>
+              )}
               <div className="fig">
                 <div className="fig-label">
                   {payer?.personId === ME ? "you paid" : `${payerPerson?.name ?? "?"} paid`}
