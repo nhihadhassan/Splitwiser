@@ -29,8 +29,13 @@ export function Layout() {
           <BrandMark /> SPLITWISER
         </NavLink>
         <div className="spacer" />
-        <button className="btn btn-plain top-action" onClick={() => setAddingExpense(true)}>
-          Add Expense
+        <button
+          className="btn btn-plain top-action"
+          onClick={() => setAddingExpense(true)}
+          aria-label="Add expense"
+        >
+          <span className="top-action-icon" aria-hidden="true">+</span>
+          <span className="top-action-label">Add Expense</span>
         </button>
         <div className="user">
           <Avatar person={me} size={26} />
@@ -100,25 +105,30 @@ export function Layout() {
         <Outlet />
       </div>
 
-      <nav className="mobile-nav">
+      <nav className="mobile-nav" aria-label="Primary navigation">
         <NavLink to="/" end>
           <span><NavIcon type="overview" /></span>
           Overview
+        </NavLink>
+        <NavLink to="/groups">
+          <span><NavIcon type="groups" /></span>
+          Groups
         </NavLink>
         <NavLink to="/activity">
           <span><NavIcon type="activity" /></span>
           Activity
         </NavLink>
-        <button type="button" onClick={() => setAddingExpense(true)} aria-label="Add expense">
-          +
-        </button>
-        <NavLink to="/groups">
-          <span><NavIcon type="groups" /></span>
-          Groups
+        <NavLink to="/all">
+          <span><NavIcon type="expenses" /></span>
+          Expenses
         </NavLink>
         <NavLink to="/settlements">
           <span><NavIcon type="settlements" /></span>
           Settle
+        </NavLink>
+        <NavLink to="/reconciliation">
+          <span><NavIcon type="reconciliation" /></span>
+          Trips
         </NavLink>
       </nav>
 
