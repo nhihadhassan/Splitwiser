@@ -80,7 +80,7 @@ function loadInitialState(): AppState {
             id: "g-new-york",
             name: "New York 2026",
             type: "trip",
-            memberIds: ["me", "p-rachel"],
+            memberIds: ["me", "p-bijan"],
             createdAt: new Date("2026-06-25T12:00:00Z").getTime(),
             simplifyDebts: true,
           },
@@ -94,10 +94,20 @@ function loadInitialState(): AppState {
           },
         ];
         const groupIds = new Set(parsed.groups.map((group) => group.id));
+        const peopleIds = new Set(parsed.people.map((person) => person.id));
         return {
           ...parsed,
+          people: parsed.people
+            .map((person) => (person.id === ME ? { ...person, name: "Nhihad" } : person))
+            .concat(peopleIds.has("p-bijan") ? [] : [{ id: "p-bijan", name: "Bijan", color: "#C57C55" }]),
           groups: parsed.groups.map((group) =>
-            group.name === "Portugal 2026" ? { ...group, name: "Portugal 2026 🇵🇹" } : group,
+            group.name === "Portugal 2026"
+              ? { ...group, name: "Portugal 2026 🇵🇹" }
+              : group.id === "g-new-york"
+                ? { ...group, memberIds: ["me", "p-bijan"] }
+                : group.id === "g-peru"
+                  ? { ...group, memberIds: ["me", "p-rachel"] }
+                  : group,
           ).concat(tripGroups.filter((group) => !groupIds.has(group.id))),
         };
       }

@@ -23,8 +23,9 @@ export function seedState(): AppState {
   const tripCreatedAt = new Date("2026-06-08T12:00:00Z").getTime();
   const state: AppState = {
     people: [
-      { id: "me", name: "You", email: "you@example.com", color: "#5BC5A7" },
+      { id: "me", name: "Nhihad", email: "you@example.com", color: "#5BC5A7" },
       { id: "p-rachel", name: "Rachel", email: "rachel@example.com", color: "#8656CD" },
+      { id: "p-bijan", name: "Bijan", color: "#C57C55" },
     ],
     groups: [
       {
@@ -39,7 +40,7 @@ export function seedState(): AppState {
         id: "g-new-york",
         name: "New York 2026",
         type: "trip",
-        memberIds: ["me", "p-rachel"],
+        memberIds: ["me", "p-bijan"],
         createdAt: new Date("2026-06-25T12:00:00Z").getTime(),
         simplifyDebts: true,
       },
