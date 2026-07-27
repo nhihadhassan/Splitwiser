@@ -67,9 +67,17 @@ export interface Settlement {
   createdBy: string;
 }
 
+export type ReconciliationDecision = "include" | "exclude" | "personal" | "review";
+
+export interface ReconciliationState {
+  decisions: Record<string, ReconciliationDecision>;
+  cashRemaining: string;
+}
+
 export interface AppState {
   people: Person[];
   groups: Group[];
   expenses: Expense[];
   settlements: Settlement[];
+  reconciliation: ReconciliationState;
 }

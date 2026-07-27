@@ -3,11 +3,12 @@ import { useStore } from "../store";
 import { ExpenseList } from "../components/ExpenseList";
 import { AddExpenseModal } from "../components/AddExpenseModal";
 import { SettleUpModal } from "../components/SettleUpModal";
+import { CloudSyncPanel } from "../components/CloudSyncPanel";
 import { CATEGORIES, CATEGORY_META } from "../utils/categories";
 import type { ExpenseCategory } from "../types";
 
 export function AllExpensesPage() {
-  const { state, dispatch } = useStore();
+  const { state } = useStore();
   const [addingExpense, setAddingExpense] = useState(false);
   const [settling, setSettling] = useState(false);
   const [query, setQuery] = useState("");
@@ -61,6 +62,7 @@ export function AllExpensesPage() {
             ))}
           </select>
         </div>
+        <CloudSyncPanel />
         <ExpenseList
           expenses={expenses}
           settlements={state.settlements}
@@ -69,24 +71,6 @@ export function AllExpensesPage() {
           showNotes
         />
       </main>
-      <aside className="rail">
-        <div className="rail-card">
-          <h2>Demo Data</h2>
-          <p className="muted-copy">
-            Reset restores the Portugal 2026 ledger and clears local edits in this browser.
-          </p>
-          <button
-            className="btn btn-secondary"
-            onClick={() => {
-              if (confirm("Reset all data back to the demo state?")) {
-                dispatch({ type: "reset" });
-              }
-            }}
-          >
-            Reset demo data
-          </button>
-        </div>
-      </aside>
       {addingExpense && <AddExpenseModal onClose={() => setAddingExpense(false)} />}
       {settling && <SettleUpModal onClose={() => setSettling(false)} />}
     </>

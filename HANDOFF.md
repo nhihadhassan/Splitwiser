@@ -1,8 +1,8 @@
 # Splitwiser — Handoff
 
 A Splitwise-style expense-splitting web app with a dark, premium ledger UI.
-React + TypeScript + Vite, all data persisted in the browser (`localStorage`) —
-no backend, no accounts, no sync.
+React + TypeScript + Vite. Data is cached in the browser and can be saved to a
+private Vercel Blob for cross-device access using a private sync key.
 
 - **Repo:** https://github.com/nhihadhassan/Splitwiser
 - **Live app:** https://splitwiser-xi.vercel.app
@@ -19,8 +19,8 @@ no backend, no accounts, no sync.
 | App code | Complete, on `main` |
 | `npm run build` | Passes (strict TS + Vite prod build) |
 | Deployment | Live on Vercel production at `splitwiser-xi.vercel.app` |
-| Seed data | The real **Portugal 2026** trip (see below) |
-| Backend / CI | None |
+| First run | Empty ledger; existing browser data is preserved |
+| Backend | Vercel Function + Private Blob online ledger |
 | Current UI | Splitwiser-branded premium ledger design, originally adapted from the Stitch "Velvet Ledger" direction |
 
 Recent shipped changes:
@@ -86,12 +86,13 @@ The latest confirmed production alias is:
 | `/groups/:groupId` | Single group ledger, expense feed, group balances, suggested repayments, group settings |
 | `/friends/:friendId` | Friend ledger with shared expenses, settlements, and shared groups |
 | `/activity` | Filterable activity timeline for expenses and payments |
-| `/all` | Searchable/filterable all-expenses feed plus reset demo data action |
+| `/all` | Searchable/filterable all-expenses feed plus online-save controls |
 | `/settlements` | Settlement Center: total payable, total expected, inbound/outbound transfers, Settle All |
 
-## Seed data — Portugal 2026
+## Historical trip source
 
-The app opens with a real completed trip instead of fake demo data:
+The earlier Portugal ledger remains available as source material but is not
+loaded automatically on a clean browser:
 
 - Source: [`portugal-2026-actual-trip.md`](portugal-2026-actual-trip.md) (103 expenses).
 - Modeled as a **two-person equal split**: You + Rachel, every expense paid by You.
@@ -109,8 +110,10 @@ produced `src/seed.ts` (category map + EUR→CAD conversion), or edit the file d
 | Path | What it is |
 | --- | --- |
 | `src/types.ts` | Data model (money in integer cents) |
-| `src/store.tsx` | React context + reducer, persisted to `localStorage` |
-| `src/seed.ts` | Starting data (Portugal 2026) + avatar palette |
+| `src/store.tsx` | React context + reducer, browser cache, and online sync state |
+| `src/cloud.ts` | Online ledger client and sync-key generation |
+| `api/state.ts` | Authenticated Vercel Function for Private Blob reads/writes |
+| `src/seed.ts` | Historical trip source data + avatar palette |
 | `src/utils/money.ts` | Cent math; fair equal/weighted splitting (largest-remainder) |
 | `src/utils/balances.ts` | Pairwise debts, net balances, debt simplification |
 | `src/components/Layout.tsx` | Splitwiser shell: desktop sidebar, top action bar, mobile bottom nav |
@@ -125,12 +128,17 @@ All money is integer cents. Splits always sum exactly to the total (no drift).
 
 ## Gotchas
 
-- **State is per-browser** under the `localStorage` key `splitwiser-state-v2`.
-  The loader prefers saved state over the seed, so **the seed only appears on a
-  fresh browser or after a key bump / "Reset demo data"**. Bump the key version
-  in `src/store.tsx` when you change the seed and want existing browsers to reload it.
+- **Browser cache.** The current ledger remains cached under the `localStorage`
+  key `splitwiser-state-v2`, so the app can still open without a network connection.
+- **Online save.** Enabling online saving creates a high-entropy sync key and
+  migrates the current browser ledger to the linked private Blob store. The same
+  key connects another browser. The key is the credential and must remain private.
+- **First run.** A browser without cached data or a sync key starts with an empty
+  ledger. The historical trip seed remains in `src/seed.ts` as source material,
+  but is no longer loaded automatically.
 - **Single-currency.** Amounts render with a `$` glyph but the numbers are CAD.
-- **No backend by design** — clearing site data resets the app; no cross-device sync.
+- **Private Blob resource.** The linked store is `splitwiser-state` in `yul1`.
+  Vercel injects `BLOB_READ_WRITE_TOKEN`; keep it server-only.
 - **Hash routes.** The app uses `HashRouter`, so production paths look like
   `https://splitwiser-xi.vercel.app/#/settlements`.
 - **Local worktree note.** A local `.gitignore` edit may exist for `.vercel` and
@@ -143,7 +151,7 @@ All money is integer cents. Splits always sum exactly to the total (no drift).
 - Charts, CSV export, receipt photos
 - Export/share settlement summaries
 - Persist design docs (`PRODUCT.md` / `DESIGN.md`) if future design work continues
-- Real backend (e.g. Supabase) for accounts + sync
+- Optional email accounts if sync keys are eventually replaced with user login
 - CI: GitHub Action running `npm run build` on PRs
 
 ---

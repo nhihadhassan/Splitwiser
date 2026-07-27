@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useStore } from "../store";
 import { formatMoney } from "../utils/money";
+import type { ReconciliationDecision } from "../types";
 import "./ReconciliationPage.css";
 
 type TripKey = "peru" | "new-york";
@@ -13,7 +14,7 @@ type ReviewItem = {
   source: "Scotiabank" | "Cash";
 };
 
-type ChargeDecision = "include" | "exclude" | "personal" | "review";
+type ChargeDecision = ReconciliationDecision;
 type Charge = {
   id: string;
   date: string;
@@ -63,29 +64,14 @@ const tripMeta: Record<TripKey, { name: string; dates: string; budget: string; s
 const peruCashRecorded = 1679.69;
 
 export function ReconciliationPage() {
-  const { state } = useStore();
+  const { state, dispatch } = useStore();
   const [trip, setTrip] = useState<TripKey>("peru");
-  const [decisions, setDecisions] = useState<Record<string, ChargeDecision>>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("splitwiser-reconciliation-decisions") ?? "{}");
-    } catch {
-      return {};
-    }
-  });
-  const [cashRemaining, setCashRemaining] = useState(() => localStorage.getItem("splitwiser-peru-cash-remaining") ?? "");
+  const { decisions, cashRemaining } = state.reconciliation;
   const [filter, setFilter] = useState<"all" | ChargeDecision>("all");
   const [query, setQuery] = useState("");
   const meta = tripMeta[trip];
   const items = reviewItems[trip];
   const cashSpent = cashRemaining === "" ? null : Math.max(0, peruCashRecorded - Number(cashRemaining));
-
-  useEffect(() => {
-    localStorage.setItem("splitwiser-reconciliation-decisions", JSON.stringify(decisions));
-  }, [decisions]);
-
-  useEffect(() => {
-    localStorage.setItem("splitwiser-peru-cash-remaining", cashRemaining);
-  }, [cashRemaining]);
 
   const charges = useMemo<Charge[]>(() => {
     const groupId = trip === "peru" ? "g-peru" : "g-new-york";
@@ -148,7 +134,13 @@ export function ReconciliationPage() {
   }, [trip]);
 
   function setDecision(chargeId: string, decision: ChargeDecision) {
-    setDecisions((current) => ({ ...current, [`${trip}-${chargeId}`]: decision }));
+    dispatch({
+      type: "updateReconciliation",
+      reconciliation: {
+        ...state.reconciliation,
+        decisions: { ...decisions, [`${trip}-${chargeId}`]: decision },
+      },
+    });
   }
 
   return (
@@ -228,7 +220,7 @@ export function ReconciliationPage() {
             <div className="cash-entry-row">
               <label className="field">
                 <span>Cash brought home</span>
-                <div className="amount-input"><span className="currency">CA$</span><input type="number" min="0" step="0.01" value={cashRemaining} onChange={(event) => setCashRemaining(event.target.value)} placeholder="0.00" /></div>
+                <div className="amount-input"><span className="currency">CA$</span><input type="number" min="0" step="0.01" value={cashRemaining} onChange={(event) => dispatch({ type: "updateReconciliation", reconciliation: { ...state.reconciliation, cashRemaining: event.target.value } })} placeholder="0.00" /></div>
               </label>
               <div className="cash-spent-result">
                 <span>Estimated cash spent</span>
@@ -274,7 +266,7 @@ export function ReconciliationPage() {
       <aside className="rail">
         <div className="rail-card">
           <h2>How to finish</h2>
-          <p className="muted-copy">Use the dropdown beside each charge to include it, flag it for review, mark it personal, or exclude it. Totals update immediately and are saved in this browser.</p>
+          <p className="muted-copy">Use the dropdown beside each charge to include it, flag it for review, mark it personal, or exclude it. Totals update immediately and follow the ledger's save status.</p>
           <p className="muted-copy">For Peru, enter the amount of cash you brought home so cash withdrawn can be separated from cash spent.</p>
         </div>
         <div className="rail-card">

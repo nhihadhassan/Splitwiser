@@ -1,8 +1,8 @@
 # Splitwiser
 
 A complete recreation of the **Splitwise** expense-splitting app as a single-page web app.
-Built with React, TypeScript, and Vite; all data is stored locally in your browser
-(`localStorage`), so it works with zero backend setup.
+Built with React, TypeScript, and Vite. The app works locally by default and can
+save the complete ledger to a private Vercel Blob for cross-device access.
 
 ![Splitwiser](public/favicon.svg)
 
@@ -27,8 +27,8 @@ Built with React, TypeScript, and Vite; all data is stored locally in your brows
 - **Categories** with icons (food, rent, travel, utilities, …)
 - Exact **integer-cent arithmetic** — equal splits distribute leftover cents so
   every expense always sums exactly to its total
-- Seeded **demo data** (two groups, four friends) so the app opens looking alive;
-  reset it any time from the All expenses page
+- **Private online saving** with a high-entropy sync key that can connect another browser
+- Clean first run with no seeded demo ledger
 
 ## Running
 
@@ -44,8 +44,10 @@ npm run preview  # serve the production build
 | Path | What it is |
 | --- | --- |
 | `src/types.ts` | Data model: people, groups, expenses (splits in cents), settlements |
-| `src/store.tsx` | React context + reducer, persisted to `localStorage` |
-| `src/seed.ts` | Demo data the app starts with |
+| `src/store.tsx` | React context + reducer, local persistence, and online sync orchestration |
+| `src/cloud.ts` | Browser client for loading and saving the private online ledger |
+| `api/state.ts` | Vercel Function that validates and stores ledgers in Private Blob |
+| `src/seed.ts` | Historical trip source data and avatar palette |
 | `src/utils/money.ts` | Integer-cent money math: parsing, formatting, fair splitting |
 | `src/utils/balances.ts` | Pairwise debt ledger, net balances, debt simplification |
 | `src/pages/` | Dashboard, group, friend, activity, and all-expenses pages |

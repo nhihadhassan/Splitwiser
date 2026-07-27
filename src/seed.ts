@@ -55,6 +55,10 @@ export function seedState(): AppState {
     ],
     expenses: [],
     settlements: [],
+    reconciliation: {
+      decisions: {},
+      cashRemaining: "",
+    },
   };
 
   const addEqual = (

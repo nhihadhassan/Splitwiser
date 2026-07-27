@@ -42,3 +42,10 @@ Button styling is controlled by the `--button-*` tokens in `:root`. Do not add c
 ## Overview
 
 Overview answers two questions: what balances are open, and what changed recently. It intentionally avoids a large net-balance hero, duplicate quick actions, an Active Ledgers card, and instructional sidebar copy. Those tasks remain available through Groups, Activity, and Settlements.
+
+## Online save
+
+Online persistence is managed through an inline status panel on All Expenses.
+Local, connecting, saving, synced, and error states use the existing neutral,
+accent, positive, and negative semantic roles. Sync-key setup stays inline
+instead of interrupting the ledger with a modal.
