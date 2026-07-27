@@ -8,6 +8,7 @@ import { AddExpenseModal } from "../components/AddExpenseModal";
 import { SettleUpModal } from "../components/SettleUpModal";
 import { GROUP_ICONS } from "../components/GroupModal";
 import { relativeTime } from "../utils/dates";
+import { CategoryIcon } from "../components/Icons";
 
 export function Dashboard() {
   const { state, peopleById } = useStore();
@@ -90,7 +91,7 @@ export function Dashboard() {
               const payerPerson = payer ? peopleById.get(payer.personId) : undefined;
               return (
                 <div className="feed-line" key={expense.id}>
-                  <Avatar person={payerPerson} size={34} />
+                  <span className="activity-icon"><CategoryIcon category={expense.category} size={20} /></span>
                   <div>
                     <strong>{expense.description}</strong>
                     <span>{payerPerson?.id === ME ? "You" : payerPerson?.name} paid, {relativeTime(expense.createdAt)}</span>

@@ -3,7 +3,7 @@ import { ME, useStore } from "../store";
 import { formatMoney } from "../utils/money";
 import { relativeTime } from "../utils/dates";
 import { Avatar } from "../components/Avatar";
-import { CATEGORY_META } from "../utils/categories";
+import { CategoryIcon } from "../components/Icons";
 
 interface ActivityItem {
   key: string;
@@ -34,7 +34,7 @@ export function ActivityPage() {
           <>
             <strong>{actor?.id === ME ? "You" : actor?.name}</strong> added{" "}
             <strong>
-              {CATEGORY_META[e.category].icon} “{e.description}”
+              <CategoryIcon category={e.category} size={16} /> “{e.description}”
             </strong>{" "}
             ({formatMoney(e.amount)}){groupName ? <> in <strong>{groupName}</strong></> : null}
             {mySplit && myNet !== 0 && (

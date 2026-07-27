@@ -91,6 +91,16 @@ a {
   font-weight: 800;
 }
 
+.brand-mark {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 9px;
+  color: var(--gold-ink);
+  background: linear-gradient(135deg, var(--gold), var(--gold-deep));
+  box-shadow: 0 5px 18px rgba(233, 193, 118, 0.12);
+}
+
 .spacer {
   flex: 1;
 }
@@ -132,11 +142,13 @@ a {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-family: "Source Serif 4", serif;
+  font-family: Geist, sans-serif;
   color: var(--gold);
   font-size: 26px;
   font-weight: 700;
   letter-spacing: 0.02em;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   margin-bottom: 22px;
 }
 
@@ -151,6 +163,17 @@ a {
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   transition: background 180ms ease, color 180ms ease, border-color 180ms ease;
+}
+
+.nav-sub .group-semantic-icon {
+  color: var(--gold);
+}
+
+.semantic-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--gold);
 }
 
 .nav-link:hover,
@@ -168,10 +191,9 @@ a {
 
 .nav-mark {
   width: 28px;
+  display: inline-grid;
+  place-items: center;
   color: var(--gold);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
 }
 
 .nav-section {
@@ -487,6 +509,18 @@ a {
 .settlement-row-card > div {
   flex: 1;
   min-width: 0;
+}
+
+.activity-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(233, 193, 118, 0.25);
+  border-radius: 10px;
+  color: var(--gold);
+  background: rgba(233, 193, 118, 0.09);
 }
 
 .ledger-icon {

@@ -3,6 +3,7 @@ import type { Expense, ExpenseCategory, SplitMethod } from "../types";
 import { ME, uid, useStore } from "../store";
 import { centsToInput, formatMoney, parseMoney, splitByWeights, splitEqually } from "../utils/money";
 import { CATEGORIES, CATEGORY_META } from "../utils/categories";
+import { CategoryIcon } from "./Icons";
 import { today } from "../utils/dates";
 import { Modal } from "./Modal";
 import { Avatar } from "./Avatar";
@@ -250,7 +251,7 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
           <select value={category} onChange={(e) => setCategory(e.target.value as ExpenseCategory)}>
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>
-                {CATEGORY_META[c].icon} {CATEGORY_META[c].label}
+                <CategoryIcon category={c} size={17} /> {CATEGORY_META[c].label}
               </option>
             ))}
           </select>

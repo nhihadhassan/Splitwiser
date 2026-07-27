@@ -75,7 +75,12 @@ function loadInitialState(): AppState {
     if (raw) {
       const parsed = JSON.parse(raw) as AppState;
       if (parsed.people && parsed.groups && parsed.expenses && parsed.settlements) {
-        return parsed;
+        return {
+          ...parsed,
+          groups: parsed.groups.map((group) =>
+            group.name === "Portugal 2026" ? { ...group, name: "Portugal 2026 🇵🇹" } : group,
+          ),
+        };
       }
     }
   } catch {

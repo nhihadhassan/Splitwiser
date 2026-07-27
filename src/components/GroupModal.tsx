@@ -4,19 +4,20 @@ import type { Group, GroupType } from "../types";
 import { ME, uid, useStore } from "../store";
 import { Modal } from "./Modal";
 import { Avatar } from "./Avatar";
+import { GroupIcon } from "./Icons";
 
-const GROUP_TYPES: { id: GroupType; label: string; icon: string }[] = [
-  { id: "trip", label: "Trip", icon: "✈️" },
-  { id: "home", label: "Home", icon: "🏠" },
-  { id: "couple", label: "Couple", icon: "❤️" },
-  { id: "other", label: "Other", icon: "📋" },
+const GROUP_TYPES: { id: GroupType; label: string }[] = [
+  { id: "trip", label: "Trip" },
+  { id: "home", label: "Home" },
+  { id: "couple", label: "Couple" },
+  { id: "other", label: "Other" },
 ];
 
-export const GROUP_ICONS: Record<GroupType, string> = {
-  trip: "✈️",
-  home: "🏠",
-  couple: "❤️",
-  other: "📋",
+export const GROUP_ICONS: Record<GroupType, JSX.Element> = {
+  trip: <GroupIcon type="trip" />,
+  home: <GroupIcon type="home" />,
+  couple: <GroupIcon type="couple" />,
+  other: <GroupIcon type="other" />,
 };
 
 /** Create a new group, or edit an existing one when `group` is provided. */
@@ -92,7 +93,7 @@ export function GroupModal({ onClose, group }: { onClose: () => void; group?: Gr
               className={type === t.id ? "on" : ""}
               onClick={() => setType(t.id)}
             >
-              {t.icon} {t.label}
+              <GroupIcon type={t.id} size={17} /> {t.label}
             </button>
           ))}
         </div>

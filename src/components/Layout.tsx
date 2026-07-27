@@ -7,6 +7,7 @@ import { Avatar } from "./Avatar";
 import { AddExpenseModal } from "./AddExpenseModal";
 import { AddFriendModal } from "./AddFriendModal";
 import { GroupModal, GROUP_ICONS } from "./GroupModal";
+import { BrandMark, NavIcon } from "./Icons";
 
 export function Layout() {
   const { state, peopleById } = useStore();
@@ -25,7 +26,7 @@ export function Layout() {
     <>
       <header className="topbar">
         <NavLink to="/" className="brand">
-          <span className="logo">S</span> Splitwiser
+          <BrandMark /> SPLITWISER
         </NavLink>
         <div className="spacer" />
         <button className="btn btn-plain top-action" onClick={() => setAddingExpense(true)}>
@@ -40,22 +41,22 @@ export function Layout() {
       <div className="layout">
         <nav className="nav">
           <NavLink to="/" className="side-brand">
-            <span className="logo">S</span> Splitwiser
+            <BrandMark /> SPLITWISER
           </NavLink>
           <NavLink to="/" end className="nav-link">
-            <span className="nav-mark">OV</span> Overview
+            <NavIcon type="overview" /> Overview
           </NavLink>
           <NavLink to="/groups" end className="nav-link">
-            <span className="nav-mark">LG</span> Groups
+            <NavIcon type="groups" /> Groups
           </NavLink>
           <NavLink to="/activity" className="nav-link">
-            <span className="nav-mark">AC</span> Recent Activity
+            <NavIcon type="activity" /> Recent Activity
           </NavLink>
           <NavLink to="/all" className="nav-link">
-            <span className="nav-mark">EX</span> All Expenses
+            <NavIcon type="expenses" /> All Expenses
           </NavLink>
           <NavLink to="/settlements" className="nav-link">
-            <span className="nav-mark">ST</span> Settlements
+            <NavIcon type="settlements" /> Settlements
           </NavLink>
 
           <div className="nav-section">
@@ -98,22 +99,22 @@ export function Layout() {
 
       <nav className="mobile-nav">
         <NavLink to="/" end>
-          <span>OV</span>
+          <span><NavIcon type="overview" /></span>
           Overview
         </NavLink>
         <NavLink to="/activity">
-          <span>AC</span>
+          <span><NavIcon type="activity" /></span>
           Activity
         </NavLink>
         <button type="button" onClick={() => setAddingExpense(true)} aria-label="Add expense">
           +
         </button>
         <NavLink to="/groups">
-          <span>LG</span>
+          <span><NavIcon type="groups" /></span>
           Groups
         </NavLink>
         <NavLink to="/settlements">
-          <span>ST</span>
+          <span><NavIcon type="settlements" /></span>
           Settle
         </NavLink>
       </nav>

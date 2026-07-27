@@ -29,7 +29,7 @@ export function seedState(): AppState {
     groups: [
       {
         id: "g-portugal",
-        name: "Portugal 2026",
+        name: "Portugal 2026 🇵🇹",
         type: "trip",
         memberIds: ["me", "p-rachel"],
         createdAt: tripCreatedAt,

@@ -2,10 +2,10 @@ import { useMemo, useState } from "react";
 import type { Expense, Settlement } from "../types";
 import { ME, useStore } from "../store";
 import { formatMoney } from "../utils/money";
-import { CATEGORY_META } from "../utils/categories";
 import { monthDay, monthLabel } from "../utils/dates";
 import { Avatar } from "./Avatar";
 import { AddExpenseModal } from "./AddExpenseModal";
+import { CategoryIcon } from "./Icons";
 
 type FeedItem =
   | { kind: "expense"; date: string; createdAt: number; expense: Expense }
@@ -111,7 +111,7 @@ export function ExpenseList({
                 <div className="month">{m}</div>
                 <div className="day">{day}</div>
               </div>
-              <div className="cat">{CATEGORY_META[e.category].icon}</div>
+              <div className="cat"><CategoryIcon category={e.category} size={20} /></div>
               <div className="desc">
                 <div className="title">{e.description}</div>
                 {groupName && <div className="where">{groupName}</div>}
