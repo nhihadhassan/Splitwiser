@@ -1,29 +1,45 @@
 import { useEffect, useMemo, useState } from "react";
+import { useStore } from "../store";
+import { formatMoney } from "../utils/money";
+import "./ReconciliationPage.css";
 
 type TripKey = "peru" | "new-york";
 type ReviewItem = {
   id: string;
   label: string;
   detail: string;
-  amount: string;
-  tone?: "warning" | "muted";
+  amount: number;
+  displayAmount?: string;
+  source: "Scotiabank" | "Cash";
+};
+
+type ChargeDecision = "include" | "exclude" | "personal" | "review";
+type Charge = {
+  id: string;
+  date: string;
+  label: string;
+  detail: string;
+  source: "Wanderlog" | "Scotiabank" | "Cash";
+  amount: number;
+  displayAmount?: string;
+  defaultDecision: ChargeDecision;
 };
 
 const reviewItems: Record<TripKey, ReviewItem[]> = {
   peru: [
-    { id: "peru-desert", label: "Desert Xtremo", detail: "Scotiabank only · Lima · Jul 25", amount: "CA$69.66" },
-    { id: "peru-hostel-1", label: "Hostelworld", detail: "Scotiabank only · Dublin descriptor · Jul 25", amount: "CA$11.65" },
-    { id: "peru-hostel-2", label: "Hostelworld", detail: "Scotiabank only · Dublin descriptor · Jul 21", amount: "CA$15.06" },
-    { id: "peru-viator", label: "Viator Tripadvisor", detail: "Likely Vinicunca · Wanderlog says CA$239.00", amount: "CA$238.98" },
-    { id: "peru-los-portales", label: "Los Portalitos de Chivay", detail: "Wanderlog says CA$56.00 · statement differs", amount: "CA$61.10" },
-    { id: "peru-kafi", label: "Kafi Wasi", detail: "Wanderlog says PEN 20.00 · statement amount", amount: "CA$6.64" },
-    { id: "peru-waya", label: "Waya Lookout", detail: "Wanderlog says PEN 55.00 · statement amount", amount: "CA$22.86" },
-    { id: "peru-refund", label: "Thank You Tan credit", detail: "CA$408.77 credit to Scotiabank · identify before netting", amount: "-CA$408.77", tone: "muted" },
+    { id: "peru-desert", label: "Desert Xtremo", detail: "Statement only · Lima · Jul 25", amount: 69.66, source: "Scotiabank" },
+    { id: "peru-hostel-1", label: "Hostelworld", detail: "Statement only · Dublin descriptor · Jul 25", amount: 11.65, source: "Scotiabank" },
+    { id: "peru-hostel-2", label: "Hostelworld", detail: "Statement only · Dublin descriptor · Jul 21", amount: 15.06, source: "Scotiabank" },
+    { id: "peru-viator", label: "Viator Tripadvisor", detail: "Likely Vinicunca · Wanderlog says CA$239.00", amount: 238.98, source: "Scotiabank" },
+    { id: "peru-los-portales", label: "Los Portalitos de Chivay", detail: "Wanderlog says CA$56.00 · statement differs", amount: 61.10, source: "Scotiabank" },
+    { id: "peru-kafi", label: "Kafi Wasi", detail: "Wanderlog says PEN 20.00 · statement amount", amount: 6.64, source: "Scotiabank" },
+    { id: "peru-waya", label: "Waya Lookout", detail: "Wanderlog says PEN 55.00 · statement amount", amount: 22.86, source: "Scotiabank" },
+    { id: "peru-refund", label: "Thank You Tan credit", detail: "CA$408.77 credit to Scotiabank · identify before netting", amount: -408.77, source: "Scotiabank" },
   ],
   "new-york": [
-    { id: "ny-birria", label: "Birria-Landia", detail: "Statement only · Astoria · Jun 27", amount: "CA$25.50" },
-    { id: "ny-radical", label: "Radical New York", detail: "Statement only · Jun 25", amount: "CA$25.34" },
-    { id: "ny-cash", label: "Cash expenses", detail: "Casa Adela and Joe's Pizza are recorded in USD", amount: "US$69.50", tone: "muted" },
+    { id: "ny-birria", label: "Birria-Landia", detail: "Statement only · Astoria · Jun 27", amount: 25.50, source: "Scotiabank" },
+    { id: "ny-radical", label: "Radical New York", detail: "Statement only · Jun 25", amount: 25.34, source: "Scotiabank" },
+    { id: "ny-cash", label: "Cash expenses", detail: "Casa Adela and Joe's Pizza are recorded in USD", amount: 95.22, displayAmount: "US$69.50", source: "Cash" },
   ],
 };
 
@@ -47,28 +63,74 @@ const tripMeta: Record<TripKey, { name: string; dates: string; budget: string; s
 const peruCashRecorded = 1679.69;
 
 export function ReconciliationPage() {
+  const { state } = useStore();
   const [trip, setTrip] = useState<TripKey>("peru");
-  const [checked, setChecked] = useState<Record<string, boolean>>(() => {
+  const [decisions, setDecisions] = useState<Record<string, ChargeDecision>>(() => {
     try {
-      return JSON.parse(localStorage.getItem("splitwiser-reconciliation-checked") ?? "{}");
+      return JSON.parse(localStorage.getItem("splitwiser-reconciliation-decisions") ?? "{}");
     } catch {
       return {};
     }
   });
   const [cashRemaining, setCashRemaining] = useState(() => localStorage.getItem("splitwiser-peru-cash-remaining") ?? "");
+  const [filter, setFilter] = useState<"all" | ChargeDecision>("all");
+  const [query, setQuery] = useState("");
   const meta = tripMeta[trip];
   const items = reviewItems[trip];
-  const completed = items.filter((item) => checked[`${trip}-${item.id}`]).length;
-  const progress = items.length === 0 ? 0 : Math.round((completed / items.length) * 100);
   const cashSpent = cashRemaining === "" ? null : Math.max(0, peruCashRecorded - Number(cashRemaining));
 
   useEffect(() => {
-    localStorage.setItem("splitwiser-reconciliation-checked", JSON.stringify(checked));
-  }, [checked]);
+    localStorage.setItem("splitwiser-reconciliation-decisions", JSON.stringify(decisions));
+  }, [decisions]);
 
   useEffect(() => {
     localStorage.setItem("splitwiser-peru-cash-remaining", cashRemaining);
   }, [cashRemaining]);
+
+  const charges = useMemo<Charge[]>(() => {
+    const groupId = trip === "peru" ? "g-peru" : "g-new-york";
+    const wanderlogCharges = state.expenses
+      .filter((expense) => expense.groupId === groupId)
+      .map((expense) => ({
+        id: expense.id,
+        date: expense.date,
+        label: expense.description,
+        detail: expense.notes?.replace("Imported from Wanderlog: ", "") ?? "Imported from Wanderlog",
+        source: "Wanderlog" as const,
+        amount: expense.amount / 100,
+        defaultDecision: "include" as const,
+      }));
+    const statementCharges = items.map((item) => ({
+      id: item.id,
+      date: "To review",
+      label: item.label,
+      detail: item.detail,
+      source: item.source,
+      amount: item.amount,
+      displayAmount: item.displayAmount,
+      defaultDecision: "review" as const,
+    }));
+    return [...wanderlogCharges, ...statementCharges].sort((a, b) => b.date.localeCompare(a.date));
+  }, [items, state.expenses, trip]);
+
+  const decisionFor = (charge: Charge): ChargeDecision => decisions[`${trip}-${charge.id}`] ?? charge.defaultDecision;
+  const totals = useMemo(() => {
+    return charges.reduce<Record<ChargeDecision, number>>((result, charge) => {
+      result[decisionFor(charge)] += charge.amount;
+      return result;
+    }, { include: 0, exclude: 0, personal: 0, review: 0 });
+  // decisions are intentionally the only mutable input to the reconciliation totals
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [charges, decisions, trip]);
+  const completed = charges.filter((charge) => decisionFor(charge) !== "review").length;
+  const progress = charges.length === 0 ? 0 : Math.round((completed / charges.length) * 100);
+  const visibleCharges = charges.filter((charge) => {
+    const decision = decisionFor(charge);
+    const matchesFilter = filter === "all" || decision === filter;
+    const needle = query.trim().toLowerCase();
+    const matchesQuery = needle === "" || `${charge.label} ${charge.detail} ${charge.source}`.toLowerCase().includes(needle);
+    return matchesFilter && matchesQuery;
+  });
 
   const summary = useMemo(() => {
     if (trip === "peru") {
@@ -85,9 +147,8 @@ export function ReconciliationPage() {
     ];
   }, [trip]);
 
-  function toggle(itemId: string) {
-    const key = `${trip}-${itemId}`;
-    setChecked((current) => ({ ...current, [key]: !current[key] }));
+  function setDecision(chargeId: string, decision: ChargeDecision) {
+    setDecisions((current) => ({ ...current, [`${trip}-${chargeId}`]: decision }));
   }
 
   return (
@@ -120,6 +181,12 @@ export function ReconciliationPage() {
             <span>{completed} of {items.length} review items checked</span>
             <div className="balance-meter" aria-label={`${progress}% complete`}><span style={{ width: `${progress}%` }} /></div>
           </div>
+        </section>
+
+        <section className="reconciliation-totals" aria-label="Reconciliation totals">
+          <div><span>Included total</span><strong>{formatMoney(Math.round(totals.include * 100))}</strong></div>
+          <div><span>Needs review</span><strong>{formatMoney(Math.round(totals.review * 100))}</strong></div>
+          <div><span>Excluded or personal</span><strong>{formatMoney(Math.round((totals.exclude + totals.personal) * 100))}</strong></div>
         </section>
 
         <section className="reconciliation-summary">
@@ -165,23 +232,32 @@ export function ReconciliationPage() {
         <section className="module-card reconciliation-review">
           <div className="module-heading">
             <div>
-              <p className="eyebrow">Decision queue</p>
-              <h2>Needs your confirmation</h2>
+              <p className="eyebrow">Charge spreadsheet</p>
+              <h2>Review every charge</h2>
             </div>
-            <span className="status-chip owed">{items.length - completed} open</span>
+            <span className="status-chip owed">{totals.review > 0 ? `${formatMoney(Math.round(totals.review * 100))} pending` : "All decided"}</span>
           </div>
-          <div className="review-list">
-            {items.map((item) => {
-              const isChecked = checked[`${trip}-${item.id}`];
-              return (
-                <label className={`review-item ${isChecked ? "is-checked" : ""}`} key={item.id}>
-                  <input type="checkbox" checked={isChecked} onChange={() => toggle(item.id)} />
-                  <span className="review-check" aria-hidden="true">{isChecked ? "✓" : ""}</span>
-                  <span className="review-copy"><strong>{item.label}</strong><small>{item.detail}</small></span>
-                  <span className={`review-amount ${item.tone === "muted" ? "muted" : ""}`}>{item.amount}</span>
-                </label>
-              );
-            })}
+          <div className="reconciliation-toolbar">
+            <label className="reconciliation-search"><span>Search</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Merchant or note" /></label>
+            <label className="reconciliation-filter"><span>Show</span><select value={filter} onChange={(event) => setFilter(event.target.value as "all" | ChargeDecision)}><option value="all">All charges</option><option value="review">Needs review</option><option value="include">Included</option><option value="exclude">Excluded</option><option value="personal">Personal</option></select></label>
+          </div>
+          <div className="reconciliation-table-wrap">
+            <table className="reconciliation-table">
+              <thead><tr><th>Date</th><th>Charge</th><th>Source</th><th>Amount</th><th>Decision</th></tr></thead>
+              <tbody>
+                {visibleCharges.map((charge) => {
+                  const decision = decisionFor(charge);
+                  return <tr key={charge.id} className={`decision-${decision}`}>
+                    <td>{charge.date}</td>
+                    <td><strong>{charge.label}</strong><small>{charge.detail}</small></td>
+                    <td><span className="source-tag">{charge.source}</span></td>
+                    <td><strong>{charge.displayAmount ?? formatMoney(Math.round(charge.amount * 100))}</strong></td>
+                    <td><select aria-label={`Decision for ${charge.label}`} value={decision} onChange={(event) => setDecision(charge.id, event.target.value as ChargeDecision)}><option value="include">Include</option><option value="review">Needs review</option><option value="personal">Personal</option><option value="exclude">Exclude</option></select></td>
+                  </tr>;
+                })}
+              </tbody>
+            </table>
+            {visibleCharges.length === 0 && <p className="reconciliation-empty">No charges match this view.</p>}
           </div>
         </section>
       </main>
@@ -189,7 +265,7 @@ export function ReconciliationPage() {
       <aside className="rail">
         <div className="rail-card">
           <h2>How to finish</h2>
-          <p className="muted-copy">Check an item when you have matched it to Wanderlog, identified it as unrelated, or decided to keep it as a separate cash expense.</p>
+          <p className="muted-copy">Use the dropdown beside each charge to include it, flag it for review, mark it personal, or exclude it. Totals update immediately and are saved in this browser.</p>
           <p className="muted-copy">For Peru, enter the amount of cash you brought home so cash withdrawn can be separated from cash spent.</p>
         </div>
         <div className="rail-card">
