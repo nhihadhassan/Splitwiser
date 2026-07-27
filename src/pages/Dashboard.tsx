@@ -90,7 +90,9 @@ export function Dashboard() {
               const payerPerson = payer ? peopleById.get(payer.personId) : undefined;
               return (
                 <div className="feed-line" key={expense.id}>
-                  <span className="activity-icon"><CategoryIcon category={expense.category} size={20} /></span>
+                  <span className={`activity-icon activity-icon-${expense.category}`}>
+                    <CategoryIcon category={expense.category} size={20} />
+                  </span>
                   <div>
                     <strong>{expense.description}</strong>
                     <span>{payerPerson?.id === ME ? "You" : payerPerson?.name} paid, {relativeTime(expense.createdAt)}</span>

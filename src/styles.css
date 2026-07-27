@@ -498,8 +498,8 @@ a {
 }
 
 .ledger-stats span,
-.feed-line span,
-.ledger-shortcut span,
+.feed-line > div > span,
+.ledger-shortcut > div > span,
 .card-footnote,
 .settlement-action p,
 .settlement-row-card span {
@@ -562,15 +562,54 @@ a {
 }
 
 .activity-icon {
+  --activity-color: var(--gold);
+  --activity-background: rgba(233, 193, 118, 0.09);
+  --activity-border: rgba(233, 193, 118, 0.25);
   width: 34px;
   height: 34px;
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  border: 1px solid rgba(233, 193, 118, 0.25);
+  border: 1px solid var(--activity-border);
   border-radius: 10px;
-  color: var(--gold);
-  background: rgba(233, 193, 118, 0.09);
+  color: var(--activity-color);
+  background: var(--activity-background);
+}
+
+.activity-icon .semantic-icon {
+  color: inherit;
+}
+
+.activity-icon-food,
+.activity-icon-groceries {
+  --activity-color: oklch(78% 0.13 145);
+  --activity-background: oklch(66% 0.11 145 / 0.12);
+  --activity-border: oklch(74% 0.12 145 / 0.28);
+}
+
+.activity-icon-transport,
+.activity-icon-travel {
+  --activity-color: oklch(78% 0.11 230);
+  --activity-background: oklch(63% 0.1 230 / 0.13);
+  --activity-border: oklch(75% 0.1 230 / 0.28);
+}
+
+.activity-icon-entertainment {
+  --activity-color: oklch(78% 0.12 305);
+  --activity-background: oklch(63% 0.12 305 / 0.13);
+  --activity-border: oklch(75% 0.1 305 / 0.28);
+}
+
+.activity-icon-shopping {
+  --activity-color: oklch(79% 0.12 28);
+  --activity-background: oklch(64% 0.12 28 / 0.13);
+  --activity-border: oklch(76% 0.1 28 / 0.28);
+}
+
+.activity-icon-medical {
+  --activity-color: oklch(78% 0.14 18);
+  --activity-background: oklch(63% 0.13 18 / 0.13);
+  --activity-border: oklch(75% 0.11 18 / 0.28);
 }
 
 .ledger-icon {
