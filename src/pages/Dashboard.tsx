@@ -166,7 +166,7 @@ export function Dashboard() {
 
       <aside className="rail">
         <div className="rail-card">
-          <h3>Ledger Notes</h3>
+          <h2>Ledger Notes</h2>
           <p className="muted-copy">
             All balances use cent-accurate math and are stored locally in this browser.
           </p>

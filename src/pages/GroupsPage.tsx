@@ -103,7 +103,7 @@ export function GroupsPage() {
       </main>
       <aside className="rail">
         <div className="rail-card">
-          <h3>Group Command</h3>
+          <h2>Group Command</h2>
           <p className="muted-copy">
             Groups gather expenses, member balances, repayment suggestions, and settlement history
             into one ledger.

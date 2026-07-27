@@ -75,7 +75,7 @@ export function GroupPage() {
 
       <aside className="rail">
         <div className="rail-card">
-          <h3>Group balances</h3>
+          <h2>Group balances</h2>
           {group.memberIds.map((id) => {
             const person = peopleById.get(id);
             const bal = net.get(id) ?? 0;
@@ -92,7 +92,7 @@ export function GroupPage() {
         </div>
 
         <div className="rail-card">
-          <h3>{group.simplifyDebts ? "Suggested repayments" : "Who owes whom"}</h3>
+          <h2>{group.simplifyDebts ? "Suggested repayments" : "Who owes whom"}</h2>
           {debts.length === 0 && <div className="all-settled">All settled up! 🎉</div>}
           {debts.map((d, i) => {
             const from = peopleById.get(d.fromId);
@@ -118,7 +118,7 @@ export function GroupPage() {
         </div>
 
         <div className="rail-card">
-          <h3>Group settings</h3>
+          <h2>Group settings</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
             <button className="btn btn-plain" onClick={() => setEditingGroup(true)}>
               Edit group

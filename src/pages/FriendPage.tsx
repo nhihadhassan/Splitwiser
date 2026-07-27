@@ -76,7 +76,7 @@ export function FriendPage() {
 
       <aside className="rail">
         <div className="rail-card">
-          <h3>About</h3>
+          <h2>About</h2>
           <div style={{ fontSize: 13, color: "#666", lineHeight: 1.7 }}>
             {friend.email && <div>✉️ {friend.email}</div>}
             <div>

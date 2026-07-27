@@ -443,6 +443,7 @@ a {
 
 .module-card h2,
 .ledger-card h2,
+.rail-card h2,
 .rail-card h3 {
   margin: 0;
   font-family: "Source Serif 4", serif;
@@ -1159,6 +1160,11 @@ a {
   font-weight: 700;
 }
 
+.modal-header h2 {
+  margin: 0;
+  font: inherit;
+}
+
 .modal-header .close {
   border: 0;
   background: transparent;
@@ -1166,6 +1172,25 @@ a {
   font-size: 22px;
   line-height: 1;
   padding: 2px 6px;
+}
+
+.expense-row:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid rgba(233, 193, 118, 0.78);
+  outline-offset: -2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .modal-body {
@@ -1192,7 +1217,8 @@ a {
   gap: 6px;
 }
 
-.field label {
+.field label,
+.field-label {
   color: var(--text-soft);
   font-size: 11px;
   font-weight: 800;

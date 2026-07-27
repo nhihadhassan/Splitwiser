@@ -39,12 +39,20 @@ export function AllExpensesPage() {
           </button>
         </div>
         <div className="filter-bar">
+          <label className="sr-only" htmlFor="expense-search">Search expenses</label>
           <input
+            id="expense-search"
+            type="search"
             value={query}
             placeholder="Search expenses"
             onChange={(event) => setQuery(event.target.value)}
           />
-          <select value={category} onChange={(event) => setCategory(event.target.value as typeof category)}>
+          <label className="sr-only" htmlFor="expense-category-filter">Filter by category</label>
+          <select
+            id="expense-category-filter"
+            value={category}
+            onChange={(event) => setCategory(event.target.value as typeof category)}
+          >
             <option value="all">All Categories</option>
             {CATEGORIES.map((item) => (
               <option key={item} value={item}>
@@ -63,7 +71,7 @@ export function AllExpensesPage() {
       </main>
       <aside className="rail">
         <div className="rail-card">
-          <h3>Demo Data</h3>
+          <h2>Demo Data</h2>
           <p className="muted-copy">
             Reset restores the Portugal 2026 ledger and clears local edits in this browser.
           </p>

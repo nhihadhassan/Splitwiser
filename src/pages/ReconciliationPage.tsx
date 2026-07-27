@@ -188,7 +188,7 @@ export function ReconciliationPage() {
 
       <aside className="rail">
         <div className="rail-card">
-          <h3>How to finish</h3>
+          <h2>How to finish</h2>
           <p className="muted-copy">Check an item when you have matched it to Wanderlog, identified it as unrelated, or decided to keep it as a separate cash expense.</p>
           <p className="muted-copy">For Peru, enter the amount of cash you brought home so cash withdrawn can be separated from cash spent.</p>
         </div>

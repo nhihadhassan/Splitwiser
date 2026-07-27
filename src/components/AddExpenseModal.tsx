@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import type { Expense, ExpenseCategory, SplitMethod } from "../types";
 import { ME, uid, useStore } from "../store";
 import { centsToInput, formatMoney, parseMoney, splitByWeights, splitEqually } from "../utils/money";
@@ -27,6 +27,7 @@ interface Props {
 
 export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) {
   const { state, dispatch, peopleById } = useStore();
+  const fieldId = useId();
 
   const [description, setDescription] = useState(expense?.description ?? "");
   const [amountText, setAmountText] = useState(expense ? centsToInput(expense.amount) : "");
@@ -196,11 +197,11 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
         </>
       }
     >
-      {error && <div className="form-error">{error}</div>}
+      {error && <div className="form-error" role="alert">{error}</div>}
 
       <div className="field">
-        <label>With you and:</label>
-        <div className="chip-row">
+        <span className="field-label" id={`${fieldId}-participants`}>With you and:</span>
+        <div className="chip-row" role="group" aria-labelledby={`${fieldId}-participants`}>
           {candidates
             .filter((p) => p.id !== ME)
             .map((p) => (
@@ -208,6 +209,7 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
                 key={p.id}
                 type="button"
                 className={`chip ${participants.has(p.id) ? "on" : ""}`}
+                aria-pressed={participants.has(p.id)}
                 onClick={() => toggleParticipant(p.id)}
               >
                 <Avatar person={p} size={18} /> {p.name}
@@ -217,8 +219,9 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
       </div>
 
       <div className="field">
-        <label>Description</label>
+        <label htmlFor={`${fieldId}-description`}>Description</label>
         <input
+          id={`${fieldId}-description`}
           type="text"
           value={description}
           placeholder="Enter a description"
@@ -228,10 +231,11 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
       </div>
 
       <div className="field">
-        <label>Amount</label>
+        <label htmlFor={`${fieldId}-amount`}>Amount</label>
         <div className="amount-input">
           <span className="currency">$</span>
           <input
+            id={`${fieldId}-amount`}
             type="text"
             inputMode="decimal"
             value={amountText}
@@ -243,12 +247,12 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div className="field">
-          <label>Date</label>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <label htmlFor={`${fieldId}-date`}>Date</label>
+          <input id={`${fieldId}-date`} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
         <div className="field">
-          <label>Category</label>
-          <select value={category} onChange={(e) => setCategory(e.target.value as ExpenseCategory)}>
+          <label htmlFor={`${fieldId}-category`}>Category</label>
+          <select id={`${fieldId}-category`} value={category} onChange={(e) => setCategory(e.target.value as ExpenseCategory)}>
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>
                 <CategoryIcon category={c} size={17} /> {CATEGORY_META[c].label}
@@ -260,8 +264,8 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div className="field">
-          <label>Group</label>
-          <select value={selectedGroupId} onChange={(e) => changeGroup(e.target.value)}>
+          <label htmlFor={`${fieldId}-group`}>Group</label>
+          <select id={`${fieldId}-group`} value={selectedGroupId} onChange={(e) => changeGroup(e.target.value)}>
             <option value="">No group</option>
             {state.groups.map((g) => (
               <option key={g.id} value={g.id}>
@@ -271,8 +275,8 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
           </select>
         </div>
         <div className="field">
-          <label>Paid by</label>
-          <select value={payerId} onChange={(e) => setPayerId(e.target.value)}>
+          <label htmlFor={`${fieldId}-payer`}>Paid by</label>
+          <select id={`${fieldId}-payer`} value={payerId} onChange={(e) => setPayerId(e.target.value)}>
             {candidates
               .filter((p) => participants.has(p.id))
               .map((p) => (
@@ -285,13 +289,14 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
       </div>
 
       <div className="field">
-        <label>Split</label>
-        <div className="split-tabs">
+        <span className="field-label" id={`${fieldId}-split-method`}>Split</span>
+        <div className="split-tabs" role="group" aria-labelledby={`${fieldId}-split-method`}>
           {METHOD_LABELS.map((m) => (
             <button
               key={m.id}
               type="button"
               className={method === m.id ? "on" : ""}
+              aria-pressed={method === m.id}
               onClick={() => setMethod(m.id)}
             >
               {m.label}
@@ -315,6 +320,7 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
               )}
               {method === "exact" && (
                 <input
+                  aria-label={`${person?.name ?? "Participant"} exact amount`}
                   type="text"
                   inputMode="decimal"
                   placeholder="0.00"
@@ -325,6 +331,7 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
               {method === "percentage" && (
                 <>
                   <input
+                    aria-label={`${person?.name ?? "Participant"} percentage`}
                     type="number"
                     min="0"
                     max="100"
@@ -338,6 +345,7 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
               {method === "shares" && (
                 <>
                   <input
+                    aria-label={`${person?.name ?? "Participant"} shares`}
                     type="number"
                     min="0"
                     placeholder="1"
@@ -364,8 +372,8 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
       </div>
 
       <div className="field">
-        <label>Notes (optional)</label>
-        <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        <label htmlFor={`${fieldId}-notes`}>Notes (optional)</label>
+        <textarea id={`${fieldId}-notes`} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
     </Modal>
   );

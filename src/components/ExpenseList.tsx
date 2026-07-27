@@ -112,7 +112,20 @@ export function ExpenseList({
         return (
           <div key={e.id}>
             {header}
-            <div className="expense-row" onClick={() => setOpenId(isOpen ? null : e.id)}>
+            <div
+              className="expense-row"
+              role="button"
+              tabIndex={0}
+              aria-expanded={isOpen}
+              aria-controls={`expense-detail-${e.id}`}
+              onClick={() => setOpenId(isOpen ? null : e.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setOpenId(isOpen ? null : e.id);
+                }
+              }}
+            >
               <div className="date">
                 <div className="month">{m}</div>
                 <div className="day">{day}</div>
@@ -158,7 +171,7 @@ export function ExpenseList({
               </div>
             </div>
             {isOpen && (
-              <div className="expense-detail">
+              <div className="expense-detail" id={`expense-detail-${e.id}`}>
                 <div>
                   <strong>{payerPerson?.id === ME ? "You" : payerPerson?.name}</strong> paid{" "}
                   {formatMoney(e.amount)}

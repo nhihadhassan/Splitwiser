@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { ME, uid, useStore } from "../store";
 import { centsToInput, parseMoney } from "../utils/money";
 import { today } from "../utils/dates";
@@ -13,6 +13,7 @@ interface Props {
 
 export function SettleUpModal({ onClose, groupId, prefill }: Props) {
   const { state, dispatch } = useStore();
+  const fieldId = useId();
   const group = state.groups.find((g) => g.id === groupId) ?? null;
   const people = (group ? group.memberIds : state.people.map((p) => p.id)).map(
     (id) => state.people.find((p) => p.id === id)!,
@@ -61,10 +62,10 @@ export function SettleUpModal({ onClose, groupId, prefill }: Props) {
         </>
       }
     >
-      {error && <div className="form-error">{error}</div>}
+      {error && <div className="form-error" role="alert">{error}</div>}
       <div className="field">
-        <label>Who paid</label>
-        <select value={fromId} onChange={(e) => setFromId(e.target.value)}>
+        <label htmlFor={`${fieldId}-from`}>Who paid</label>
+        <select id={`${fieldId}-from`} value={fromId} onChange={(e) => setFromId(e.target.value)}>
           {people.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -73,8 +74,8 @@ export function SettleUpModal({ onClose, groupId, prefill }: Props) {
         </select>
       </div>
       <div className="field">
-        <label>Who received</label>
-        <select value={toId} onChange={(e) => setToId(e.target.value)}>
+        <label htmlFor={`${fieldId}-to`}>Who received</label>
+        <select id={`${fieldId}-to`} value={toId} onChange={(e) => setToId(e.target.value)}>
           {people.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -83,10 +84,11 @@ export function SettleUpModal({ onClose, groupId, prefill }: Props) {
         </select>
       </div>
       <div className="field">
-        <label>Amount</label>
+        <label htmlFor={`${fieldId}-amount`}>Amount</label>
         <div className="amount-input">
           <span className="currency">$</span>
           <input
+            id={`${fieldId}-amount`}
             type="text"
             inputMode="decimal"
             value={amountText}
@@ -97,8 +99,8 @@ export function SettleUpModal({ onClose, groupId, prefill }: Props) {
         </div>
       </div>
       <div className="field">
-        <label>Date</label>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <label htmlFor={`${fieldId}-date`}>Date</label>
+        <input id={`${fieldId}-date`} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       </div>
     </Modal>
   );

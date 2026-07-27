@@ -121,7 +121,7 @@ export function SettlementsPage() {
       </main>
       <aside className="rail">
         <div className="rail-card">
-          <h3>Recent Payments</h3>
+          <h2>Recent Payments</h2>
           {state.settlements.slice(-5).reverse().map((settlement) => {
             const from = peopleById.get(settlement.fromId);
             const to = peopleById.get(settlement.toId);

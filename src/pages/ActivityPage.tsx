@@ -80,12 +80,22 @@ export function ActivityPage() {
           </div>
         </div>
         <div className="filter-bar">
-          <select value={kindFilter} onChange={(event) => setKindFilter(event.target.value as typeof kindFilter)}>
+          <label className="sr-only" htmlFor="activity-type-filter">Filter by activity type</label>
+          <select
+            id="activity-type-filter"
+            value={kindFilter}
+            onChange={(event) => setKindFilter(event.target.value as typeof kindFilter)}
+          >
             <option value="all">All Activity</option>
             <option value="expenses">Expenses</option>
             <option value="payments">Payments</option>
           </select>
-          <select value={groupFilter} onChange={(event) => setGroupFilter(event.target.value)}>
+          <label className="sr-only" htmlFor="activity-group-filter">Filter by group</label>
+          <select
+            id="activity-group-filter"
+            value={groupFilter}
+            onChange={(event) => setGroupFilter(event.target.value)}
+          >
             <option value="all">All Groups</option>
             <option value="none">Non-group</option>
             {state.groups.map((group) => (
@@ -115,7 +125,7 @@ export function ActivityPage() {
       </main>
       <aside className="rail">
         <div className="rail-card">
-          <h3>Visible Records</h3>
+          <h2>Visible Records</h2>
           <strong className="rail-number">{items.length}</strong>
           <p className="muted-copy">Expenses and settlements shown in reverse chronological order.</p>
         </div>
