@@ -102,6 +102,11 @@ a {
   text-decoration: none;
 }
 
+:where(a, button):focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
 .topbar {
   position: fixed;
   top: 0;
@@ -1352,6 +1357,12 @@ a {
   gap: 6px;
 }
 
+.field-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .field label,
 .field-label {
   color: var(--color-text-tertiary);
@@ -1921,7 +1932,7 @@ a {
     height: 64px;
   }
 
-  .user span {
+  .user-name {
     display: none;
   }
 
@@ -1982,15 +1993,48 @@ a {
     border-top: 1px solid var(--color-border-default);
   }
 
-  .expense-row,
+  .expense-row {
+    display: grid;
+    grid-template-columns: 38px 44px minmax(0, 1fr) minmax(92px, auto);
+    align-items: start;
+  }
+
+  .expense-row .date {
+    grid-column: 1;
+  }
+
+  .expense-row .cat {
+    grid-column: 2;
+  }
+
+  .expense-row .desc {
+    grid-column: 3 / 5;
+  }
+
+  .expense-row .fig {
+    width: auto;
+    margin-top: 4px;
+    padding-top: 10px;
+    border-top: 1px solid var(--color-border-default);
+    text-align: left;
+  }
+
+  .expense-row .fig:nth-last-child(2) {
+    grid-column: 3;
+  }
+
+  .expense-row .fig:last-child {
+    grid-column: 4;
+    text-align: right;
+  }
+
   .settlement-row {
     align-items: flex-start;
     flex-wrap: wrap;
   }
 
-  .expense-row .fig {
-    width: auto;
-    flex: 1 1 42%;
+  .field-pair {
+    grid-template-columns: 1fr;
   }
 
   .filter-bar input,
@@ -2018,5 +2062,16 @@ a {
 
   .reconciliation-summary-cell:last-child {
     border-bottom: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

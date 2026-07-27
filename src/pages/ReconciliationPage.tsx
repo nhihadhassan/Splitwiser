@@ -179,7 +179,16 @@ export function ReconciliationPage() {
           </div>
           <div className="reconciliation-progress">
             <span>{completed} of {items.length} review items checked</span>
-            <div className="balance-meter" aria-label={`${progress}% complete`}><span style={{ width: `${progress}%` }} /></div>
+            <div
+              className="balance-meter"
+              role="progressbar"
+              aria-label="Reconciliation progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progress}
+            >
+              <span style={{ width: `${progress}%` }} />
+            </div>
           </div>
         </section>
 

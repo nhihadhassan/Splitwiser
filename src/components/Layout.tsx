@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { ME, useStore } from "../store";
 import { balancesWith, buildLedger } from "../utils/balances";
 import { formatMoney } from "../utils/money";
@@ -11,6 +11,7 @@ import { BrandMark, GroupBadge, NavIcon } from "./Icons";
 
 export function Layout() {
   const { state, peopleById } = useStore();
+  const { pathname } = useLocation();
   const [addingFriend, setAddingFriend] = useState(false);
   const [addingGroup, setAddingGroup] = useState(false);
   const [addingExpense, setAddingExpense] = useState(false);
@@ -21,6 +22,7 @@ export function Layout() {
   }, [state]);
 
   const me = peopleById.get(ME);
+  const showGlobalAddExpense = ["/", "/activity", "/groups", "/reconciliation"].includes(pathname);
 
   return (
     <>
@@ -29,17 +31,19 @@ export function Layout() {
           <BrandMark /> SPLITWISER
         </NavLink>
         <div className="spacer" />
-        <button
-          className="btn btn-secondary top-action"
-          onClick={() => setAddingExpense(true)}
-          aria-label="Add expense"
-        >
-          <span className="top-action-icon" aria-hidden="true">+</span>
-          <span className="top-action-label">Add Expense</span>
-        </button>
+        {showGlobalAddExpense && (
+          <button
+            className="btn btn-secondary top-action"
+            onClick={() => setAddingExpense(true)}
+            aria-label="Add expense"
+          >
+            <span className="top-action-icon" aria-hidden="true">+</span>
+            <span className="top-action-label">Add Expense</span>
+          </button>
+        )}
         <div className="user">
           <Avatar person={me} size={26} />
-          <span>{me?.name}</span>
+          <span className="user-name">{me?.name}</span>
         </div>
       </header>
 

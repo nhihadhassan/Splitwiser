@@ -36,6 +36,8 @@ Button styling is controlled by the `--button-*` tokens in `:root`. Do not add c
 - Standard buttons are at least 38px high on desktop and 44px on touch layouts.
 - Focus uses `--color-focus-ring`; selected states use accent background and border roles.
 - Disabled opacity uses `--button-disabled-opacity`.
+- The global Add Expense action appears only where the page does not already provide a contextual expense action.
+- Motion is removed when the user requests reduced motion.
 
 ## Overview
 

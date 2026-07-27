@@ -245,7 +245,7 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="field-pair">
         <div className="field">
           <label htmlFor={`${fieldId}-date`}>Date</label>
           <input id={`${fieldId}-date`} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -262,7 +262,7 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className="field-pair">
         <div className="field">
           <label htmlFor={`${fieldId}-group`}>Group</label>
           <select id={`${fieldId}-group`} value={selectedGroupId} onChange={(e) => changeGroup(e.target.value)}>
