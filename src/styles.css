@@ -983,6 +983,11 @@ a {
   font-size: 12px;
 }
 
+.expense-row .desc .category-copy {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
 .expense-row .fig {
   width: 120px;
   text-align: right;

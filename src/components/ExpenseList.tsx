@@ -3,6 +3,7 @@ import type { Expense, Settlement } from "../types";
 import { ME, useStore } from "../store";
 import { formatMoney } from "../utils/money";
 import { monthDay, monthLabel } from "../utils/dates";
+import { CATEGORY_META } from "../utils/categories";
 import { Avatar } from "./Avatar";
 import { AddExpenseModal } from "./AddExpenseModal";
 import { CategoryIcon, PaymentIcon } from "./Icons";
@@ -15,10 +16,12 @@ export function ExpenseList({
   expenses,
   settlements,
   emptyMessage,
+  showCategory = false,
 }: {
   expenses: Expense[];
   settlements: Settlement[];
   emptyMessage: string;
+  showCategory?: boolean;
 }) {
   const { state, dispatch, peopleById } = useStore();
   const [openId, setOpenId] = useState<string | null>(null);
@@ -116,7 +119,13 @@ export function ExpenseList({
               </div>
               <div className="desc">
                 <div className="title">{e.description}</div>
-                {groupName && <div className="where">{groupName}</div>}
+                {(showCategory || groupName) && (
+                  <div className="where">
+                    {showCategory && <span className="category-copy">{CATEGORY_META[e.category].label}</span>}
+                    {showCategory && groupName && <span aria-hidden="true"> · </span>}
+                    {groupName && <span>{groupName}</span>}
+                  </div>
+                )}
               </div>
               <div className="fig">
                 <div className="fig-label">
