@@ -36,13 +36,14 @@ export function GroupIcon({ type, size = 20 }: { type: GroupType; size?: number 
   return <span className="semantic-icon group-semantic-icon"><Svg size={size}>{icons[type]}</Svg></span>;
 }
 
-export function NavIcon({ type }: { type: "overview" | "groups" | "activity" | "expenses" | "settlements" }) {
+export function NavIcon({ type }: { type: "overview" | "groups" | "activity" | "expenses" | "settlements" | "reconciliation" }) {
   const icons = {
     overview: <><circle cx="12" cy="12" r="8" /><path d="m12 8 1.5 3.5L17 13l-3.5 1.5L12 18l-1.5-3.5L7 13l3.5-1.5L12 8Z" /></>,
     groups: <><circle cx="9" cy="9" r="3" /><circle cx="17" cy="10" r="2.5" /><path d="M3.5 19c.7-3 2.5-4.5 5.5-4.5s4.8 1.5 5.5 4.5M15 15c2.7-.3 4.5 1 5.5 4" /></>,
     activity: <><path d="M4 13h3l2-6 4 11 2-5h5" /></>,
     expenses: <><path d="M7 3.5h7l3 3v14H7z" /><path d="M14 3.5v4h4M10 12h4M10 16h4" /></>,
     settlements: <><path d="M5 8h13M15 5l3 3-3 3M19 16H6M9 13l-3 3 3 3" /></>,
+    reconciliation: <><path d="M5 12.5 9 16l10-10" /><path d="M4 5h5M4 19h5M15 19h5" /></>,
   };
   return <span className="nav-mark"><Svg size={18}>{icons[type]}</Svg></span>;
 }

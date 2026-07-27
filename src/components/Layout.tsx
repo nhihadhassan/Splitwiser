@@ -58,6 +58,9 @@ export function Layout() {
           <NavLink to="/settlements" className="nav-link">
             <NavIcon type="settlements" /> Settlements
           </NavLink>
+          <NavLink to="/reconciliation" className="nav-link">
+            <NavIcon type="reconciliation" /> Reconcile Trips
+          </NavLink>
 
           <div className="nav-section">
             <span>Groups</span>
