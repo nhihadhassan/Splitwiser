@@ -40,9 +40,32 @@ export function CountryFlagIcon({ country, size = 44 }: { country: "peru" | "por
   const flagWidth = size * 0.6;
   const flagHeight = size * 0.4;
   return (
-    <span className="country-flag-icon" style={{ width: size, height: size }} aria-label={`${country} flag`} role="img">
+    <span className={`country-flag-icon country-flag-icon-${country}`} style={{ width: size, height: size }} aria-label={`${country} flag`} role="img">
       <svg className="country-flag-art" width={flagWidth} height={flagHeight} viewBox="0 0 60 40" fill="none" aria-hidden="true">
-        {country === "peru" ? <><rect width="20" height="40" fill="#D91023" /><rect x="20" width="20" height="40" fill="#FFF" /><rect x="40" width="20" height="40" fill="#D91023" /></> : <><rect width="24" height="40" fill="#046A38" /><rect x="24" width="36" height="40" fill="#DA291C" /><circle cx="24" cy="20" r="9" fill="#F7D117" /><circle cx="24" cy="20" r="6.5" fill="#FFF" /></>}
+        {country === "peru" ? <><rect width="20" height="40" fill="#D91023" /><rect x="20" width="20" height="40" fill="#FAF7EF" /><rect x="40" width="20" height="40" fill="#D91023" /></> : <><rect width="24" height="40" fill="#046A38" /><rect x="24" width="36" height="40" fill="#DA291C" /><circle cx="24" cy="20" r="9" fill="#F7D117" /><circle cx="24" cy="20" r="6.5" fill="#FAF7EF" /></>}
+      </svg>
+    </span>
+  );
+}
+
+export function NewYorkIcon({ size = 44 }: { size?: number }) {
+  return (
+    <span
+      className="country-flag-icon country-flag-icon-new-york"
+      style={{ width: size, height: size }}
+      aria-label="New York, Statue of Liberty"
+      role="img"
+    >
+      <svg className="new-york-art" width={size * 0.72} height={size * 0.72} viewBox="0 0 60 60" fill="none" aria-hidden="true">
+        <path d="M39 7c-1.8 2.2-2.2 4.2-1.2 6.2 2.4-.4 4-2 4.8-4.7L39 7Z" fill="#F6C86B" />
+        <path d="M38.6 14.5 36.8 31" stroke="#175B59" strokeWidth="3.2" strokeLinecap="round" />
+        <path d="M26 24.5c0-4.2 2.6-7 6.2-7 3.8 0 6.3 2.8 6.3 7v2.2H26v-2.2Z" fill="#277D75" />
+        <circle cx="32.2" cy="27" r="4.8" fill="#5FAE9D" />
+        <path d="m26.6 18.8-3.5-4.5M29.2 17.4l-1.2-5.7M32.2 17v-6M35.1 17.6l1.6-5.7M37.8 19l3.7-4.3" stroke="#175B59" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M25.4 31.2 20.8 47h23L38 31.2l-5.8 4.4-6.8-4.4Z" fill="#3D978A" />
+        <path d="m25.7 32-7.2 5.7M38.1 32l5.6 6.4" stroke="#175B59" strokeWidth="3.4" strokeLinecap="round" />
+        <rect x="17" y="34.5" width="7" height="9" rx="1.2" transform="rotate(-8 17 34.5)" fill="#B8DED1" stroke="#175B59" strokeWidth="1.6" />
+        <path d="M24 47h17.2l3.3 6H20.8l3.2-6Z" fill="#175B59" />
       </svg>
     </span>
   );
@@ -50,6 +73,7 @@ export function CountryFlagIcon({ country, size = 44 }: { country: "peru" | "por
 
 export function GroupBadge({ type, name, size = 44 }: { type: GroupType; name: string; size?: number }) {
   const normalized = name.toLowerCase();
+  if (type === "trip" && (normalized.includes("new york") || normalized.includes("nyc"))) return <NewYorkIcon size={size} />;
   if (type === "trip" && normalized.includes("peru")) return <CountryFlagIcon country="peru" size={size} />;
   if (type === "trip" && normalized.includes("portugal")) return <CountryFlagIcon country="portugal" size={size} />;
   return <GroupIcon type={type} size={size * 0.5} />;
