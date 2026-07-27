@@ -113,10 +113,11 @@ a {
 .layout {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-columns: minmax(0, 960px) 280px;
   gap: 24px;
   padding: 100px 40px 64px 312px;
   align-items: start;
+  justify-content: start;
 }
 
 .nav {
