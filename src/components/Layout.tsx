@@ -6,6 +6,7 @@ import { formatMoney } from "../utils/money";
 import { Avatar } from "./Avatar";
 import { AddExpenseModal } from "./AddExpenseModal";
 import { AddFriendModal } from "./AddFriendModal";
+import { CloudStatusBadge } from "./CloudStatusBadge";
 import { GroupModal } from "./GroupModal";
 import { BrandMark, GroupBadge, NavIcon } from "./Icons";
 
@@ -28,7 +29,7 @@ export function Layout() {
     <>
       <header className="topbar">
         <NavLink to="/" className="brand">
-          <BrandMark /> SPLITWISER
+          <BrandMark /> <span className="brand-name">SPLITWISER</span>
         </NavLink>
         <div className="spacer" />
         {showGlobalAddExpense && (
@@ -41,6 +42,7 @@ export function Layout() {
             <span className="top-action-label">Add Expense</span>
           </button>
         )}
+        <CloudStatusBadge />
         <div className="user">
           <Avatar person={me} size={26} />
           <span className="user-name">{me?.name}</span>
