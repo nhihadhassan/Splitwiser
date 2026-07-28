@@ -682,6 +682,11 @@ a {
   margin-top: 30px;
 }
 
+.overview-secondary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 44px;
+}
+
 .overview-section {
   min-width: 0;
   border-top: 1px solid var(--color-border-default);
@@ -702,6 +707,39 @@ a {
   color: var(--color-text-tertiary);
   font-size: 11px;
   font-weight: 500;
+}
+
+.overview-group-row,
+.overview-reconciliation-row {
+  min-height: 58px;
+}
+
+.overview-reconciliation-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  color: var(--color-text-primary);
+}
+
+.overview-reconciliation-row .name {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  font-weight: 700;
+}
+
+.overview-reconciliation-row small {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.overview-group-row:hover .name,
+.overview-reconciliation-row:hover .name {
+  color: var(--color-accent);
 }
 
 .activity-icon,
