@@ -37,6 +37,11 @@ function fingerprint(parts: Array<string | number>): string {
   return normalizeSearch(parts.join("|")).replace(/\s/g, "-");
 }
 
+function canonicalDate(value: string): string {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value.trim() : parsed.toISOString().slice(0, 10);
+}
+
 function source(
   id: string,
   tripId: ReconciliationTripId,
@@ -89,7 +94,7 @@ function transaction(
     ].join(" ")),
     duplicateFingerprint: fingerprint([
       input.sourceId,
-      input.postedDate,
+      canonicalDate(input.postedDate),
       input.postedCadCents,
       input.reference,
       input.description,
@@ -398,7 +403,7 @@ export function previewDelimitedImport(
     const reference = referenceIndex >= 0 ? values[referenceIndex]?.trim() ?? "" : "";
     const valid = Boolean(date && description && amountCents !== null);
     const duplicateFingerprint = valid
-      ? fingerprint([sourceId, date!, amountCents!, reference, description])
+      ? fingerprint([sourceId, canonicalDate(date!), amountCents!, reference, description])
       : "";
     return {
       row: index + 2,
