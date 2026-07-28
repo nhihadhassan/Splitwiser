@@ -66,7 +66,13 @@ function baseSources(): ReconciliationSource[] {
   return (["peru", "new-york"] as ReconciliationTripId[]).flatMap((tripId) => [
     source(`wanderlog-${tripId}`, tripId, "wanderlog", "Wanderlog", "Trip expense log"),
     source(`scotia-${tripId}`, tripId, "bank", "Scotiabank", "Passport Visa Infinite •••• 7283"),
-    source(`export-${tripId}`, tripId, "import", "Expense Export", "Earlier card charges"),
+    source(
+      `export-${tripId}`,
+      tripId,
+      "import",
+      tripId === "peru" ? "Tangerine" : "Expense Export",
+      tripId === "peru" ? "Mastercard · earlier booking charges" : "Earlier card charges",
+    ),
     ...(tripId === "peru"
       ? [source("cash-peru", tripId, "cash", "Tangerine", "International ATM withdrawals")]
       : []),
@@ -298,8 +304,11 @@ export function ensureReconciliationWorkspace(
   if (state.workspace?.schemaVersion === RECONCILIATION_SCHEMA_VERSION) {
     const rebuilt = createReconciliationWorkspace(state, expenses);
     const rebuiltById = new Map(rebuilt.transactions.map((item) => [item.id, item]));
+    const rebuiltSourcesById = new Map(rebuilt.sources.map((item) => [item.id, item]));
     const existingIds = new Set(state.workspace.transactions.map((item) => item.id));
+    const existingSourceIds = new Set(state.workspace.sources.map((item) => item.id));
     const missingTransactions = rebuilt.transactions.filter((item) => !existingIds.has(item.id));
+    const missingSources = rebuilt.sources.filter((item) => !existingSourceIds.has(item.id));
     const repairedTransactions = state.workspace.transactions.map((item) => {
       if (Number.isFinite(item.originalAmountCents)) return item;
       const source = rebuiltById.get(item.id);
@@ -307,6 +316,21 @@ export function ensureReconciliationWorkspace(
     });
     return {
       ...state.workspace,
+      sources: [
+        ...state.workspace.sources.map((item) => {
+          const canonical = rebuiltSourcesById.get(item.id);
+          return canonical
+            ? {
+                ...item,
+                type: canonical.type,
+                institution: canonical.institution,
+                account: canonical.account,
+                currency: canonical.currency,
+              }
+            : item;
+        }),
+        ...missingSources,
+      ],
       transactions: [...repairedTransactions, ...missingTransactions],
     };
   }
@@ -317,7 +341,7 @@ export function reconciliationTotals(workspace: ReconciliationWorkspace, tripId:
   const transactions = workspace.transactions.filter((item) => item.tripId === tripId);
   const active = transactions.filter((item) => item.status !== "excluded");
   const left = active.filter((item) => item.side === "left").reduce((sum, item) => sum + item.postedCadCents, 0);
-  const right = active.filter((item) => item.side === "right" && item.accountType !== "cash").reduce((sum, item) => sum + item.postedCadCents, 0);
+  const right = active.filter((item) => item.side === "right").reduce((sum, item) => sum + item.postedCadCents, 0);
   const confirmed = workspace.matchGroups.filter((group) => group.tripId === tripId && group.status === "confirmed");
   const matchedIds = new Set(confirmed.flatMap((group) => [...group.leftIds, ...group.rightIds]));
   const matchedValue = transactions.filter((item) => item.side === "left" && matchedIds.has(item.id)).reduce((sum, item) => sum + item.postedCadCents, 0);
@@ -477,7 +501,7 @@ export function generateSuggestions(
       .flatMap((group) => [...group.leftIds, ...group.rightIds]),
   );
   const left = workspace.transactions.filter((item) => item.tripId === tripId && item.side === "left" && item.status === "unmatched" && !unavailable.has(item.id));
-  const right = workspace.transactions.filter((item) => item.tripId === tripId && item.side === "right" && item.accountType === "card" && item.status === "unmatched" && !unavailable.has(item.id));
+  const right = workspace.transactions.filter((item) => item.tripId === tripId && item.side === "right" && item.status === "unmatched" && !unavailable.has(item.id));
   const candidates: ReconciliationMatchGroup[] = [];
   left.forEach((leftItem) => {
     const exact = right
@@ -514,12 +538,13 @@ export function generateSuggestions(
   return candidates;
 }
 
-export function cashControl(workspace: ReconciliationWorkspace, endingCashCents: number) {
+export function cashSummary(workspace: ReconciliationWorkspace, endingCashCents: number) {
   const cash = workspace.transactions.filter((item) => item.tripId === "peru" && item.accountType === "cash" && item.status !== "excluded");
   const opening = cash.filter((item) => item.id.includes("cash-prior")).reduce((sum, item) => sum + item.postedCadCents, 0);
   const withdrawals = cash.filter((item) => !item.id.includes("cash-prior")).reduce((sum, item) => sum + item.postedCadCents, 0);
-  const impliedSpent = opening + withdrawals - endingCashCents;
-  return { opening, withdrawals, ending: endingCashCents, impliedSpent };
+  const total = opening + withdrawals;
+  const used = total - endingCashCents;
+  return { opening, withdrawals, total, ending: endingCashCents, used };
 }
 
 export function auditEvent(

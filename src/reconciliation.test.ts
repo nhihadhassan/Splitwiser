@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { seedState } from "./seed";
 import {
-  cashControl,
+  cashSummary,
   createReconciliationWorkspace,
+  ensureReconciliationWorkspace,
   generateSuggestions,
   normalizeSearch,
   previewDelimitedImport,
@@ -19,6 +20,7 @@ describe("reconciliation schema migration", () => {
     expect(workspace.transactions.some((item) => item.tripId === "new-york" && item.side === "right")).toBe(true);
     expect(workspace.transactions.every((item) => Number.isInteger(item.postedCadCents))).toBe(true);
     expect(workspace.transactions.every((item) => Number.isInteger(item.originalAmountCents))).toBe(true);
+    expect(workspace.sources.find((item) => item.id === "export-peru")?.institution).toBe("Tangerine");
   });
 
   it("preserves valid legacy matches and ignores stale IDs", () => {
@@ -46,6 +48,26 @@ describe("reconciliation schema migration", () => {
 
     expect(peru.left).toBe(expected);
     expect(peru.leftCount).toBeGreaterThan(0);
+    expect(peru.right).toBe(
+      workspace.transactions
+        .filter((item) => item.tripId === "peru" && item.side === "right" && item.status !== "excluded")
+        .reduce((sum, item) => sum + item.postedCadCents, 0),
+    );
+  });
+
+  it("refreshes canonical account labels in an existing workspace", () => {
+    const state = seedState();
+    const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
+    state.reconciliation.workspace = {
+      ...workspace,
+      sources: workspace.sources.map((item) => item.id === "export-peru"
+        ? { ...item, institution: "Expense Export" }
+        : item),
+    };
+
+    const repaired = ensureReconciliationWorkspace(state.reconciliation, state.expenses);
+
+    expect(repaired.sources.find((item) => item.id === "export-peru")?.institution).toBe("Tangerine");
   });
 });
 
@@ -86,12 +108,13 @@ describe("matching and controls", () => {
     expect(first.every((item) => item.explanation.length >= 2)).toBe(true);
   });
 
-  it("calculates cash as opening plus withdrawals less ending cash", () => {
+  it("summarizes cash available, remaining, and used", () => {
     const state = seedState();
     const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
-    const control = cashControl(workspace, 10_000);
+    const summary = cashSummary(workspace, 10_000);
 
-    expect(control.opening).toBe(21_200);
-    expect(control.impliedSpent).toBe(control.opening + control.withdrawals - 10_000);
+    expect(summary.opening).toBe(21_200);
+    expect(summary.total).toBe(summary.opening + summary.withdrawals);
+    expect(summary.used).toBe(summary.total - 10_000);
   });
 });

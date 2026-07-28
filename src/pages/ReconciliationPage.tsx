@@ -16,7 +16,7 @@ import type {
 } from "../types";
 import {
   auditEvent,
-  cashControl,
+  cashSummary,
   generateSuggestions,
   importedTransaction,
   normalizeSearch,
@@ -33,7 +33,7 @@ const tripMeta: Record<ReconciliationTripId, { name: string; dates: string; note
   peru: {
     name: "Peru",
     dates: "Jul 11 – Jul 26, 2026",
-    note: "Wanderlog expenses against Scotiabank, earlier booking charges, and the separate Tangerine cash control.",
+    note: "Match Wanderlog activities directly to Scotiabank charges, Tangerine bookings, and Tangerine cash withdrawals.",
   },
   "new-york": {
     name: "New York",
@@ -101,7 +101,7 @@ export function ReconciliationPage() {
   const [adjustmentNote, setAdjustmentNote] = useState("");
   const [supportReason, setSupportReason] = useState<ReconciliationExceptionReason>("missing-statement");
   const [supportNote, setSupportNote] = useState("");
-  const [endingCash, setEndingCash] = useState(state.reconciliation.cashRemaining);
+  const [endingCash, setEndingCash] = useState(state.reconciliation.cashRemaining || "0.00");
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState("");
   const [importSource, setImportSource] = useState("scotia-peru");
@@ -142,7 +142,7 @@ export function ReconciliationPage() {
   const sources = workspace.sources.filter((item) => item.tripId === trip);
   const suggestions = generateSuggestions(workspace, trip);
   const totals = reconciliationTotals(workspace, trip);
-  const cash = cashControl(workspace, Math.round((Number(endingCash) || 0) * 100));
+  const cash = cashSummary(workspace, Math.round((Number(endingCash) || 0) * 100));
   const confirmedGroups = workspace.matchGroups.filter((group) => group.tripId === trip && group.status === "confirmed");
   const matchedIds = new Set(confirmedGroups.flatMap((group) => [...group.leftIds, ...group.rightIds]));
   const exceptionIds = new Set(
@@ -188,7 +188,7 @@ export function ReconciliationPage() {
     && remainingDifference === 0
     && (adjustmentCents === 0 || adjustmentNote.trim().length > 0);
   const selectedCount = selectedLeft.length + selectedRight.length;
-  const tripUnmatched = transactions.filter((item) => item.accountType !== "cash" && queueFor(item) === "unmatched").length;
+  const tripUnmatched = transactions.filter((item) => queueFor(item) === "unmatched").length;
   const ambiguousCount = suggestions.filter((item) => item.status === "ambiguous").length;
   const canClose = tripUnmatched === 0 && ambiguousCount === 0 && totals.exceptions === 0;
   const categories = [...new Set(transactions.map((item) => item.category))].sort();
@@ -423,7 +423,7 @@ export function ReconciliationPage() {
       trip: tripMeta[trip],
       exportedAt: new Date().toISOString(),
       totals,
-      cashControl: trip === "peru" ? cash : undefined,
+      cashSummary: trip === "peru" ? cash : undefined,
       sources,
       transactions,
       matchGroups: workspace.matchGroups.filter((item) => item.tripId === trip),
@@ -508,7 +508,7 @@ export function ReconciliationPage() {
           <p>{tripMeta[trip].note}</p>
         </div>
         <Metric label="Wanderlog" value={money(totals.left)} detail={`${totals.leftCount} items`} />
-        <Metric label="Card sources" value={money(totals.right)} detail={`${money(Math.abs(totals.difference))} gross difference`} />
+        <Metric label="Account sources" value={money(totals.right)} detail={`${money(Math.abs(totals.difference))} gross difference`} />
         <Metric label="Matched by value" value={`${Math.round(totals.matchRateValue * 100)}%`} detail={`${Math.round(totals.matchRateCount * 100)}% by count`} />
         <Metric label="Open exceptions" value={String(totals.exceptions)} detail={`${suggestions.length} suggestions`} />
       </section>
@@ -623,12 +623,12 @@ export function ReconciliationPage() {
           />
           <Ledger
             side="right"
-            title="Bank statement"
+            title="Account activity"
             subtitle={trip === "peru" ? "Card charges and Tangerine cash withdrawals" : "What actually left your accounts"}
             rows={visibleRight}
             selected={selectedRight}
             onToggle={(id, event) => toggleSelection("right", id, event, visibleRight)}
-            onSelectVisible={() => selectVisible("right", visibleRight.filter((item) => item.accountType !== "cash"))}
+            onSelectVisible={() => selectVisible("right", visibleRight)}
             onEdit={editTransaction}
             disabled={isClosed}
             sourceById={new Map(sources.map((item) => [item.id, item.institution]))}
@@ -690,22 +690,26 @@ export function ReconciliationPage() {
       )}
 
       {trip === "peru" && (
-        <section className="cash-control">
+        <section className="cash-control cash-summary">
           <header>
-            <div><p className="eyebrow">Cash control account</p><h2>Tangerine ATM withdrawals</h2></div>
-            <strong>{money(cash.impliedSpent)} implied cash spent</strong>
+            <div><p className="eyebrow">Cash summary</p><h2>Tangerine withdrawals are matchable</h2></div>
+            <strong>{money(cash.total)} withdrawn</strong>
           </header>
+          <p className="cash-summary-copy">
+            Select withdrawals in the right ledger and pair them with the Wanderlog activities paid in cash.
+            Peru ended with no cash left; the optional field stays available for future trips.
+          </p>
           <div className="cash-equation">
-            <Metric label="Opening cash" value={money(cash.opening)} detail="500 PEN received before Jul 12" />
+            <Metric label="Earlier cash" value={money(cash.opening)} detail="500 PEN received before Jul 12" />
             <span>+</span>
-            <Metric label="Withdrawals + fees" value={money(cash.withdrawals)} detail="Tangerine ATM activity" />
+            <Metric label="Trip withdrawals + fee" value={money(cash.withdrawals)} detail="Tangerine account activity" />
             <span>−</span>
-            <label><span>Ending cash</span><div>CA$ <input value={endingCash} onChange={(event) => {
+            <label><span>Cash left over (optional)</span><div>CA$ <input value={endingCash} onChange={(event) => {
               setEndingCash(event.target.value);
               dispatch({ type: "updateReconciliation", reconciliation: { ...state.reconciliation, cashRemaining: event.target.value } });
-            }} inputMode="decimal" placeholder="0.00" disabled={isClosed} /></div><small>Cash brought home</small></label>
+            }} inputMode="decimal" placeholder="0.00" disabled={isClosed} /></div><small>CA$0.00 for Peru</small></label>
             <span>=</span>
-            <Metric label="Implied spent" value={money(cash.impliedSpent)} detail="Reconcile cash purchases to this control" />
+            <Metric label="Cash used" value={money(cash.used)} detail="Match this spending to Wanderlog activities" />
           </div>
         </section>
       )}
@@ -771,13 +775,12 @@ function Ledger({
   disabled: boolean;
   sourceById: Map<string, string>;
 }) {
-  const selectableRows = rows.filter((item) => item.accountType !== "cash");
-  const allSelected = selectableRows.length > 0 && selectableRows.every((item) => selected.includes(item.id));
+  const allSelected = rows.length > 0 && rows.every((item) => selected.includes(item.id));
   return (
     <section className="recon-ledger">
       <header>
         <label>
-          <input type="checkbox" checked={allSelected} onChange={onSelectVisible} disabled={selectableRows.length === 0 || disabled} />
+          <input type="checkbox" checked={allSelected} onChange={onSelectVisible} disabled={rows.length === 0 || disabled} />
           <span><strong>{title}</strong><small>{subtitle}</small></span>
         </label>
         <strong>{money(rows.reduce((sum, item) => sum + item.postedCadCents, 0))}</strong>
@@ -789,23 +792,18 @@ function Ledger({
             key={item.id}
             className={`recon-line ${item.accountType === "cash" ? "cash-line" : ""} ${selected.includes(item.id) ? "selected" : ""}`}
             onClick={(event) => {
-              if (item.accountType === "cash") return;
               if ((event.target as HTMLElement).closest("input, select, button")) return;
               onToggle(item.id, event);
             }}
           >
-            {item.accountType === "cash" ? (
-              <span className="cash-control-mark" title="Cash control activity" aria-label="Cash control activity">◇</span>
-            ) : (
-              <input
-                type="checkbox"
-                aria-label={`Select ${item.description}`}
-                checked={selected.includes(item.id)}
-                onChange={() => undefined}
-                onClick={(event) => onToggle(item.id, event)}
-                disabled={disabled}
-              />
-            )}
+            <input
+              type="checkbox"
+              aria-label={`Select ${item.description}`}
+              checked={selected.includes(item.id)}
+              onChange={() => undefined}
+              onClick={(event) => onToggle(item.id, event)}
+              disabled={disabled}
+            />
             <input
               className="recon-date-input"
               value={item.date}
@@ -816,7 +814,7 @@ function Ledger({
             <div className="recon-description">
               <input value={item.description} onChange={(event) => onEdit(item.id, { description: event.target.value })} disabled={disabled} aria-label="Description" />
               <small>{item.reference || item.notes || "No reference"}</small>
-              {item.accountType === "cash" && <em className="cash-control-note">Cash control, reconciled through ending cash</em>}
+              {item.accountType === "cash" && <em className="cash-control-note">Cash withdrawal · match to cash-paid activities</em>}
               {item.currency !== "CAD" && <em>{item.currency} {(item.originalAmountCents / 100).toFixed(2)} original</em>}
             </div>
             <span className="recon-source">{sourceById.get(item.sourceId) ?? item.sourceId}</span>
