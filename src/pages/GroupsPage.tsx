@@ -21,14 +21,7 @@ export function GroupsPage() {
         const net = netBalances(ledger);
         const myBalance = net.get(ME) ?? 0;
         const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-        const lastActivity = Math.max(
-          group.createdAt,
-          ...expenses.map((expense) => expense.createdAt),
-          ...state.settlements
-            .filter((settlement) => settlement.groupId === group.id)
-            .map((settlement) => settlement.createdAt),
-        );
-        return { group, expenses, myBalance, total, lastActivity };
+        return { group, expenses, myBalance, total };
       }),
     [state],
   );
@@ -37,12 +30,9 @@ export function GroupsPage() {
     <>
       <main className="pane pane-wide">
         <div className="pane-header hero-header">
-          <div>
-            <p className="eyebrow">Splitwiser Groups</p>
-            <h1>Active Groups</h1>
-          </div>
+          <h1>Groups</h1>
           <button className="btn btn-primary" onClick={() => setAddingGroup(true)}>
-            New Group
+            New group
           </button>
         </div>
 
@@ -53,7 +43,7 @@ export function GroupsPage() {
           </div>
         ) : (
           <div className="group-grid">
-            {groups.map(({ group, expenses, myBalance, total, lastActivity }) => (
+            {groups.map(({ group, expenses, myBalance, total }) => (
               <article key={group.id} className="ledger-card">
                 <div className="ledger-card-top">
                   <span className="ledger-icon"><GroupBadge type={group.type} name={group.name} /></span>
@@ -67,7 +57,7 @@ export function GroupsPage() {
                 </p>
                 <div className="ledger-stats">
                   <div>
-                    <span>Total volume</span>
+                    <span>Total</span>
                     <strong>{formatMoney(total)}</strong>
                   </div>
                   <div>
@@ -87,30 +77,17 @@ export function GroupsPage() {
                 </div>
                 <div className="ledger-actions">
                   <Link className="btn btn-secondary" to={`/groups/${group.id}`}>
-                    Open Ledger
+                    Open
                   </Link>
                   <button className="btn btn-primary" onClick={() => setAddingExpenseFor(group.id)}>
-                    Add Expense
+                    Add expense
                   </button>
                 </div>
-                <p className="card-footnote">
-                  Last updated {new Date(lastActivity).toLocaleDateString()}
-                </p>
               </article>
             ))}
           </div>
         )}
       </main>
-      <aside className="rail">
-        <div className="rail-card">
-          <h2>Group Command</h2>
-          <p className="muted-copy">
-            Groups gather expenses, member balances, repayment suggestions, and settlement history
-            into one ledger.
-          </p>
-        </div>
-      </aside>
-
       {addingGroup && <GroupModal onClose={() => setAddingGroup(false)} />}
       {addingExpenseFor && (
         <AddExpenseModal groupId={addingExpenseFor} onClose={() => setAddingExpenseFor(null)} />

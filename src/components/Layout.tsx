@@ -39,7 +39,7 @@ export function Layout() {
             aria-label="Add expense"
           >
             <span className="top-action-icon" aria-hidden="true">+</span>
-            <span className="top-action-label">Add Expense</span>
+            <span className="top-action-label">Add expense</span>
           </button>
         )}
         <CloudStatusBadge />
@@ -61,16 +61,16 @@ export function Layout() {
             <NavIcon type="groups" /> Groups
           </NavLink>
           <NavLink to="/activity" className="nav-link">
-            <NavIcon type="activity" /> Recent Activity
+            <NavIcon type="activity" /> Activity
           </NavLink>
           <NavLink to="/all" className="nav-link">
-            <NavIcon type="expenses" /> All Expenses
+            <NavIcon type="expenses" /> Expenses
           </NavLink>
           <NavLink to="/settlements" className="nav-link">
             <NavIcon type="settlements" /> Settlements
           </NavLink>
           <NavLink to="/reconciliation" className="nav-link">
-            <NavIcon type="reconciliation" /> Reconcile Trips
+            <NavIcon type="reconciliation" /> Reconcile
           </NavLink>
 
           <div className="nav-section">

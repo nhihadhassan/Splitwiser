@@ -56,20 +56,20 @@ export function GroupPage() {
         <div className="pane-header">
           <h1>
             <span className="group-page-title"><GroupBadge type={group.type} name={group.name} size={44} /> {group.name}</span>
-            <span className="sub">{group.memberIds.length} people</span>
+            <span className="sub">{group.memberIds.length} members</span>
           </h1>
           <button className="btn btn-primary" onClick={() => setAddingExpense(true)}>
-            Add an expense
+            Add expense
           </button>
           <button className="btn btn-primary" onClick={() => setSettlingBlank(true)}>
-            Settle up
+            Settle
           </button>
         </div>
 
         <ExpenseList
           expenses={expenses}
           settlements={settlements}
-          emptyMessage="No expenses in this group yet. Add one to get started!"
+          emptyMessage="No expenses yet."
         />
       </main>
 
@@ -93,7 +93,7 @@ export function GroupPage() {
 
         <div className="rail-card">
           <h2>{group.simplifyDebts ? "Suggested repayments" : "Who owes whom"}</h2>
-          {debts.length === 0 && <div className="all-settled">All settled up! 🎉</div>}
+          {debts.length === 0 && <div className="all-settled">Settled</div>}
           {debts.map((d, i) => {
             const from = peopleById.get(d.fromId);
             const to = peopleById.get(d.toId);

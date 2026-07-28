@@ -47,10 +47,10 @@ export function FriendPage() {
             <Avatar person={friend} size={34} /> {friend.name}
           </h1>
           <button className="btn btn-primary" onClick={() => setAddingExpense(true)}>
-            Add an expense
+            Add expense
           </button>
           <button className="btn btn-primary" onClick={() => setSettling(true)}>
-            Settle up
+            Settle
           </button>
         </div>
 

@@ -33,17 +33,17 @@ const tripMeta: Record<ReconciliationTripId, { name: string; dates: string; note
   portugal: {
     name: "Portugal",
     dates: "Jun 8 – Jun 24, 2026",
-    note: "23 on-trip Scotiabank charges and 9 earlier Scotiabank bookings were verified. The supplied Tangerine files contain no matching Portugal activity.",
+    note: "32 Scotiabank charges",
   },
   peru: {
     name: "Peru",
     dates: "Jul 11 – Jul 27, 2026",
-    note: "39 trip-related Scotiabank charges, Tangerine bookings, and Tangerine cash withdrawals are ready to match against Wanderlog.",
+    note: "39 Scotiabank charges, 13 Tangerine bookings, 12 cash withdrawals",
   },
   "new-york": {
     name: "New York",
     dates: "Jun 25 – Jun 28, 2026",
-    note: "20 on-trip Scotiabank charges and the earlier FlightHub booking were verified. The supplied Tangerine files contain no matching New York activity.",
+    note: "21 Scotiabank charges",
   },
 };
 
@@ -485,14 +485,10 @@ export function ReconciliationPage() {
   return (
     <main className="pane pane-wide reconciliation-page">
       <header className="recon-titlebar">
-        <div>
-          <p className="eyebrow">Trip reconciliation</p>
-          <h1>Reconciliation workspace</h1>
-          <p>Import, match, explain, and close every trip charge with an audit trail.</p>
-        </div>
+        <h1>Reconciliation</h1>
         <div className="recon-title-actions">
-          <span className={`recon-period-status ${isClosed ? "closed" : ""}`}>{isClosed ? "Closed" : "Open period"}</span>
-          <button type="button" className="btn btn-secondary" onClick={exportPackage}>Export package</button>
+          <span className={`recon-period-status ${isClosed ? "closed" : ""}`}>{isClosed ? "Closed" : "Open"}</span>
+          <button type="button" className="btn btn-secondary" onClick={exportPackage}>Export</button>
         </div>
       </header>
 
@@ -518,13 +514,12 @@ export function ReconciliationPage() {
       <section className="recon-overview">
         <div className="recon-trip-context">
           <span>{tripMeta[trip].dates}</span>
-          <strong>{tripMeta[trip].name} review</strong>
-          <p>{tripMeta[trip].note}</p>
+          <strong>{tripMeta[trip].note}</strong>
         </div>
         <Metric label="Wanderlog" value={money(totals.left)} detail={`${totals.leftCount} items`} />
-        <Metric label="Account sources" value={money(totals.right)} detail={`${money(Math.abs(totals.difference))} gross difference`} />
-        <Metric label="Matched by value" value={`${Math.round(totals.matchRateValue * 100)}%`} detail={`${Math.round(totals.matchRateCount * 100)}% by count`} />
-        <Metric label="Open exceptions" value={String(totals.exceptions)} detail={`${suggestions.length} suggestions`} />
+        <Metric label="Statements" value={money(totals.right)} detail={`${money(Math.abs(totals.difference))} difference`} />
+        <Metric label="Matched" value={`${Math.round(totals.matchRateValue * 100)}%`} detail={`${Math.round(totals.matchRateCount * 100)}% by count`} />
+        <Metric label="Exceptions" value={String(totals.exceptions)} detail={`${suggestions.length} suggestions`} />
       </section>
 
       <section className="recon-commandbar">
@@ -534,7 +529,7 @@ export function ReconciliationPage() {
             ref={searchRef}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search both ledgers by merchant, date, amount, reference, note, source…"
+            placeholder="Search merchant, date, amount, or reference"
             aria-label="Search both ledgers"
           />
           <kbd>/</kbd>
@@ -625,8 +620,8 @@ export function ReconciliationPage() {
         <div className="recon-ledgers">
           <Ledger
             side="left"
-            title="Wanderlog items"
-            subtitle="What you recorded as trip spending"
+            title="Wanderlog"
+            subtitle=""
             rows={visibleLeft}
             selected={selectedLeft}
             onToggle={(id, event) => toggleSelection("left", id, event, visibleLeft)}
@@ -637,10 +632,8 @@ export function ReconciliationPage() {
           />
           <Ledger
             side="right"
-            title="Account activity"
-            subtitle={trip === "peru"
-              ? "Card charges and Tangerine cash withdrawals"
-              : "Verified Scotiabank charges · no matching Tangerine activity"}
+            title="Statements"
+            subtitle=""
             rows={visibleRight}
             selected={selectedRight}
             onToggle={(id, event) => toggleSelection("right", id, event, visibleRight)}
@@ -708,13 +701,9 @@ export function ReconciliationPage() {
       {trip === "peru" && (
         <section className="cash-control cash-summary">
           <header>
-            <div><p className="eyebrow">Cash summary</p><h2>Tangerine withdrawals are matchable</h2></div>
+            <h2>Cash</h2>
             <strong>{money(cash.total)} withdrawn</strong>
           </header>
-          <p className="cash-summary-copy">
-            Select withdrawals in the right ledger and pair them with the Wanderlog activities paid in cash.
-            Peru ended with no cash left; the optional field stays available for future trips.
-          </p>
           <div className="cash-equation">
             <Metric label="Earlier cash" value={money(cash.opening)} detail="500 PEN received before Jul 12" />
             <span>+</span>
@@ -723,7 +712,7 @@ export function ReconciliationPage() {
             <label><span>Cash left over (optional)</span><div>CA$ <input value={endingCash} onChange={(event) => {
               setEndingCash(event.target.value);
               dispatch({ type: "updateReconciliation", reconciliation: { ...state.reconciliation, cashRemaining: event.target.value } });
-            }} inputMode="decimal" placeholder="0.00" disabled={isClosed} /></div><small>CA$0.00 for Peru</small></label>
+            }} inputMode="decimal" placeholder="0.00" disabled={isClosed} /></div></label>
             <span>=</span>
             <Metric label="Cash used" value={money(cash.used)} detail="Match this spending to Wanderlog activities" />
           </div>
@@ -732,7 +721,6 @@ export function ReconciliationPage() {
 
       <section className="recon-close">
         <div>
-          <p className="eyebrow">Period control</p>
           <h2>{isClosed ? `${tripMeta[trip].name} is closed` : `Close ${tripMeta[trip].name}`}</h2>
           <ul>
             <li className={tripUnmatched === 0 ? "done" : ""}>{tripUnmatched === 0 ? "✓" : "○"} Zero unexplained transactions</li>
@@ -750,7 +738,7 @@ export function ReconciliationPage() {
 
       {showActivity && (
         <section className="recon-activity">
-          <h2>Activity timeline</h2>
+          <h2>History</h2>
           {workspace.auditEvents.filter((item) => item.tripId === trip).slice().reverse().map((item) => (
             <div key={item.id}><span>{new Date(item.timestamp).toLocaleString()}</span><strong>{item.summary}</strong><small>{item.action}</small></div>
           ))}
@@ -856,7 +844,7 @@ function Ledger({
       <header>
         <label>
           <input type="checkbox" checked={allSelected} onChange={onSelectVisible} disabled={rows.length === 0 || disabled} />
-          <span><strong>{title}</strong><small>{subtitle}</small></span>
+          <span><strong>{title}</strong>{subtitle && <small>{subtitle}</small>}</span>
         </label>
         <strong>{money(rows.reduce((sum, item) => sum + item.postedCadCents, 0))}</strong>
       </header>
@@ -922,7 +910,7 @@ function SuggestionList({
 }) {
   return (
     <section className="recon-suggestions">
-      <header><div><p className="eyebrow">Explainable suggestions</p><h2>{suggestions.length} candidates</h2></div><span>Within CA$0.50 · ±7 days · merchant evidence</span></header>
+      <header><h2>Suggestions ({suggestions.length})</h2><span>CA$0.50 · ±7 days</span></header>
       {suggestions.map((group) => {
         const left = byId.get(group.leftIds[0]);
         const right = byId.get(group.rightIds[0]);
@@ -1004,7 +992,7 @@ function ExceptionRegister({
 }) {
   return (
     <section className="exception-register">
-      <header><p className="eyebrow">Supported transactions</p><h2>Exception register</h2></header>
+      <header><h2>Exceptions</h2></header>
       {items.map((item) => (
         <article key={item.id}>
           <span>{exceptionReasons.find((reason) => reason.value === item.reason)?.label}</span>
@@ -1046,7 +1034,7 @@ function ImportWorkspace({
   const accepted = preview.filter((item) => item.valid && !item.duplicate);
   return (
     <section className="recon-import">
-      <header><div><p className="eyebrow">Import workspace</p><h2>CSV or spreadsheet paste</h2></div><span>Private raw files are not uploaded</span></header>
+      <header><h2>Import transactions</h2><span>Raw files stay private</span></header>
       <div className="recon-import-controls">
         <label>Trip<input value={tripMeta[trip].name} disabled /></label>
         <label>Mapping

@@ -45,14 +45,7 @@ export function CloudSyncPanel() {
     <section className={`cloud-sync-panel cloud-sync-${cloud.status}`} aria-live="polite">
       <div className="cloud-sync-summary">
         <span className="cloud-sync-indicator" aria-hidden="true" />
-        <div>
-          <strong>{statusCopy(cloud.status)}</strong>
-          <span>
-            {cloud.hasKey
-              ? "Changes are saved to your private online ledger."
-              : "Turn on online saving to use this ledger on another device."}
-          </span>
-        </div>
+        <strong>{statusCopy(cloud.status)}</strong>
       </div>
 
       {!cloud.hasKey && (
@@ -109,7 +102,7 @@ export function CloudSyncPanel() {
               </button>
             </div>
             <p id="sync-key-help">
-              Keep this key private. It is required to open this ledger on another device.
+              Keep private. Needed on another device.
             </p>
           </div>
           <button className="btn-link-danger" type="button" onClick={cloud.disconnect}>
@@ -122,7 +115,7 @@ export function CloudSyncPanel() {
         <div className="cloud-sync-key-callout">
           <div>
             <strong>Save your sync key</strong>
-            <p>You will need it to connect another browser or recover this ledger.</p>
+            <p>Keep it to connect another browser or recover this ledger.</p>
           </div>
           <code>{newKey}</code>
           <button className="btn btn-secondary" type="button" onClick={() => copyKey(newKey)}>

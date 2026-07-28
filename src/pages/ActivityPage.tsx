@@ -40,7 +40,7 @@ export function ActivityPage() {
             {mySplit && myNet !== 0 && (
               <span className={myNet > 0 ? "pos" : "neg"}>
                 {" "}
-                — {myNet > 0 ? "you get back" : "you owe"} {formatMoney(Math.abs(myNet))}
+                , {myNet > 0 ? "you get back" : "you owe"} {formatMoney(Math.abs(myNet))}
               </span>
             )}
           </>
@@ -74,10 +74,7 @@ export function ActivityPage() {
     <>
       <main className="pane pane-wide">
         <div className="pane-header hero-header">
-          <div>
-            <p className="eyebrow">Audit Trail</p>
-            <h1>Detailed Activity</h1>
-          </div>
+          <h1>Activity</h1>
         </div>
         <div className="filter-bar">
           <label className="sr-only" htmlFor="activity-type-filter">Filter by activity type</label>
@@ -123,13 +120,6 @@ export function ActivityPage() {
           ))}
         </div>
       </main>
-      <aside className="rail">
-        <div className="rail-card">
-          <h2>Visible Records</h2>
-          <strong className="rail-number">{items.length}</strong>
-          <p className="muted-copy">Expenses and settlements shown in reverse chronological order.</p>
-        </div>
-      </aside>
     </>
   );
 }

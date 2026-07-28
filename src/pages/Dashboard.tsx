@@ -73,10 +73,7 @@ export function Dashboard() {
   return (
     <main className="pane pane-wide overview-page">
       <div className="pane-header hero-header">
-        <div>
-          <p className="eyebrow">Shared Ledger</p>
-          <h1>Overview</h1>
-        </div>
+        <h1>Overview</h1>
       </div>
 
       <section
@@ -84,11 +81,8 @@ export function Dashboard() {
         aria-labelledby="overview-balances-title"
       >
         <div className="overview-section-heading">
-          <div>
-            <p className="eyebrow">Current position</p>
-            <h2 id="overview-balances-title">Balances</h2>
-          </div>
-          <Link to="/settlements">Review settlements</Link>
+          <h2 id="overview-balances-title">Balances</h2>
+          <Link to="/settlements">Settlements</Link>
         </div>
 
         <div className="overview-totals">
@@ -114,7 +108,7 @@ export function Dashboard() {
         >
           <div className="overview-section-heading">
             <h2 id="recent-expenses-title">Recent expenses</h2>
-            <Link to="/activity">View activity</Link>
+            <Link to="/activity">Activity</Link>
           </div>
           <div className="overview-list">
             {recentExpenses.map((expense) => {
@@ -184,7 +178,7 @@ export function Dashboard() {
         >
           <div className="overview-section-heading">
             <h2 id="overview-groups-title">Your groups</h2>
-            <Link to="/groups">View all groups</Link>
+            <Link to="/groups">All groups</Link>
           </div>
           <div className="overview-list">
             {myGroups.map(({ group, expenseCount, myBalance }) => (
@@ -224,8 +218,8 @@ export function Dashboard() {
           aria-labelledby="overview-reconciliations-title"
         >
           <div className="overview-section-heading">
-            <h2 id="overview-reconciliations-title">Ongoing reconciliations</h2>
-            <Link to="/reconciliation">Continue review</Link>
+            <h2 id="overview-reconciliations-title">Reconciliation</h2>
+            <Link to="/reconciliation">Review</Link>
           </div>
           {ongoingReconciliations.length > 0 ? (
             <Link

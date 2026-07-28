@@ -28,10 +28,7 @@ export function AllExpensesPage() {
     <>
       <main className="pane pane-wide">
         <div className="pane-header hero-header">
-          <div>
-            <p className="eyebrow">Transaction Feed</p>
-            <h1>All Expenses</h1>
-          </div>
+          <h1>Expenses</h1>
           <button className="btn btn-primary" onClick={() => setAddingExpense(true)}>
             Add Expense
           </button>

@@ -5,12 +5,10 @@ import { formatMoney } from "../utils/money";
 import { today } from "../utils/dates";
 import { Avatar } from "../components/Avatar";
 import { SettleUpModal } from "../components/SettleUpModal";
-import { AddExpenseModal } from "../components/AddExpenseModal";
 
 export function SettlementsPage() {
   const { state, dispatch, peopleById } = useStore();
   const [settling, setSettling] = useState<SimplifiedDebt | null>(null);
-  const [addingExpense, setAddingExpense] = useState(false);
 
   const debts = useMemo(() => simplifyDebts(buildLedger(state)), [state]);
   const payable = debts.filter((debt) => debt.fromId === ME);
@@ -45,22 +43,16 @@ export function SettlementsPage() {
     <>
       <main className="pane pane-wide">
         <div className="pane-header hero-header">
-          <div>
-            <p className="eyebrow">Settlement Center</p>
-            <h1>Settlement Overview</h1>
-          </div>
-          <button className="btn btn-secondary" onClick={() => setAddingExpense(true)}>
-            Add Expense
-          </button>
+          <h1>Settlements</h1>
         </div>
 
         <section className="settlement-hero">
           <div>
-            <span>Total Payable</span>
+            <span>Payable</span>
             <strong>{formatMoney(totalPayable)}</strong>
           </div>
           <div>
-            <span>Total Expected</span>
+            <span>Receivable</span>
             <strong className="pos">{formatMoney(totalInbound)}</strong>
           </div>
           <button className="btn btn-primary" disabled={payable.length === 0} onClick={settleAllPayable}>
@@ -71,7 +63,7 @@ export function SettlementsPage() {
         <section className="bento-grid two">
           <div className="module-card">
             <div className="module-heading">
-              <h2>Action Required</h2>
+              <h2>To pay</h2>
               <span className="status-chip owed">{payable.length}</span>
             </div>
             {payable.length === 0 ? (
@@ -111,7 +103,7 @@ export function SettlementsPage() {
         {otherDebts.length > 0 && (
           <section className="module-card">
             <div className="module-heading">
-              <h2>Other Member Transfers</h2>
+              <h2>Between others</h2>
             </div>
             {otherDebts.map((debt) => (
               <SettlementAction key={`${debt.fromId}-${debt.toId}`} debt={debt} onSettle={setSettling} />
@@ -141,7 +133,6 @@ export function SettlementsPage() {
       {settling && (
         <SettleUpModal prefill={settling} onClose={() => setSettling(null)} />
       )}
-      {addingExpense && <AddExpenseModal onClose={() => setAddingExpense(false)} />}
     </>
   );
 }
