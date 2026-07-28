@@ -14,6 +14,7 @@ import type {
   Expense,
   Group,
   Person,
+  ReconciliationMatchGroup,
   ReconciliationState,
   Settlement,
 } from "./types";
@@ -25,7 +26,9 @@ import {
   SYNC_KEY_STORAGE_KEY,
 } from "./cloud";
 import { addCentralAmericaTrip } from "./centralAmericaTrip";
-import { DEFAULT_EXPENSE_EXPORT_TRANSACTIONS, DEFAULT_PERU_CASH_TRANSACTIONS, DEFAULT_SCOTIABANK_TRANSACTIONS } from "./reconciliationData";
+import { DEFAULT_EXPENSE_EXPORT_TRANSACTIONS, DEFAULT_NEW_YORK_MATCHES, DEFAULT_PERU_CASH_TRANSACTIONS, DEFAULT_SCOTIABANK_TRANSACTIONS } from "./reconciliationData";
+import { ensureReconciliationWorkspace } from "./reconciliation";
+import { seedState } from "./seed";
 
 export const ME = "me";
 
@@ -110,7 +113,7 @@ function loadLegacyReconciliation(): ReconciliationState {
 }
 
 function normalizeState(state: Omit<AppState, "reconciliation"> & Partial<AppState>): AppState {
-  return addCentralAmericaTrip({
+  const normalized = addCentralAmericaTrip({
     ...state,
     dataMigrations: state.dataMigrations ?? [],
     reconciliation: {
@@ -122,6 +125,80 @@ function normalizeState(state: Omit<AppState, "reconciliation"> & Partial<AppSta
       exportTransactions: state.reconciliation?.exportTransactions ?? DEFAULT_EXPENSE_EXPORT_TRANSACTIONS,
     },
   });
+  const seededTripExpenses = seedState().expenses.filter((expense) => expense.id.startsWith("e-ny-card-"));
+  const existingExpenseIds = new Set(normalized.expenses.map((expense) => expense.id));
+  normalized.expenses = normalized.expenses.concat(
+    seededTripExpenses.filter((expense) => !existingExpenseIds.has(expense.id)),
+  );
+  const mergedNewYorkMatches = { ...normalized.reconciliation.matches };
+  Object.entries(DEFAULT_NEW_YORK_MATCHES).forEach(([expenseId, rightKeys]) => {
+    const key = `new-york-${expenseId}`;
+    if (!mergedNewYorkMatches[key]) mergedNewYorkMatches[key] = rightKeys;
+  });
+  normalized.reconciliation = {
+    ...normalized.reconciliation,
+    matches: mergedNewYorkMatches,
+  };
+  const savedTripExpenses = normalized.expenses.filter(
+    (expense) => expense.groupId === "g-peru" || expense.groupId === "g-new-york",
+  );
+  const reconciliationExpenses = savedTripExpenses.length > 0
+    ? savedTripExpenses
+    : seedState().expenses.filter(
+      (expense) => expense.groupId === "g-peru" || expense.groupId === "g-new-york",
+    );
+  normalized.reconciliation.workspace = ensureReconciliationWorkspace(
+    normalized.reconciliation,
+    reconciliationExpenses,
+  );
+  const workspace = normalized.reconciliation.workspace;
+  const workspaceById = new Map(workspace.transactions.map((transaction) => [transaction.id, transaction]));
+  const existingMatchIds = new Set(workspace.matchGroups.flatMap((group) => [...group.leftIds, ...group.rightIds]));
+  const autoGroups: ReconciliationMatchGroup[] = [];
+  Object.entries(DEFAULT_NEW_YORK_MATCHES).forEach(([expenseId, legacyRightKeys]) => {
+    const leftId = `wl:new-york:${expenseId}`;
+    const rightIds = legacyRightKeys.map((key) => `scotia:new-york:${key.replace("scotia:", "")}`);
+    const left = workspaceById.get(leftId);
+    const right = rightIds.map((id) => workspaceById.get(id)).filter((item): item is NonNullable<typeof item> => Boolean(item));
+    const totalRight = right.reduce((sum, item) => sum + item.postedCadCents, 0);
+    if (!left || right.length !== rightIds.length || left.postedCadCents !== totalRight) return;
+    if ([left.id, ...rightIds].some((id) => existingMatchIds.has(id))) return;
+    const group: ReconciliationMatchGroup = {
+      id: `auto:new-york:${expenseId}`,
+      tripId: "new-york",
+      leftIds: [left.id],
+      rightIds,
+      matchType: "1 left ↔ 1 right",
+      status: "confirmed",
+      leftTotalCents: left.postedCadCents,
+      rightTotalCents: totalRight,
+      differenceCents: 0,
+      confidence: "high",
+      explanation: ["Matched to the imported Scotiabank charge by amount and trip context"],
+      createdAt: new Date(0).toISOString(),
+      confirmedAt: new Date(0).toISOString(),
+    };
+    autoGroups.push(group);
+    existingMatchIds.add(left.id);
+    rightIds.forEach((id) => existingMatchIds.add(id));
+  });
+  if (autoGroups.length > 0) {
+    const autoIds = new Set(autoGroups.flatMap((group) => [...group.leftIds, ...group.rightIds]));
+    normalized.reconciliation.workspace = {
+      ...workspace,
+      transactions: workspace.transactions.map((transaction) => autoIds.has(transaction.id) ? { ...transaction, status: "reconciled" as const } : transaction),
+      matchGroups: [...workspace.matchGroups, ...autoGroups],
+      auditEvents: [...workspace.auditEvents, {
+        id: "audit-new-york-card-import",
+        tripId: "new-york",
+        action: "match",
+        timestamp: new Date(0).toISOString(),
+        summary: `Auto-matched ${autoGroups.length} New York card charges from the imported statement`,
+        transactionIds: [...autoIds],
+      }],
+    };
+  }
+  return normalized;
 }
 
 function emptyState(): AppState {

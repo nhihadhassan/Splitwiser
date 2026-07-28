@@ -132,6 +132,13 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
     return sum + (Number.isNaN(cents) ? 0 : cents);
   }, 0);
   const percentSum = activeIds.reduce((sum, id) => sum + (Number(percent[id]) || 0), 0);
+  const fullSplitId = method === "percentage"
+    ? activeIds.find((id) =>
+        activeIds.every((participantId) =>
+          Number(percent[participantId] ?? "0") === (participantId === id ? 100 : 0),
+        ),
+      )
+    : undefined;
 
   function toggleParticipant(id: string) {
     setParticipants((prev) => {
@@ -156,8 +163,13 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
     setError("");
   }
 
-  function applyPayer(personId: string) {
-    setPayerId(personId);
+  function applyFullSplit(personId: string) {
+    setMethod("percentage");
+    setPercent(
+      Object.fromEntries(
+        activeIds.map((id) => [id, id === personId ? "100" : "0"]),
+      ),
+    );
     setError("");
   }
 
@@ -300,7 +312,7 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
 
       {group && activeIds.length >= 2 && (
         <div className="field quick-setup">
-          <span className="field-label" id={`${fieldId}-quick-setup`}>Quick setup</span>
+          <span className="field-label" id={`${fieldId}-quick-setup`}>Quick split</span>
           <div className="quick-action-row" role="group" aria-labelledby={`${fieldId}-quick-setup`}>
             <button
               type="button"
@@ -308,20 +320,20 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
               aria-pressed={method === "equally"}
               onClick={applyEqualSplit}
             >
-              {activeIds.length === 2 ? "Split 50/50" : "Split evenly"}
+              {activeIds.length === 2 ? "50/50" : "Split evenly"}
             </button>
             {activeIds.map((id) => {
               const person = peopleById.get(id);
-              const name = id === ME ? "You" : person?.name ?? "Member";
+              const name = id === ME ? "you" : person?.name ?? "member";
               return (
                 <button
                   key={id}
                   type="button"
-                  className={`chip quick-action ${payerId === id ? "on" : ""}`}
-                  aria-pressed={payerId === id}
-                  onClick={() => applyPayer(id)}
+                  className={`chip quick-action ${fullSplitId === id ? "on" : ""}`}
+                  aria-pressed={fullSplitId === id}
+                  onClick={() => applyFullSplit(id)}
                 >
-                  <Avatar person={person} size={18} /> {name} paid all
+                  <Avatar person={person} size={18} /> 100% {name}
                 </button>
               );
             })}

@@ -241,10 +241,12 @@ export function seedState(): AppState {
   addWanderlog("e-ny-016", "Transit", 4.26, "CAD", "transport", "2026-06-26", "g-new-york", newYork);
   addWanderlog("e-ny-017", "Liberty Bagels Midtown", 23.21, "CAD", "food", "2026-06-27", "g-new-york", newYork);
   addWanderlog("e-ny-018", "Bertoni Gelato", 14.70, "CAD", "food", "2026-06-27", "g-new-york", newYork);
-  addWanderlog("e-ny-019", "Transit", 5.84, "CAD", "transport", "2026-06-27", "g-new-york", newYork);
+  addWanderlog("e-ny-019", "Transit", 5.83, "CAD", "transport", "2026-06-27", "g-new-york", newYork);
   addWanderlog("e-ny-020", "Dumbo Market", 6.24, "CAD", "groceries", "2026-06-27", "g-new-york", newYork);
   addWanderlog("e-ny-021", "Transit", 4.26, "CAD", "transport", "2026-06-28", "g-new-york", newYork);
   addWanderlog("e-ny-022", "Transit", 7.53, "CAD", "transport", "2026-06-28", "g-new-york", newYork);
+  addEqual("e-ny-card-001", "Radical New York", 2534, "entertainment", "2026-06-25", "g-new-york", "me", newYork, new Date("2026-06-25T12:00:00Z").getTime(), "Imported from Scotiabank Visa statement: Radical New York, Roma.");
+  addEqual("e-ny-card-002", "Birrielandia", 2550, "food", "2026-06-27", "g-new-york", "me", newYork, new Date("2026-06-27T12:00:00Z").getTime(), "Imported from Scotiabank Visa statement: Birrielandia, Astoria NY.");
 
   const peru = ["me", "p-rachel"];
   const peruItems: Array<[string, string, number, "CAD" | "PEN" | "USD", AppState["expenses"][number]["category"], string]> = [

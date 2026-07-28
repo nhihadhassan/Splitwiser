@@ -1,623 +1,991 @@
-import { useMemo, useState } from "react";
-import { uid, useStore } from "../store";
-import type { ReconciliationDecision, StatementTransaction } from "../types";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type MouseEvent,
+} from "react";
+import { useStore } from "../store";
+import type {
+  ReconciliationExceptionReason,
+  ReconciliationMatchGroup,
+  ReconciliationQueue,
+  ReconciliationTransaction,
+  ReconciliationTripId,
+  ReconciliationWorkspace,
+} from "../types";
+import {
+  auditEvent,
+  cashControl,
+  generateSuggestions,
+  importedTransaction,
+  normalizeSearch,
+  previewDelimitedImport,
+  reconciliationTotals,
+  type ImportPreviewRow,
+} from "../reconciliation";
 import { formatMoney } from "../utils/money";
-import { seedState } from "../seed";
 import "./ReconciliationPage.css";
 
-type TripKey = "peru" | "new-york";
-type ChargeDecision = ReconciliationDecision;
-type RightSource = "Scotiabank" | "Expense export" | "Tangerine cash";
-type RightLine = StatementTransaction & { key: string; source: RightSource };
+type QueueTab = "unmatched" | "suggested" | "exception" | "reconciled" | "excluded";
 
-const tripMeta: Record<TripKey, { name: string; dates: string; note: string; wanderlogTotal: number }> = {
+const tripMeta: Record<ReconciliationTripId, { name: string; dates: string; note: string }> = {
   peru: {
     name: "Peru",
-    dates: "Jul 11 - Jul 26, 2026",
-    wanderlogTotal: 5539.30,
-    note: "The right side includes Scotiabank, earlier Tangerine Mastercard charges from the expense export, and Tangerine cash. Older bookings can be added as you find them.",
+    dates: "Jul 11 – Jul 26, 2026",
+    note: "Wanderlog expenses against Scotiabank, earlier booking charges, and the separate Tangerine cash control.",
   },
   "new-york": {
     name: "New York",
-    dates: "Jun 25 - Jun 28, 2026",
-    wanderlogTotal: 855.15,
-    note: "The Porter flight and USD cash purchases are in Wanderlog but are not present in the supplied Scotiabank statement.",
+    dates: "Jun 25 – Jun 28, 2026",
+    note: "Wanderlog expenses against the supplied card statement, with missing charges handled as supported exceptions.",
   },
 };
 
-const importedWanderlogExpenses = seedState().expenses.filter((expense) => (
-  expense.groupId === "g-peru" || expense.groupId === "g-new-york"
-));
+const queueLabels: Record<QueueTab, string> = {
+  unmatched: "Unmatched",
+  suggested: "Suggested",
+  exception: "Exceptions",
+  reconciled: "Reconciled",
+  excluded: "Excluded",
+};
 
-function money(amount: number) {
-  return formatMoney(Math.round(amount * 100));
+const exceptionReasons: Array<{ value: ReconciliationExceptionReason; label: string }> = [
+  { value: "timing", label: "Timing difference" },
+  { value: "fx", label: "Foreign-exchange variance" },
+  { value: "fee", label: "Bank fee or tax" },
+  { value: "missing-wanderlog", label: "Missing Wanderlog item" },
+  { value: "missing-statement", label: "Missing statement charge" },
+  { value: "cash", label: "Cash discrepancy" },
+  { value: "duplicate", label: "Duplicate" },
+  { value: "personal", label: "Personal expense" },
+  { value: "refund", label: "Refund or reversal" },
+  { value: "other", label: "Other" },
+];
+
+function money(cents: number): string {
+  return formatMoney(cents);
+}
+
+function uid(prefix: string): string {
+  return `${prefix}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function download(name: string, content: string, type: string) {
+  const href = URL.createObjectURL(new Blob([content], { type }));
+  const anchor = document.createElement("a");
+  anchor.href = href;
+  anchor.download = name;
+  anchor.click();
+  URL.revokeObjectURL(href);
+}
+
+function groupType(leftCount: number, rightCount: number): string {
+  return `${leftCount} left ↔ ${rightCount} right`;
 }
 
 export function ReconciliationPage() {
   const { state, dispatch } = useStore();
-  const [trip, setTrip] = useState<TripKey>("peru");
+  const workspace = state.reconciliation.workspace as ReconciliationWorkspace;
+  const [trip, setTrip] = useState<ReconciliationTripId>("peru");
+  const [queue, setQueue] = useState<QueueTab>("unmatched");
   const [query, setQuery] = useState("");
-  const [selectedWanderlogId, setSelectedWanderlogId] = useState<string | null>(null);
-  const [showReconciled, setShowReconciled] = useState(true);
-  const meta = tripMeta[trip];
-  const { decisions, matches, cashRemaining, cashTransactions, cardTransactions, exportTransactions } = state.reconciliation;
-  const groupId = trip === "peru" ? "g-peru" : "g-new-york";
-  const cardKey = trip === "peru" ? "peru" : "newYork";
-  const currentCardTransactions = cardTransactions[cardKey];
-  const currentExportTransactions = exportTransactions[cardKey];
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [minAmount, setMinAmount] = useState("");
+  const [maxAmount, setMaxAmount] = useState("");
+  const [selectedLeft, setSelectedLeft] = useState<string[]>([]);
+  const [selectedRight, setSelectedRight] = useState<string[]>([]);
+  const [adjustment, setAdjustment] = useState("");
+  const [adjustmentReason, setAdjustmentReason] = useState<ReconciliationExceptionReason>("fx");
+  const [adjustmentNote, setAdjustmentNote] = useState("");
+  const [supportReason, setSupportReason] = useState<ReconciliationExceptionReason>("missing-statement");
+  const [supportNote, setSupportNote] = useState("");
+  const [endingCash, setEndingCash] = useState(state.reconciliation.cashRemaining);
+  const [showImport, setShowImport] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importSource, setImportSource] = useState("scotia-peru");
+  const [importPreview, setImportPreview] = useState<ImportPreviewRow[]>([]);
+  const [importReport, setImportReport] = useState("");
+  const [notice, setNotice] = useState("");
+  const [showActivity, setShowActivity] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const lastLeftIndex = useRef<number | null>(null);
+  const lastRightIndex = useRef<number | null>(null);
 
-  const wanderlogCharges = useMemo(() => {
-    const savedTripExpenses = state.expenses.filter((expense) => expense.groupId === groupId);
-    const sourceExpenses = savedTripExpenses.length > 0
-      ? savedTripExpenses
-      : importedWanderlogExpenses.filter((expense) => expense.groupId === groupId);
-    return [...sourceExpenses].sort((a, b) => b.date.localeCompare(a.date));
-  }, [groupId, state.expenses]);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "/" && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement)) {
+        event.preventDefault();
+        searchRef.current?.focus();
+      }
+      if (event.key === "Escape") {
+        setSelectedLeft([]);
+        setSelectedRight([]);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
-  const decisionFor = (id: string): ChargeDecision => decisions[`${trip}-${id}`] ?? "include";
-  const excludedWanderlogCharges = wanderlogCharges.filter((charge) => {
-    const decision = decisionFor(charge.id);
-    return decision === "exclude" || decision === "personal";
-  });
-  const includedWanderlogCharges = wanderlogCharges.filter((charge) => !excludedWanderlogCharges.includes(charge));
-  const importedEstimateTotal = wanderlogCharges.reduce((sum, charge) => sum + charge.amount / 100, 0);
-  const wanderlogConversionAdjustment = meta.wanderlogTotal - importedEstimateTotal;
-  const excludedWanderlogTotal = excludedWanderlogCharges.reduce((sum, charge) => sum + charge.amount / 100, 0);
-  const wanderlogTotal = Math.max(0, meta.wanderlogTotal - excludedWanderlogTotal);
-  const statementDecisionFor = (id: string): "include" | "exclude" => (
-    decisions[`statement-${trip}-${id}`] === "exclude" ? "exclude" : "include"
+  useEffect(() => {
+    setImportSource(`scotia-${trip}`);
+  }, [trip]);
+
+  if (!workspace) {
+    return <main className="pane pane-wide reconciliation-page"><p>Preparing reconciliation workspace…</p></main>;
+  }
+
+  const period = workspace.periods.find((item) => item.tripId === trip)!;
+  const isClosed = period.status === "closed";
+  const transactions = workspace.transactions.filter((item) => item.tripId === trip);
+  const sources = workspace.sources.filter((item) => item.tripId === trip);
+  const suggestions = generateSuggestions(workspace, trip);
+  const totals = reconciliationTotals(workspace, trip);
+  const cash = cashControl(workspace, Math.round((Number(endingCash) || 0) * 100));
+  const confirmedGroups = workspace.matchGroups.filter((group) => group.tripId === trip && group.status === "confirmed");
+  const matchedIds = new Set(confirmedGroups.flatMap((group) => [...group.leftIds, ...group.rightIds]));
+  const exceptionIds = new Set(
+    workspace.exceptions.filter((item) => item.tripId === trip && !item.resolved).flatMap((item) => item.transactionIds),
   );
-  const includedCardTransactions = currentCardTransactions.filter((transaction) => statementDecisionFor(transaction.id) === "include");
-  const includedExportTransactions = currentExportTransactions.filter((transaction) => statementDecisionFor(transaction.id) === "include");
-  const includedCashTransactions = cashTransactions.filter((transaction) => statementDecisionFor(transaction.id) === "include");
-  const cardTotal = includedCardTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
-  const exportTotal = includedExportTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
-  const cashRecorded = includedCashTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
-  const parsedCashRemaining = Math.max(0, Number(cashRemaining) || 0);
-  const cashSpent = trip === "peru" ? Math.max(0, cashRecorded - parsedCashRemaining) : 0;
-  const statementTotal = cardTotal + exportTotal + cashSpent;
-  const variance = wanderlogTotal - statementTotal;
-  const isBalanced = Math.abs(variance) < 0.01;
-  const searchNeedle = query.trim().toLowerCase();
+  const suggestedIds = new Set(suggestions.flatMap((item) => [...item.leftIds, ...item.rightIds]));
+  const searchNeedle = normalizeSearch(query);
+  const minCents = minAmount === "" ? null : Math.round(Number(minAmount) * 100);
+  const maxCents = maxAmount === "" ? null : Math.round(Number(maxAmount) * 100);
 
-  const visibleWanderlogCharges = wanderlogCharges.filter((charge) => (
-    searchNeedle === ""
-    || `${charge.date} ${charge.description} ${charge.notes ?? ""}`.toLowerCase().includes(searchNeedle)
-  ));
-  const visibleCardTransactions = currentCardTransactions.filter((transaction) => (
-    searchNeedle === ""
-    || `${transaction.date} ${transaction.description} ${transaction.detail}`.toLowerCase().includes(searchNeedle)
-  ));
-  const visibleExportTransactions = currentExportTransactions.filter((transaction) => (
-    searchNeedle === ""
-    || `${transaction.date} ${transaction.description} ${transaction.detail}`.toLowerCase().includes(searchNeedle)
-  ));
-  const visibleCashTransactions = cashTransactions.filter((transaction) => (
-    searchNeedle === ""
-    || `${transaction.date} ${transaction.description} ${transaction.detail}`.toLowerCase().includes(searchNeedle)
-  ));
+  function queueFor(item: ReconciliationTransaction): QueueTab {
+    if (item.status === "excluded") return "excluded";
+    if (matchedIds.has(item.id) || item.status === "reconciled") return "reconciled";
+    if (exceptionIds.has(item.id) || item.status === "exception") return "exception";
+    if (suggestedIds.has(item.id)) return "suggested";
+    return "unmatched";
+  }
 
-  const rightLines = useMemo<RightLine[]>(() => [
-    ...currentCardTransactions.map((transaction) => ({ ...transaction, key: `scotia:${transaction.id}`, source: "Scotiabank" as const })),
-    ...currentExportTransactions.map((transaction) => ({ ...transaction, key: `export:${transaction.id}`, source: "Expense export" as const })),
-    ...(trip === "peru" ? cashTransactions.map((transaction) => ({ ...transaction, key: `cash:${transaction.id}`, source: "Tangerine cash" as const })) : []),
-  ], [cashTransactions, currentCardTransactions, currentExportTransactions, trip]);
+  function matchesFilters(item: ReconciliationTransaction): boolean {
+    if (queueFor(item) !== queue) return false;
+    if (item.accountType === "cash") return false;
+    if (searchNeedle && !item.normalizedText.includes(searchNeedle)) return false;
+    if (sourceFilter !== "all" && item.sourceId !== sourceFilter) return false;
+    if (categoryFilter !== "all" && item.category !== categoryFilter) return false;
+    if (minCents !== null && Number.isFinite(minCents) && item.postedCadCents < minCents) return false;
+    if (maxCents !== null && Number.isFinite(maxCents) && item.postedCadCents > maxCents) return false;
+    return true;
+  }
 
-  const rightLineByKey = useMemo(() => new Map(rightLines.map((line) => [line.key, line])), [rightLines]);
-  const matchedLeftKeyByRightKey = useMemo(() => {
-    const result = new Map<string, string>();
-    Object.entries(matches).forEach(([leftKey, rightKeys]) => {
-      rightKeys.forEach((rightKey) => result.set(rightKey, leftKey));
-    });
-    return result;
-  }, [matches]);
-  const selectedLeftKey = selectedWanderlogId ? `${trip}-${selectedWanderlogId}` : null;
-  const selectedLeft = selectedWanderlogId
-    ? wanderlogCharges.find((charge) => charge.id === selectedWanderlogId)
-    : undefined;
-  const selectedMatchKeys = selectedLeftKey ? matches[selectedLeftKey] ?? [] : [];
-  const selectedMatchTotal = selectedMatchKeys.reduce((sum, key) => sum + (rightLineByKey.get(key)?.amount ?? 0), 0);
-  const selectedDifference = selectedLeft ? selectedLeft.amount / 100 - selectedMatchTotal : 0;
-  const reconciledGroups = includedWanderlogCharges.map((charge) => {
-    const leftKey = `${trip}-${charge.id}`;
-    const matchKeys = matches[leftKey] ?? [];
-    const lines = matchKeys.map((key) => rightLineByKey.get(key)).filter((line): line is RightLine => Boolean(line));
-    const matchedTotal = lines.reduce((sum, line) => sum + line.amount, 0);
-    return { charge, leftKey, lines, matchedTotal, difference: charge.amount / 100 - matchedTotal };
-  }).filter((group) => group.lines.length > 0 && Math.abs(group.difference) < 0.01);
-  const reconciledLeftKeys = new Set(reconciledGroups.map((group) => group.leftKey));
-  const reconciledRightKeys = new Set(reconciledGroups.flatMap((group) => group.lines.map((line) => line.key)));
-  const reconciledWanderlogCount = reconciledGroups.length;
-  const unmatchedIncludedCount = includedWanderlogCharges.length - reconciledWanderlogCount;
-  const activeVisibleWanderlogCharges = visibleWanderlogCharges.filter((charge) => !reconciledLeftKeys.has(`${trip}-${charge.id}`));
-  const activeVisibleCardTransactions = visibleCardTransactions.filter((transaction) => !reconciledRightKeys.has(`scotia:${transaction.id}`));
-  const activeVisibleExportTransactions = visibleExportTransactions.filter((transaction) => !reconciledRightKeys.has(`export:${transaction.id}`));
-  const activeVisibleCashTransactions = visibleCashTransactions.filter((transaction) => !reconciledRightKeys.has(`cash:${transaction.id}`));
+  const visibleLeft = transactions.filter((item) => item.side === "left" && matchesFilters(item));
+  const visibleRight = transactions.filter((item) => item.side === "right" && matchesFilters(item));
+  const visibleLeftIds = new Set(visibleLeft.map((item) => item.id));
+  const visibleRightIds = new Set(visibleRight.map((item) => item.id));
+  const hiddenSelected = selectedLeft.filter((id) => !visibleLeftIds.has(id)).length
+    + selectedRight.filter((id) => !visibleRightIds.has(id)).length;
+  const byId = new Map(workspace.transactions.map((item) => [item.id, item]));
+  const selectedLeftTotal = selectedLeft.reduce((sum, id) => sum + (byId.get(id)?.postedCadCents ?? 0), 0);
+  const selectedRightTotal = selectedRight.reduce((sum, id) => sum + (byId.get(id)?.postedCadCents ?? 0), 0);
+  const adjustmentCents = Math.round((Number(adjustment) || 0) * 100);
+  const remainingDifference = selectedLeftTotal - selectedRightTotal - adjustmentCents;
+  const canConfirm = !isClosed
+    && selectedLeft.length > 0
+    && selectedRight.length > 0
+    && remainingDifference === 0
+    && (adjustmentCents === 0 || adjustmentNote.trim().length > 0);
+  const selectedCount = selectedLeft.length + selectedRight.length;
+  const tripUnmatched = transactions.filter((item) => item.accountType !== "cash" && queueFor(item) === "unmatched").length;
+  const ambiguousCount = suggestions.filter((item) => item.status === "ambiguous").length;
+  const canClose = tripUnmatched === 0 && ambiguousCount === 0 && totals.exceptions === 0;
+  const categories = [...new Set(transactions.map((item) => item.category))].sort();
 
-  function updateReconciliation(patch: Partial<typeof state.reconciliation>) {
+  function updateWorkspace(next: ReconciliationWorkspace) {
     dispatch({
       type: "updateReconciliation",
-      reconciliation: { ...state.reconciliation, ...patch },
+      reconciliation: { ...state.reconciliation, workspace: next },
     });
   }
 
-  function setDecision(chargeId: string, decision: ChargeDecision) {
-    updateReconciliation({
-      decisions: { ...decisions, [`${trip}-${chargeId}`]: decision },
+  function withAudit(
+    next: ReconciliationWorkspace,
+    action: Parameters<typeof auditEvent>[1],
+    summary: string,
+    ids: string[],
+  ): ReconciliationWorkspace {
+    return { ...next, auditEvents: [...next.auditEvents, auditEvent(trip, action, summary, ids)] };
+  }
+
+  function toggleSelection(
+    side: "left" | "right",
+    id: string,
+    event?: MouseEvent,
+    visible: ReconciliationTransaction[] = [],
+  ) {
+    const selected = side === "left" ? selectedLeft : selectedRight;
+    const setSelected = side === "left" ? setSelectedLeft : setSelectedRight;
+    const lastIndex = side === "left" ? lastLeftIndex : lastRightIndex;
+    const currentIndex = visible.findIndex((item) => item.id === id);
+    if (event?.shiftKey && lastIndex.current !== null && currentIndex >= 0) {
+      const start = Math.min(lastIndex.current, currentIndex);
+      const end = Math.max(lastIndex.current, currentIndex);
+      setSelected([...new Set([...selected, ...visible.slice(start, end + 1).map((item) => item.id)])]);
+    } else {
+      setSelected(selected.includes(id) ? selected.filter((item) => item !== id) : [...selected, id]);
+    }
+    lastIndex.current = currentIndex;
+  }
+
+  function selectVisible(side: "left" | "right", visible: ReconciliationTransaction[]) {
+    const ids = visible.map((item) => item.id);
+    if (side === "left") {
+      const allSelected = ids.length > 0 && ids.every((id) => selectedLeft.includes(id));
+      setSelectedLeft(allSelected ? selectedLeft.filter((id) => !ids.includes(id)) : [...new Set([...selectedLeft, ...ids])]);
+    } else {
+      const allSelected = ids.length > 0 && ids.every((id) => selectedRight.includes(id));
+      setSelectedRight(allSelected ? selectedRight.filter((id) => !ids.includes(id)) : [...new Set([...selectedRight, ...ids])]);
+    }
+  }
+
+  function confirmGroup(group?: ReconciliationMatchGroup) {
+    if (isClosed) return;
+    const leftIds = group?.leftIds ?? selectedLeft;
+    const rightIds = group?.rightIds ?? selectedRight;
+    const leftTotalCents = leftIds.reduce((sum, id) => sum + (byId.get(id)?.postedCadCents ?? 0), 0);
+    const rightTotalCents = rightIds.reduce((sum, id) => sum + (byId.get(id)?.postedCadCents ?? 0), 0);
+    const usedIds = new Set(workspace.matchGroups.filter((item) => item.status === "confirmed").flatMap((item) => [...item.leftIds, ...item.rightIds]));
+    if ([...leftIds, ...rightIds].some((id) => usedIds.has(id))) {
+      setNotice("One of these transactions already belongs to a confirmed group.");
+      return;
+    }
+    const groupAdjustment = group ? undefined : adjustmentCents
+      ? { amountCents: adjustmentCents, reason: adjustmentReason, note: adjustmentNote.trim() }
+      : undefined;
+    const differenceCents = leftTotalCents - rightTotalCents - (groupAdjustment?.amountCents ?? 0);
+    if (differenceCents !== 0) {
+      setNotice(`This group still has ${money(Math.abs(differenceCents))} to explain.`);
+      return;
+    }
+    const ids = [...leftIds, ...rightIds];
+    const confirmed: ReconciliationMatchGroup = {
+      id: uid("match"),
+      tripId: trip,
+      leftIds,
+      rightIds,
+      matchType: groupType(leftIds.length, rightIds.length),
+      status: "confirmed",
+      leftTotalCents,
+      rightTotalCents,
+      differenceCents,
+      confidence: group?.confidence,
+      explanation: group?.explanation ?? ["Manually selected and confirmed"],
+      adjustment: groupAdjustment,
+      createdAt: new Date().toISOString(),
+      confirmedAt: new Date().toISOString(),
+    };
+    const next = {
+      ...workspace,
+      transactions: workspace.transactions.map((item) => ids.includes(item.id) ? { ...item, status: "reconciled" as const } : item),
+      matchGroups: [...workspace.matchGroups.filter((item) => item.id !== group?.id), confirmed],
+    };
+    updateWorkspace(withAudit(next, "match", `Confirmed ${confirmed.matchType} match`, ids));
+    setSelectedLeft([]);
+    setSelectedRight([]);
+    setAdjustment("");
+    setAdjustmentNote("");
+    setNotice("Match confirmed and moved to Reconciled.");
+  }
+
+  function reopenGroup(group: ReconciliationMatchGroup) {
+    if (isClosed) return;
+    const ids = [...group.leftIds, ...group.rightIds];
+    const next = {
+      ...workspace,
+      transactions: workspace.transactions.map((item) => ids.includes(item.id) ? { ...item, status: "unmatched" as const } : item),
+      matchGroups: workspace.matchGroups.filter((item) => item.id !== group.id),
+    };
+    updateWorkspace(withAudit(next, "unmatch", `Reopened ${group.matchType} match`, ids));
+    setQueue("unmatched");
+  }
+
+  function setTransactionStatus(ids: string[], status: ReconciliationQueue) {
+    if (isClosed || ids.length === 0) return;
+    const next = {
+      ...workspace,
+      transactions: workspace.transactions.map((item) => ids.includes(item.id) ? { ...item, status } : item),
+    };
+    updateWorkspace(withAudit(next, status === "excluded" ? "exclude" : "edit", `${status === "excluded" ? "Excluded" : "Updated"} ${ids.length} transaction${ids.length === 1 ? "" : "s"}`, ids));
+    setSelectedLeft([]);
+    setSelectedRight([]);
+  }
+
+  function supportSelected() {
+    const ids = [...selectedLeft, ...selectedRight];
+    if (isClosed || ids.length === 0 || !supportNote.trim()) return;
+    const amountCents = ids.reduce((sum, id) => sum + (byId.get(id)?.postedCadCents ?? 0), 0);
+    const exception = {
+      id: uid("exception"),
+      tripId: trip,
+      transactionIds: ids,
+      reason: supportReason,
+      note: supportNote.trim(),
+      amountCents,
+      resolved: false,
+      createdAt: new Date().toISOString(),
+    };
+    const next = {
+      ...workspace,
+      transactions: workspace.transactions.map((item) => ids.includes(item.id) ? { ...item, status: "exception" as const, supportNote: supportNote.trim() } : item),
+      exceptions: [...workspace.exceptions, exception],
+    };
+    updateWorkspace(withAudit(next, "support", `Supported exception: ${exceptionReasons.find((item) => item.value === supportReason)?.label}`, ids));
+    setSelectedLeft([]);
+    setSelectedRight([]);
+    setSupportNote("");
+    setQueue("exception");
+  }
+
+  function resolveException(id: string) {
+    if (isClosed) return;
+    const exception = workspace.exceptions.find((item) => item.id === id);
+    if (!exception) return;
+    const next = {
+      ...workspace,
+      transactions: workspace.transactions.map((item) => exception.transactionIds.includes(item.id) ? { ...item, status: "unmatched" as const } : item),
+      exceptions: workspace.exceptions.map((item) => item.id === id ? { ...item, resolved: true } : item),
+    };
+    updateWorkspace(withAudit(next, "edit", "Resolved supported exception", exception.transactionIds));
+  }
+
+  function editTransaction(id: string, patch: Partial<ReconciliationTransaction>) {
+    if (isClosed) return;
+    const next = {
+      ...workspace,
+      transactions: workspace.transactions.map((item) => {
+        if (item.id !== id) return item;
+        const updated = { ...item, ...patch };
+        return { ...updated, normalizedText: normalizeSearch(`${updated.date} ${updated.description} ${updated.reference} ${updated.notes ?? ""} ${updated.postedCadCents / 100}`) };
+      }),
+    };
+    updateWorkspace(withAudit(next, "edit", "Edited normalized transaction fields", [id]));
+  }
+
+  function buildImportPreview() {
+    setImportPreview(previewDelimitedImport(importText, workspace.transactions, importSource));
+    setImportReport("");
+  }
+
+  function commitImport() {
+    if (isClosed) return;
+    const accepted = importPreview.filter((row) => row.valid && !row.duplicate);
+    const created = accepted.map((row) => importedTransaction(row, trip, importSource, uid("import")));
+    const skipped = importPreview.length - created.length;
+    const next = {
+      ...workspace,
+      transactions: [...workspace.transactions, ...created],
+    };
+    updateWorkspace(withAudit(next, "import", `Imported ${created.length} rows; skipped ${skipped}`, created.map((item) => item.id)));
+    setImportReport(`${created.length} accepted · ${skipped} skipped or duplicate`);
+    setImportText("");
+    setImportPreview([]);
+  }
+
+  function saveView() {
+    if (!query.trim()) return;
+    const name = window.prompt("Name this saved search", query.trim());
+    if (!name) return;
+    updateWorkspace({
+      ...workspace,
+      savedViews: [...workspace.savedViews, { id: uid("view"), name, query, queue }],
     });
   }
 
-  function setStatementDecision(transactionId: string, decision: "include" | "exclude") {
-    updateReconciliation({
-      decisions: { ...decisions, [`statement-${trip}-${transactionId}`]: decision },
+  function closePeriod() {
+    if (!canClose || isClosed) return;
+    const snapshot = JSON.stringify({
+      totals,
+      matchGroups: confirmedGroups,
+      exceptions: workspace.exceptions.filter((item) => item.tripId === trip),
     });
+    const next = {
+      ...workspace,
+      periods: workspace.periods.map((item) => item.tripId === trip ? { ...item, status: "closed" as const, closedAt: new Date().toISOString(), closeSnapshot: snapshot } : item),
+    };
+    updateWorkspace(withAudit(next, "close", `Closed ${tripMeta[trip].name} reconciliation`, []));
   }
 
-  function toggleMatch(rightKey: string) {
-    if (!selectedLeftKey) return;
-    const current = matches[selectedLeftKey] ?? [];
-    const isAlreadyMatched = current.includes(rightKey);
-    const nextMatches = Object.fromEntries(Object.entries(matches).map(([leftKey, rightKeys]) => [
-      leftKey,
-      rightKeys.filter((key) => key !== rightKey),
-    ]));
-    nextMatches[selectedLeftKey] = isAlreadyMatched ? current.filter((key) => key !== rightKey) : [...current, rightKey];
-    updateReconciliation({ matches: nextMatches });
+  function reopenPeriod() {
+    const reason = window.prompt("Why are you reopening this trip?");
+    if (!reason) return;
+    const next = {
+      ...workspace,
+      periods: workspace.periods.map((item) => item.tripId === trip ? { ...item, status: "open" as const, reopenedAt: new Date().toISOString(), closeSnapshot: undefined } : item),
+    };
+    updateWorkspace(withAudit(next, "reopen", `Reopened trip: ${reason}`, []));
   }
 
-  function clearMatches(leftKey: string) {
-    const nextMatches = { ...matches };
-    delete nextMatches[leftKey];
-    updateReconciliation({ matches: nextMatches });
-    setSelectedWanderlogId(leftKey.replace(`${trip}-`, ""));
+  function exportPackage() {
+    const packageData = {
+      schemaVersion: workspace.schemaVersion,
+      trip: tripMeta[trip],
+      exportedAt: new Date().toISOString(),
+      totals,
+      cashControl: trip === "peru" ? cash : undefined,
+      sources,
+      transactions,
+      matchGroups: workspace.matchGroups.filter((item) => item.tripId === trip),
+      exceptions: workspace.exceptions.filter((item) => item.tripId === trip),
+      history: workspace.auditEvents.filter((item) => item.tripId === trip),
+      period,
+    };
+    download(`${trip}-reconciliation.json`, JSON.stringify(packageData, null, 2), "application/json");
   }
 
-  function updateCardTransaction(id: string, patch: Partial<StatementTransaction>) {
-    updateReconciliation({
-      cardTransactions: {
-        ...cardTransactions,
-        [cardKey]: currentCardTransactions.map((transaction) => (
-          transaction.id === id ? { ...transaction, ...patch } : transaction
-        )),
-      },
-    });
+  function exportCsv() {
+    const escape = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
+    const rows = [
+      ["side", "date", "description", "source", "currency", "original_amount", "posted_cad", "status", "reference"],
+      ...transactions.map((item) => [
+        item.side,
+        item.postedDate,
+        item.description,
+        item.sourceId,
+        item.currency,
+        (item.originalAmountCents / 100).toFixed(2),
+        (item.postedCadCents / 100).toFixed(2),
+        queueFor(item),
+        item.reference,
+      ]),
+    ];
+    download(`${trip}-transactions.csv`, rows.map((row) => row.map(escape).join(",")).join("\n"), "text/csv");
   }
 
-  function addCardTransaction() {
-    updateReconciliation({
-      cardTransactions: {
-        ...cardTransactions,
-        [cardKey]: [
-          ...currentCardTransactions,
-          { id: uid(), date: "", description: "New card charge", detail: "", amount: 0 },
-        ],
-      },
-    });
-  }
-
-  function updateCashTransaction(id: string, patch: Partial<StatementTransaction>) {
-    updateReconciliation({
-      cashTransactions: cashTransactions.map((transaction) => (
-        transaction.id === id ? { ...transaction, ...patch } : transaction
-      )),
-    });
-  }
-
-  function updateExportTransaction(id: string, patch: Partial<StatementTransaction>) {
-    updateReconciliation({
-      exportTransactions: {
-        ...exportTransactions,
-        [cardKey]: currentExportTransactions.map((transaction) => (
-          transaction.id === id ? { ...transaction, ...patch } : transaction
-        )),
-      },
-    });
-  }
-
-  function addCashTransaction() {
-    updateReconciliation({
-      cashTransactions: [
-        ...cashTransactions,
-        { id: uid(), date: "", description: "New cash withdrawal", detail: "", amount: 0 },
-      ],
-    });
+  function restoreRecovery(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    void file.text().then((text) => {
+      const parsed = JSON.parse(text) as { schemaVersion?: number; transactions?: unknown[]; matchGroups?: unknown[] };
+      if (parsed.schemaVersion !== 2 || !Array.isArray(parsed.transactions) || !Array.isArray(parsed.matchGroups)) {
+        setNotice("That recovery file is not a valid reconciliation workspace.");
+        return;
+      }
+      const recovered = parsed as unknown as ReconciliationWorkspace;
+      updateWorkspace(recovered);
+      setNotice("Recovery workspace restored.");
+    }).catch(() => setNotice("The recovery file could not be read."));
   }
 
   return (
     <main className="pane pane-wide reconciliation-page">
-      <div className="pane-header hero-header">
+      <header className="recon-titlebar">
         <div>
           <p className="eyebrow">Trip reconciliation</p>
-          <h1>Wanderlog vs. statements</h1>
+          <h1>Reconciliation workspace</h1>
+          <p>Import, match, explain, and close every trip charge with an audit trail.</p>
         </div>
-        <span className={`status-chip ${isBalanced ? "settled" : "owed"}`}>
-          {isBalanced ? "Balanced" : `${money(Math.abs(variance))} to explain`}
-        </span>
-      </div>
+        <div className="recon-title-actions">
+          <span className={`recon-period-status ${isClosed ? "closed" : ""}`}>{isClosed ? "Closed" : "Open period"}</span>
+          <button type="button" className="btn btn-secondary" onClick={exportPackage}>Export package</button>
+        </div>
+      </header>
 
-      <div className="reconciliation-tabs" role="tablist" aria-label="Trips">
-        {(Object.keys(tripMeta) as TripKey[]).map((key) => (
+      <nav className="reconciliation-tabs" aria-label="Trips">
+        {(Object.keys(tripMeta) as ReconciliationTripId[]).map((key) => (
           <button
             key={key}
+            type="button"
             className={trip === key ? "active" : ""}
             onClick={() => {
               setTrip(key);
-              setSelectedWanderlogId(null);
+              setSelectedLeft([]);
+              setSelectedRight([]);
+              setQueue("unmatched");
             }}
-            role="tab"
-            aria-selected={trip === key}
           >
             <span>{tripMeta[key].name}</span>
             <small>{tripMeta[key].dates}</small>
           </button>
         ))}
-      </div>
+      </nav>
 
-      <section className="reconciliation-intro">
-        <div>
-          <p className="eyebrow">{meta.dates}</p>
-          <h2>{meta.name} expense review</h2>
-          <p>{meta.note}</p>
+      <section className="recon-overview">
+        <div className="recon-trip-context">
+          <span>{tripMeta[trip].dates}</span>
+          <strong>{tripMeta[trip].name} review</strong>
+          <p>{tripMeta[trip].note}</p>
         </div>
-        <label className="ledger-search">
-          <span>Search both sides</span>
+        <Metric label="Wanderlog" value={money(totals.left)} detail={`${totals.leftCount} items`} />
+        <Metric label="Card sources" value={money(totals.right)} detail={`${money(Math.abs(totals.difference))} gross difference`} />
+        <Metric label="Matched by value" value={`${Math.round(totals.matchRateValue * 100)}%`} detail={`${Math.round(totals.matchRateCount * 100)}% by count`} />
+        <Metric label="Open exceptions" value={String(totals.exceptions)} detail={`${suggestions.length} suggestions`} />
+      </section>
+
+      <section className="recon-commandbar">
+        <label className="recon-search">
+          <span aria-hidden="true">⌕</span>
           <input
+            ref={searchRef}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Date, merchant, or note"
+            placeholder="Search both ledgers by merchant, date, amount, reference, note, source…"
+            aria-label="Search both ledgers"
           />
+          <kbd>/</kbd>
         </label>
-      </section>
-
-      <section className={`reconciliation-equation ${isBalanced ? "balanced" : ""}`} aria-label="Reconciliation equation">
-        <div>
-          <span>Wanderlog total</span>
-          <strong>{money(wanderlogTotal)}</strong>
-          <small>{includedWanderlogCharges.length} included line items</small>
-        </div>
-        <div className="equation-result" aria-label={isBalanced ? "Totals match" : "Totals do not match"}>
-          <span>{isBalanced ? "=" : "≠"}</span>
-          <strong>{isBalanced ? "Balanced" : `${variance > 0 ? "Left is higher" : "Right is higher"} by ${money(Math.abs(variance))}`}</strong>
-        </div>
-        <div>
-          <span>Scotiabank + cash spent</span>
-          <strong>{money(statementTotal)}</strong>
-          <small>{includedCardTransactions.length} of {currentCardTransactions.length} Scotia + {includedExportTransactions.length} export charges included{trip === "peru" ? " + Tangerine cash" : ""}</small>
-        </div>
-      </section>
-
-      <section className="matching-toolbar" aria-label="Transaction matching workspace">
-        <div className="matching-toolbar-context">
-          <p className="eyebrow">Active reconciliation</p>
-          {selectedLeft ? (
-            <strong>Matching “{selectedLeft.description}”</strong>
-          ) : (
-            <strong>Select an unmatched Wanderlog line to begin</strong>
-          )}
-          <span>{unmatchedIncludedCount} still to reconcile · {reconciledWanderlogCount} reconciled</span>
-        </div>
-        {selectedLeft && (
-          <div className="matching-metrics" aria-label="Selected match difference">
-            <div><span>Wanderlog</span><strong>{money(selectedLeft.amount / 100)}</strong></div>
-            <div><span>Matched</span><strong>{money(selectedMatchTotal)}</strong></div>
-            <div className={Math.abs(selectedDifference) < 0.01 ? "difference-balanced" : "difference-open"}>
-              <span>Difference</span>
-              <strong>{Math.abs(selectedDifference) < 0.01 ? "$0.00" : `${selectedDifference > 0 ? "+" : "−"}${money(Math.abs(selectedDifference))}`}</strong>
-            </div>
-            <span className="matching-link-count">{selectedMatchKeys.length} line{selectedMatchKeys.length === 1 ? "" : "s"}</span>
-            <button type="button" onClick={() => setSelectedWanderlogId(null)}>Clear selection</button>
+        <button type="button" className="recon-tool-button" onClick={() => setShowImport(!showImport)}>Import</button>
+        <button type="button" className="recon-tool-button" onClick={saveView} disabled={!query.trim()}>Save view</button>
+        <details className="recon-more">
+          <summary>More</summary>
+          <div>
+            <button type="button" onClick={exportCsv}>Export transactions CSV</button>
+            <button type="button" onClick={() => download("splitwiser-reconciliation-recovery.json", JSON.stringify(workspace, null, 2), "application/json")}>Download recovery</button>
+            <label>Restore recovery<input type="file" accept=".json,application/json" onChange={restoreRecovery} /></label>
           </div>
+        </details>
+      </section>
+
+      {showImport && (
+        <ImportWorkspace
+          trip={trip}
+          sources={sources}
+          sourceId={importSource}
+          setSourceId={setImportSource}
+          text={importText}
+          setText={setImportText}
+          preview={importPreview}
+          report={importReport}
+          onPreview={buildImportPreview}
+          onImport={commitImport}
+          disabled={isClosed}
+        />
+      )}
+
+      <nav className="recon-queues" aria-label="Reconciliation queues">
+        {(Object.keys(queueLabels) as QueueTab[]).map((key) => {
+          const count = key === "suggested"
+            ? suggestions.length
+            : key === "reconciled"
+              ? confirmedGroups.length
+              : transactions.filter((item) => item.accountType !== "cash" && queueFor(item) === key).length;
+          return (
+            <button type="button" className={queue === key ? "active" : ""} key={key} onClick={() => setQueue(key)}>
+              {queueLabels[key]} <span>{count}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      <section className="recon-filters">
+        <label>Source
+          <select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}>
+            <option value="all">All sources</option>
+            {sources.map((item) => <option key={item.id} value={item.id}>{item.institution} · {item.account}</option>)}
+          </select>
+        </label>
+        <label>Category
+          <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+            <option value="all">All categories</option>
+            {categories.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
+        <label>Minimum
+          <input value={minAmount} onChange={(event) => setMinAmount(event.target.value)} inputMode="decimal" placeholder="CA$0.00" />
+        </label>
+        <label>Maximum
+          <input value={maxAmount} onChange={(event) => setMaxAmount(event.target.value)} inputMode="decimal" placeholder="Any" />
+        </label>
+        {(query || sourceFilter !== "all" || categoryFilter !== "all" || minAmount || maxAmount) && (
+          <button type="button" onClick={() => {
+            setQuery("");
+            setSourceFilter("all");
+            setCategoryFilter("all");
+            setMinAmount("");
+            setMaxAmount("");
+          }}>Clear filters</button>
         )}
+        <span>{visibleLeft.length} left · {visibleRight.length} right</span>
       </section>
 
-      <div className="reconciliation-compare-grid">
-        <section className="comparison-ledger" aria-labelledby="wanderlog-ledger-title">
-          <header className="comparison-ledger-header">
-            <div>
-              <p className="eyebrow">Left side</p>
-              <h2 id="wanderlog-ledger-title">Wanderlog items</h2>
-              <span>What you recorded as trip spending</span>
-            </div>
-            <strong>{money(wanderlogTotal)}</strong>
-          </header>
+      {notice && <button type="button" className="recon-notice" onClick={() => setNotice("")}>{notice}<span>×</span></button>}
 
-          <div className="ledger-column-labels wanderlog-labels" aria-hidden="true">
-            <span>Date</span><span>Line item</span><span>Amount</span><span>Status</span>
+      {queue === "suggested" && (
+        <SuggestionList suggestions={suggestions} byId={byId} onConfirm={confirmGroup} disabled={isClosed} />
+      )}
+
+      {queue === "reconciled" ? (
+        <ReconciledGroups groups={confirmedGroups} byId={byId} onReopen={reopenGroup} disabled={isClosed} query={searchNeedle} />
+      ) : (
+        <div className="recon-ledgers">
+          <Ledger
+            side="left"
+            title="Wanderlog items"
+            subtitle="What you recorded as trip spending"
+            rows={visibleLeft}
+            selected={selectedLeft}
+            onToggle={(id, event) => toggleSelection("left", id, event, visibleLeft)}
+            onSelectVisible={() => selectVisible("left", visibleLeft)}
+            onEdit={editTransaction}
+            disabled={isClosed}
+            sourceById={new Map(sources.map((item) => [item.id, item.institution]))}
+          />
+          <Ledger
+            side="right"
+            title="Bank statement"
+            subtitle="What actually left your accounts"
+            rows={visibleRight}
+            selected={selectedRight}
+            onToggle={(id, event) => toggleSelection("right", id, event, visibleRight)}
+            onSelectVisible={() => selectVisible("right", visibleRight)}
+            onEdit={editTransaction}
+            disabled={isClosed}
+            sourceById={new Map(sources.map((item) => [item.id, item.institution]))}
+          />
+        </div>
+      )}
+
+      {queue === "exception" && (
+        <ExceptionRegister
+          items={workspace.exceptions.filter((item) => item.tripId === trip && !item.resolved)}
+          byId={byId}
+          onResolve={resolveException}
+          disabled={isClosed}
+        />
+      )}
+
+      {selectedCount > 0 && (
+        <section className="recon-matchbar" aria-label="Selected match totals">
+          <div className="recon-match-summary">
+            <span>{groupType(selectedLeft.length, selectedRight.length)}</span>
+            <strong>{selectedCount} selected</strong>
+            {hiddenSelected > 0 && <small>{hiddenSelected} selected item{hiddenSelected === 1 ? " is" : "s are"} hidden by the current view</small>}
           </div>
-          <div className="statement-lines">
-            {activeVisibleWanderlogCharges.map((charge) => {
-              const decision = decisionFor(charge.id);
-              const matchCount = (matches[`${trip}-${charge.id}`] ?? []).length;
-              return (
-                <div
-                  className={`statement-line wanderlog-line decision-${decision} ${selectedWanderlogId === charge.id ? "match-selected" : ""}`}
-                  key={charge.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setSelectedWanderlogId(charge.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") setSelectedWanderlogId(charge.id);
-                  }}
-                >
-                  <span className="statement-date">{charge.date}</span>
-                  <div className="statement-description">
-                    <strong>{charge.description}</strong>
-                    <small>{charge.notes?.replace("Imported from Wanderlog: ", "") ?? "Imported from Wanderlog"}</small>
-                  </div>
-                  <strong className="statement-amount">{money(charge.amount / 100)}</strong>
-                  <div className="wanderlog-status" onClick={(event) => event.stopPropagation()}>
-                    <select
-                      className="statement-decision"
-                      aria-label={`Status for ${charge.description}`}
-                      value={decision}
-                      onChange={(event) => setDecision(charge.id, event.target.value as ChargeDecision)}
-                    >
-                      <option value="include">Include</option>
-                      <option value="review">Review</option>
-                      <option value="personal">Personal</option>
-                      <option value="exclude">Exclude</option>
-                    </select>
-                    {matchCount > 0 && <span className="match-badge">{matchCount} linked</span>}
-                  </div>
-                </div>
-              );
-            })}
-            {searchNeedle === "" && Math.abs(wanderlogConversionAdjustment) >= 0.01 && (
-              <div className="statement-line wanderlog-line conversion-adjustment-line">
-                <span className="statement-date">Summary</span>
-                <div className="statement-description">
-                  <strong>Wanderlog conversion adjustment</strong>
-                  <small>Aligns the imported CAD estimates with Wanderlog's published trip total</small>
-                </div>
-                <strong className="statement-amount">{money(wanderlogConversionAdjustment)}</strong>
-                <span className="adjustment-status">Automatic</span>
-              </div>
-            )}
-            {activeVisibleWanderlogCharges.length === 0 && <p className="reconciliation-empty">No unmatched Wanderlog items match this search.</p>}
+          <MatchMetric label="Left" count={selectedLeft.length} total={selectedLeftTotal} />
+          <span className="recon-match-symbol">↔</span>
+          <MatchMetric label="Right" count={selectedRight.length} total={selectedRightTotal} />
+          <label className="recon-adjustment">
+            <span>Adjustment</span>
+            <div><span>CA$</span><input value={adjustment} onChange={(event) => setAdjustment(event.target.value)} inputMode="decimal" placeholder="0.00" /></div>
+          </label>
+          <div className={`recon-difference ${remainingDifference === 0 ? "balanced" : ""}`}>
+            <span>Difference</span>
+            <strong>{money(remainingDifference)}</strong>
+          </div>
+          <div className="recon-match-actions">
+            <button type="button" onClick={() => { setSelectedLeft([]); setSelectedRight([]); }}>Clear</button>
+            <button type="button" className="recon-confirm" disabled={!canConfirm} onClick={() => confirmGroup()}>Confirm match</button>
+          </div>
+          {adjustmentCents !== 0 && (
+            <div className="recon-adjustment-detail">
+              <select value={adjustmentReason} onChange={(event) => setAdjustmentReason(event.target.value as ReconciliationExceptionReason)}>
+                {exceptionReasons.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              </select>
+              <input value={adjustmentNote} onChange={(event) => setAdjustmentNote(event.target.value)} placeholder="Required explanation for adjustment" />
+            </div>
+          )}
+          <details className="recon-support">
+            <summary>Resolve selected as an exception</summary>
+            <div>
+              <select value={supportReason} onChange={(event) => setSupportReason(event.target.value as ReconciliationExceptionReason)}>
+                {exceptionReasons.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              </select>
+              <input value={supportNote} onChange={(event) => setSupportNote(event.target.value)} placeholder="Required supporting note" />
+              <button type="button" disabled={!supportNote.trim() || isClosed} onClick={supportSelected}>Support exception</button>
+              <button type="button" disabled={isClosed} onClick={() => setTransactionStatus([...selectedLeft, ...selectedRight], "excluded")}>Exclude selected</button>
+            </div>
+          </details>
+        </section>
+      )}
+
+      {trip === "peru" && (
+        <section className="cash-control">
+          <header>
+            <div><p className="eyebrow">Cash control account</p><h2>Tangerine ATM withdrawals</h2></div>
+            <strong>{money(cash.impliedSpent)} implied cash spent</strong>
+          </header>
+          <div className="cash-equation">
+            <Metric label="Opening cash" value={money(cash.opening)} detail="500 PEN received before Jul 12" />
+            <span>+</span>
+            <Metric label="Withdrawals + fees" value={money(cash.withdrawals)} detail="Tangerine ATM activity" />
+            <span>−</span>
+            <label><span>Ending cash</span><div>CA$ <input value={endingCash} onChange={(event) => {
+              setEndingCash(event.target.value);
+              dispatch({ type: "updateReconciliation", reconciliation: { ...state.reconciliation, cashRemaining: event.target.value } });
+            }} inputMode="decimal" placeholder="0.00" disabled={isClosed} /></div><small>Cash brought home</small></label>
+            <span>=</span>
+            <Metric label="Implied spent" value={money(cash.impliedSpent)} detail="Reconcile cash purchases to this control" />
           </div>
         </section>
+      )}
 
-        <section className="comparison-ledger" aria-labelledby="statement-ledger-title">
-          <header className="comparison-ledger-header">
-            <div>
-              <p className="eyebrow">Right side</p>
-              <h2 id="statement-ledger-title">Bank and cash</h2>
-              <span>What actually left your accounts</span>
-            </div>
-            <strong>{money(statementTotal)}</strong>
-          </header>
-
-          <div className="statement-source-heading">
-            <div>
-              <span className="source-mark scotia" aria-hidden="true">S</span>
-              <div><strong>Scotiabank credit card</strong><small>Passport Visa Infinite •••• 7283</small></div>
-            </div>
-            <strong>{money(cardTotal)}</strong>
-          </div>
-          <div className="ledger-column-labels" aria-hidden="true">
-            <span>Date</span><span>Transaction</span><span>Amount</span><span>Status</span>
-          </div>
-          <div className="statement-lines">
-            {activeVisibleCardTransactions.map((transaction) => (
-              <EditableStatementLine
-                key={transaction.id}
-                transaction={transaction}
-                onChange={(patch) => updateCardTransaction(transaction.id, patch)}
-                decision={statementDecisionFor(transaction.id)}
-                onDecisionChange={(decision) => setStatementDecision(transaction.id, decision)}
-                matchKey={`scotia:${transaction.id}`}
-                matchedLeftKey={matchedLeftKeyByRightKey.get(`scotia:${transaction.id}`)}
-                selectedWanderlogId={selectedLeftKey}
-                onToggleMatch={() => toggleMatch(`scotia:${transaction.id}`)}
-              />
-            ))}
-            {activeVisibleCardTransactions.length === 0 && <p className="reconciliation-empty">No unmatched Scotiabank charges match this search.</p>}
-          </div>
-          <button className="statement-add-line" type="button" onClick={addCardTransaction}>+ Add card charge</button>
-
-          {currentExportTransactions.length > 0 && (
-            <>
-              <div className="statement-source-heading export-source-heading">
-                <div>
-                  <span className="source-mark export" aria-hidden="true">E</span>
-                  <div><strong>Tangerine Mastercard — expense export</strong><small>Earlier Peru charges found in EXPENSES_EXPORT</small></div>
-                </div>
-                <strong>{money(exportTotal)}</strong>
-              </div>
-              <div className="ledger-column-labels" aria-hidden="true">
-                <span>Date</span><span>Transaction</span><span>Amount</span><span>Status</span>
-              </div>
-              <div className="statement-lines">
-                {activeVisibleExportTransactions.map((transaction) => (
-                  <EditableStatementLine
-                    key={transaction.id}
-                    transaction={transaction}
-                    onChange={(patch) => updateExportTransaction(transaction.id, patch)}
-                    decision={statementDecisionFor(transaction.id)}
-                    onDecisionChange={(decision) => setStatementDecision(transaction.id, decision)}
-                    matchKey={`export:${transaction.id}`}
-                    matchedLeftKey={matchedLeftKeyByRightKey.get(`export:${transaction.id}`)}
-                    selectedWanderlogId={selectedLeftKey}
-                    onToggleMatch={() => toggleMatch(`export:${transaction.id}`)}
-                  />
-                ))}
-                {activeVisibleExportTransactions.length === 0 && <p className="reconciliation-empty">No unmatched export charges match this search.</p>}
-              </div>
-              <button className="statement-add-line" type="button" onClick={() => updateReconciliation({ exportTransactions: { ...exportTransactions, [cardKey]: [...currentExportTransactions, { id: uid(), date: "", description: "New exported charge", detail: "Tangerine Mastercard", amount: 0 }] } })}>+ Add exported charge</button>
-            </>
-          )}
-
-          {trip === "peru" && (
-            <>
-              <div className="statement-source-heading cash-source-heading">
-                <div>
-                  <span className="source-mark tangerine" aria-hidden="true">T</span>
-                  <div><strong>Tangerine cash withdrawals</strong><small>Cash spent = withdrawn minus cash brought home</small></div>
-                </div>
-                <strong>{money(cashSpent)}</strong>
-              </div>
-              <div className="ledger-column-labels" aria-hidden="true">
-                <span>Date</span><span>Transaction</span><span>Amount</span><span>Status</span>
-              </div>
-              <div className="statement-lines">
-                {activeVisibleCashTransactions.map((transaction) => (
-                  <EditableStatementLine
-                    key={transaction.id}
-                    transaction={transaction}
-                    onChange={(patch) => updateCashTransaction(transaction.id, patch)}
-                    decision={statementDecisionFor(transaction.id)}
-                    onDecisionChange={(decision) => setStatementDecision(transaction.id, decision)}
-                    matchKey={`cash:${transaction.id}`}
-                    matchedLeftKey={matchedLeftKeyByRightKey.get(`cash:${transaction.id}`)}
-                    selectedWanderlogId={selectedLeftKey}
-                    onToggleMatch={() => toggleMatch(`cash:${transaction.id}`)}
-                  />
-                ))}
-                {activeVisibleCashTransactions.length === 0 && <p className="reconciliation-empty">No unmatched Tangerine withdrawals match this search.</p>}
-              </div>
-              <button className="statement-add-line" type="button" onClick={addCashTransaction}>+ Add cash withdrawal</button>
-
-              <div className="cash-adjustment-line">
-                <div>
-                  <strong>Cash brought home</strong>
-                  <small>{cashRemaining === "" ? "Currently assuming CA$0 remained" : `${money(cashRecorded)} withdrawn in total`}</small>
-                </div>
-                <label>
-                  <span>CA$</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={cashRemaining}
-                    onChange={(event) => updateReconciliation({ cashRemaining: event.target.value })}
-                    placeholder="0.00"
-                    aria-label="Cash brought home"
-                  />
-                </label>
-              </div>
-            </>
-          )}
-        </section>
-      </div>
-
-      <section className="reconciled-section" aria-labelledby="reconciled-title">
-        <button
-          className="reconciled-section-header"
-          type="button"
-          onClick={() => setShowReconciled((value) => !value)}
-          aria-expanded={showReconciled}
-        >
-          <span className="reconciled-toggle" aria-hidden="true">{showReconciled ? "−" : "+"}</span>
-          <span>
-            <p className="eyebrow">Reconciled</p>
-            <strong id="reconciled-title">{reconciledGroups.length} matched group{reconciledGroups.length === 1 ? "" : "s"}</strong>
-          </span>
-          <small>{showReconciled ? "Hide matched items" : "Show matched items"}</small>
-        </button>
-        {showReconciled && (
-          <div className="reconciled-groups">
-            {reconciledGroups.map((group) => (
-              <article className="reconciled-group" key={group.leftKey}>
-                <div className="reconciled-origin">
-                  <div>
-                    <span className="reconciled-label">Wanderlog</span>
-                    <strong>{group.charge.description}</strong>
-                    <small>{group.charge.date} · {group.lines.length} matched statement line{group.lines.length === 1 ? "" : "s"}</small>
-                  </div>
-                  <strong>{money(group.charge.amount / 100)}</strong>
-                </div>
-                <div className="reconciled-links">
-                  {group.lines.map((line) => (
-                    <div className="reconciled-link" key={line.key}>
-                      <span>{line.source}</span>
-                      <strong>{line.description}</strong>
-                      <small>{line.date}{line.detail ? ` · ${line.detail}` : ""}</small>
-                      <b>{money(line.amount)}</b>
-                    </div>
-                  ))}
-                </div>
-                <div className="reconciled-group-footer">
-                  <span>Difference $0.00</span>
-                  <button type="button" onClick={() => clearMatches(group.leftKey)}>Reopen</button>
-                </div>
-              </article>
-            ))}
-            {reconciledGroups.length === 0 && <p className="reconciliation-empty">Completed matches will collect here once both sides reach a $0.00 difference.</p>}
-          </div>
-        )}
+      <section className="recon-close">
+        <div>
+          <p className="eyebrow">Period control</p>
+          <h2>{isClosed ? `${tripMeta[trip].name} is closed` : `Close ${tripMeta[trip].name}`}</h2>
+          <ul>
+            <li className={tripUnmatched === 0 ? "done" : ""}>{tripUnmatched === 0 ? "✓" : "○"} Zero unexplained transactions</li>
+            <li className={ambiguousCount === 0 ? "done" : ""}>{ambiguousCount === 0 ? "✓" : "○"} No ambiguous suggestions</li>
+            <li className={totals.exceptions === 0 ? "done" : ""}>{totals.exceptions === 0 ? "✓" : "○"} No open exceptions</li>
+          </ul>
+        </div>
+        <div className="recon-close-actions">
+          {isClosed
+            ? <button type="button" onClick={reopenPeriod}>Reopen with reason</button>
+            : <button type="button" className="recon-confirm" disabled={!canClose} onClick={closePeriod}>Close and snapshot</button>}
+          <button type="button" onClick={() => setShowActivity(!showActivity)}>{showActivity ? "Hide" : "View"} activity</button>
+        </div>
       </section>
+
+      {showActivity && (
+        <section className="recon-activity">
+          <h2>Activity timeline</h2>
+          {workspace.auditEvents.filter((item) => item.tripId === trip).slice().reverse().map((item) => (
+            <div key={item.id}><span>{new Date(item.timestamp).toLocaleString()}</span><strong>{item.summary}</strong><small>{item.action}</small></div>
+          ))}
+        </section>
+      )}
     </main>
   );
 }
 
-function EditableStatementLine({
-  transaction,
-  onChange,
-  decision,
-  onDecisionChange,
-  matchKey,
-  matchedLeftKey,
-  selectedWanderlogId,
-  onToggleMatch,
+function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return <div className="recon-metric"><span>{label}</span><strong>{value}</strong><small>{detail}</small></div>;
+}
+
+function MatchMetric({ label, count, total }: { label: string; count: number; total: number }) {
+  return <div className="recon-match-metric"><span>{label} · {count}</span><strong>{money(total)}</strong></div>;
+}
+
+function Ledger({
+  side,
+  title,
+  subtitle,
+  rows,
+  selected,
+  onToggle,
+  onSelectVisible,
+  onEdit,
+  disabled,
+  sourceById,
 }: {
-  transaction: StatementTransaction;
-  onChange: (patch: Partial<StatementTransaction>) => void;
-  decision: "include" | "exclude";
-  onDecisionChange: (decision: "include" | "exclude") => void;
-  matchKey: string;
-  matchedLeftKey?: string;
-  selectedWanderlogId: string | null;
-  onToggleMatch: () => void;
+  side: "left" | "right";
+  title: string;
+  subtitle: string;
+  rows: ReconciliationTransaction[];
+  selected: string[];
+  onToggle: (id: string, event: MouseEvent) => void;
+  onSelectVisible: () => void;
+  onEdit: (id: string, patch: Partial<ReconciliationTransaction>) => void;
+  disabled: boolean;
+  sourceById: Map<string, string>;
+}) {
+  const allSelected = rows.length > 0 && rows.every((item) => selected.includes(item.id));
+  return (
+    <section className="recon-ledger">
+      <header>
+        <label>
+          <input type="checkbox" checked={allSelected} onChange={onSelectVisible} disabled={rows.length === 0 || disabled} />
+          <span><strong>{title}</strong><small>{subtitle}</small></span>
+        </label>
+        <strong>{money(rows.reduce((sum, item) => sum + item.postedCadCents, 0))}</strong>
+      </header>
+      <div className="recon-ledger-labels"><span>Date</span><span>Transaction</span><span>Source</span><span>Amount</span></div>
+      <div className="recon-lines">
+        {rows.map((item) => (
+          <article
+            key={item.id}
+            className={`recon-line ${selected.includes(item.id) ? "selected" : ""}`}
+            onClick={(event) => {
+              if ((event.target as HTMLElement).closest("input, select, button")) return;
+              onToggle(item.id, event);
+            }}
+          >
+            <input
+              type="checkbox"
+              aria-label={`Select ${item.description}`}
+              checked={selected.includes(item.id)}
+              onChange={() => undefined}
+              onClick={(event) => onToggle(item.id, event)}
+              disabled={disabled}
+            />
+            <input
+              className="recon-date-input"
+              value={item.date}
+              onChange={(event) => onEdit(item.id, { date: event.target.value, postedDate: event.target.value })}
+              aria-label={`Date for ${item.description}`}
+              disabled={disabled}
+            />
+            <div className="recon-description">
+              <input value={item.description} onChange={(event) => onEdit(item.id, { description: event.target.value })} disabled={disabled} aria-label="Description" />
+              <small>{item.reference || item.notes || "No reference"}</small>
+              {item.currency !== "CAD" && <em>{item.currency} {(item.originalAmountCents / 100).toFixed(2)} original</em>}
+            </div>
+            <span className="recon-source">{sourceById.get(item.sourceId) ?? item.sourceId}</span>
+            <label className="recon-amount-input"><span>CA$</span><input value={(item.postedCadCents / 100).toFixed(2)} onChange={(event) => onEdit(item.id, { postedCadCents: Math.round((Number(event.target.value) || 0) * 100) })} inputMode="decimal" disabled={disabled} aria-label="Posted CAD amount" /></label>
+          </article>
+        ))}
+        {rows.length === 0 && <p className="recon-empty">No {side === "left" ? "Wanderlog" : "statement"} transactions in this view.</p>}
+      </div>
+    </section>
+  );
+}
+
+function SuggestionList({
+  suggestions,
+  byId,
+  onConfirm,
+  disabled,
+}: {
+  suggestions: ReconciliationMatchGroup[];
+  byId: Map<string, ReconciliationTransaction>;
+  onConfirm: (group: ReconciliationMatchGroup) => void;
+  disabled: boolean;
 }) {
   return (
-    <div className={`statement-line editable-statement-line decision-${decision}`} data-match-key={matchKey}>
-      <input
-        className="statement-date-input"
-        aria-label="Transaction date"
-        value={transaction.date}
-        onChange={(event) => onChange({ date: event.target.value })}
-      />
-      <div className="statement-description editable-description">
-        <input
-          aria-label="Transaction description"
-          value={transaction.description}
-          onChange={(event) => onChange({ description: event.target.value })}
-        />
-        <input
-          aria-label="Transaction detail"
-          value={transaction.detail}
-          onChange={(event) => onChange({ detail: event.target.value })}
-          placeholder="Optional note"
-        />
+    <section className="recon-suggestions">
+      <header><div><p className="eyebrow">Explainable suggestions</p><h2>{suggestions.length} candidates</h2></div><span>Exact CAD · ±7 days · merchant evidence</span></header>
+      {suggestions.map((group) => {
+        const left = byId.get(group.leftIds[0]);
+        const right = byId.get(group.rightIds[0]);
+        if (!left || !right) return null;
+        return (
+          <article key={group.id}>
+            <span className={`suggestion-confidence ${group.status === "ambiguous" ? "ambiguous" : group.confidence}`}>{group.status === "ambiguous" ? "Ambiguous" : `${group.confidence} confidence`}</span>
+            <div><small>Wanderlog</small><strong>{left.description}</strong><span>{left.date} · {money(left.postedCadCents)}</span></div>
+            <b>↔</b>
+            <div><small>Statement</small><strong>{right.description}</strong><span>{right.date} · {money(right.postedCadCents)}</span></div>
+            <ul>{group.explanation.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+            <button type="button" onClick={() => onConfirm(group)} disabled={disabled || group.status === "ambiguous"}>{group.status === "ambiguous" ? "Review manually" : "Confirm suggestion"}</button>
+          </article>
+        );
+      })}
+      {suggestions.length === 0 && <p className="recon-empty">No deterministic suggestions are available in this trip.</p>}
+    </section>
+  );
+}
+
+function ReconciledGroups({
+  groups,
+  byId,
+  onReopen,
+  disabled,
+  query,
+}: {
+  groups: ReconciliationMatchGroup[];
+  byId: Map<string, ReconciliationTransaction>;
+  onReopen: (group: ReconciliationMatchGroup) => void;
+  disabled: boolean;
+  query: string;
+}) {
+  const visible = groups.filter((group) => {
+    if (!query) return true;
+    return [...group.leftIds, ...group.rightIds].some((id) => byId.get(id)?.normalizedText.includes(query));
+  });
+  return (
+    <section className="recon-groups">
+      {visible.map((group) => (
+        <details key={group.id} open>
+          <summary>
+            <span className="recon-group-check">✓</span>
+            <div><strong>{group.matchType}</strong><small>{group.leftIds.length + group.rightIds.length} transactions · {group.explanation.join(" · ")}</small></div>
+            <span>{money(group.leftTotalCents)} = {money(group.rightTotalCents + (group.adjustment?.amountCents ?? 0))}</span>
+          </summary>
+          <div className="recon-group-body">
+            <GroupColumn label="Wanderlog" ids={group.leftIds} byId={byId} />
+            <GroupColumn label="Statement" ids={group.rightIds} byId={byId} />
+            {group.adjustment && <p className="recon-group-adjustment">Adjustment {money(group.adjustment.amountCents)} · {group.adjustment.note}</p>}
+            <button type="button" onClick={() => onReopen(group)} disabled={disabled}>Reopen group</button>
+          </div>
+        </details>
+      ))}
+      {visible.length === 0 && <p className="recon-empty">Confirmed matches will collect here as complete groups.</p>}
+    </section>
+  );
+}
+
+function GroupColumn({ label, ids, byId }: { label: string; ids: string[]; byId: Map<string, ReconciliationTransaction> }) {
+  return (
+    <div className="recon-group-column"><strong>{label}</strong>{ids.map((id) => {
+      const item = byId.get(id);
+      return item ? <div key={id}><span>{item.date}</span><b>{item.description}</b><strong>{money(item.postedCadCents)}</strong></div> : null;
+    })}</div>
+  );
+}
+
+function ExceptionRegister({
+  items,
+  byId,
+  onResolve,
+  disabled,
+}: {
+  items: ReconciliationWorkspace["exceptions"];
+  byId: Map<string, ReconciliationTransaction>;
+  onResolve: (id: string) => void;
+  disabled: boolean;
+}) {
+  return (
+    <section className="exception-register">
+      <header><p className="eyebrow">Supported transactions</p><h2>Exception register</h2></header>
+      {items.map((item) => (
+        <article key={item.id}>
+          <span>{exceptionReasons.find((reason) => reason.value === item.reason)?.label}</span>
+          <div><strong>{item.transactionIds.map((id) => byId.get(id)?.description).filter(Boolean).join(" + ")}</strong><small>{item.note}</small></div>
+          <b>{money(item.amountCents)}</b>
+          <button type="button" onClick={() => onResolve(item.id)} disabled={disabled}>Resolve / return</button>
+        </article>
+      ))}
+      {items.length === 0 && <p className="recon-empty">No open exceptions.</p>}
+    </section>
+  );
+}
+
+function ImportWorkspace({
+  trip,
+  sources,
+  sourceId,
+  setSourceId,
+  text,
+  setText,
+  preview,
+  report,
+  onPreview,
+  onImport,
+  disabled,
+}: {
+  trip: ReconciliationTripId;
+  sources: ReconciliationWorkspace["sources"];
+  sourceId: string;
+  setSourceId: (value: string) => void;
+  text: string;
+  setText: (value: string) => void;
+  preview: ImportPreviewRow[];
+  report: string;
+  onPreview: () => void;
+  onImport: () => void;
+  disabled: boolean;
+}) {
+  const accepted = preview.filter((item) => item.valid && !item.duplicate);
+  return (
+    <section className="recon-import">
+      <header><div><p className="eyebrow">Import workspace</p><h2>CSV or spreadsheet paste</h2></div><span>Private raw files are not uploaded</span></header>
+      <div className="recon-import-controls">
+        <label>Trip<input value={tripMeta[trip].name} disabled /></label>
+        <label>Mapping
+          <select value={sourceId} onChange={(event) => setSourceId(event.target.value)}>
+            {sources.map((item) => <option value={item.id} key={item.id}>{item.institution} · {item.account}</option>)}
+          </select>
+        </label>
+        <label className="recon-import-paste">Paste rows
+          <textarea value={text} onChange={(event) => setText(event.target.value)} placeholder={"Date,Description,Amount,Reference\n2026-07-14,Example merchant,22.15,ABC123"} />
+        </label>
+        <button type="button" onClick={onPreview} disabled={!text.trim()}>Preview import</button>
       </div>
-      <label className="statement-amount-input">
-        <span>CA$</span>
-        <input
-          aria-label="Transaction amount"
-          type="number"
-          min="0"
-          step="0.01"
-          value={transaction.amount}
-          onChange={(event) => onChange({ amount: Number(event.target.value) || 0 })}
-        />
-      </label>
-      <div className="statement-actions">
-        <select
-          className="statement-decision right-statement-decision"
-          aria-label={`Status for ${transaction.description}`}
-          value={decision}
-          onChange={(event) => onDecisionChange(event.target.value as "include" | "exclude")}
-        >
-          <option value="include">Include</option>
-          <option value="exclude">Exclude</option>
-        </select>
-        {selectedWanderlogId && decision === "include" && (
-          <button className={`match-action ${matchedLeftKey === selectedWanderlogId ? "linked" : ""}`} type="button" onClick={onToggleMatch}>
-            {matchedLeftKey === selectedWanderlogId ? "Unmatch" : matchedLeftKey ? "Reassign" : "Match"}
-          </button>
-        )}
-        {matchedLeftKey && !selectedWanderlogId && <span className="match-badge">Matched</span>}
-      </div>
-    </div>
+      {preview.length > 0 && (
+        <>
+          <div className="recon-import-summary">
+            <span>{preview.length} parsed</span><span>{accepted.length} ready</span><span>{preview.filter((item) => item.duplicate).length} duplicates</span><span>{preview.filter((item) => !item.valid).length} invalid</span>
+            <strong>{money(accepted.reduce((sum, item) => sum + item.amountCents, 0))}</strong>
+          </div>
+          <div className="recon-import-preview">
+            {preview.slice(0, 12).map((item) => <div key={item.row} className={!item.valid || item.duplicate ? "flagged" : ""}><span>Row {item.row}</span><span>{item.date || "Invalid date"}</span><strong>{item.description || item.error}</strong><b>{money(item.amountCents)}</b><em>{item.duplicate ? "Duplicate" : item.valid ? "Ready" : "Invalid"}</em></div>)}
+          </div>
+          <button type="button" className="recon-confirm" onClick={onImport} disabled={accepted.length === 0 || disabled}>Import {accepted.length} valid rows</button>
+        </>
+      )}
+      {report && <p className="recon-import-report">{report}</p>}
+    </section>
   );
 }

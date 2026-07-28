@@ -83,6 +83,29 @@ export const DEFAULT_SCOTIABANK_TRANSACTIONS: ReconciliationState["cardTransacti
   newYork: NEW_YORK_SCOTIABANK_TRANSACTIONS,
 };
 
+export const DEFAULT_NEW_YORK_MATCHES: Record<string, string[]> = {
+  "e-ny-002": ["scotia:scotia-ny-jun25-airport"],
+  "e-ny-003": ["scotia:scotia-ny-jun25-liberty"],
+  "e-ny-004": ["scotia:scotia-ny-jun25-nyct"],
+  "e-ny-005": ["scotia:scotia-ny-jun25-nj-pabt"],
+  "e-ny-006": ["scotia:scotia-ny-jun25-bagel"],
+  "e-ny-009": ["scotia:scotia-ny-jun26-nj"],
+  "e-ny-010": ["scotia:scotia-ny-jun26-halo"],
+  "e-ny-011": ["scotia:scotia-ny-jun27-central"],
+  "e-ny-012": ["scotia:scotia-ny-jun26-mahmouds"],
+  "e-ny-013": ["scotia:scotia-ny-jun27-gofresh"],
+  "e-ny-015": ["scotia:scotia-ny-jun26-nyct"],
+  "e-ny-016": ["scotia:scotia-ny-jun27-nyct-1"],
+  "e-ny-017": ["scotia:scotia-ny-jun27-liberty"],
+  "e-ny-018": ["scotia:scotia-ny-jun27-bertoni"],
+  "e-ny-019": ["scotia:scotia-ny-jun27-nj-mark"],
+  "e-ny-020": ["scotia:scotia-ny-jun27-dumbo"],
+  "e-ny-021": ["scotia:scotia-ny-jun27-nyct-2"],
+  "e-ny-022": ["scotia:scotia-ny-jun27-nj-pabt"],
+  "e-ny-card-001": ["scotia:scotia-ny-jun25-radical"],
+  "e-ny-card-002": ["scotia:scotia-ny-jun27-birria"],
+};
+
 export const DEFAULT_EXPENSE_EXPORT_TRANSACTIONS: ReconciliationState["exportTransactions"] = {
   peru: [
     { id: "export-peru-2026-01-11-latam-1", date: "Jan 11, 2026", description: "LATAM Airlines", detail: "LAN AIR 00456024660155 · Tangerine Mastercard", amount: 906.91 },
