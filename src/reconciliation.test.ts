@@ -12,16 +12,35 @@ import {
 } from "./reconciliation";
 
 describe("reconciliation schema migration", () => {
-  it("normalizes Peru and New York into integer-cent transactions", () => {
+  it("normalizes Portugal, Peru, and New York into integer-cent transactions", () => {
     const state = seedState();
     const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
 
     expect(workspace.schemaVersion).toBe(2);
+    expect(workspace.transactions.some((item) => item.tripId === "portugal" && item.side === "left")).toBe(true);
     expect(workspace.transactions.some((item) => item.tripId === "peru" && item.side === "left")).toBe(true);
     expect(workspace.transactions.some((item) => item.tripId === "new-york" && item.side === "right")).toBe(true);
     expect(workspace.transactions.every((item) => Number.isInteger(item.postedCadCents))).toBe(true);
     expect(workspace.transactions.every((item) => Number.isInteger(item.originalAmountCents))).toBe(true);
     expect(workspace.sources.find((item) => item.id === "export-peru")?.institution).toBe("Tangerine");
+  });
+
+  it("loads verified Portugal and New York statement activity by source", () => {
+    const state = seedState();
+    const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
+    const portugal = workspace.transactions.filter((item) => item.tripId === "portugal");
+    const newYork = workspace.transactions.filter((item) => item.tripId === "new-york");
+
+    expect(portugal.filter((item) => item.side === "left")).toHaveLength(
+      state.expenses.filter((item) => item.groupId === "g-portugal").length,
+    );
+    expect(portugal.filter((item) => item.sourceId === "scotia-portugal")).toHaveLength(23);
+    expect(portugal.filter((item) => item.sourceId === "export-portugal")).toHaveLength(9);
+    expect(newYork.filter((item) => item.sourceId === "scotia-new-york")).toHaveLength(20);
+    expect(newYork.filter((item) => item.sourceId === "export-new-york")).toHaveLength(1);
+    expect(workspace.sources.find((item) => item.id === "tangerine-portugal")?.account)
+      .toContain("no matching activity");
+    expect(workspace.periods.some((item) => item.tripId === "portugal")).toBe(true);
   });
 
   it("preserves valid legacy matches and ignores stale IDs", () => {

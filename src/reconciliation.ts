@@ -14,13 +14,16 @@ import type {
 
 export const RECONCILIATION_SCHEMA_VERSION = 2 as const;
 export const SUGGESTION_AMOUNT_TOLERANCE_CENTS = 50;
+const RECONCILIATION_TRIPS: ReconciliationTripId[] = ["portugal", "peru", "new-york"];
 
 const GROUP_BY_TRIP: Record<ReconciliationTripId, string> = {
+  portugal: "g-portugal",
   peru: "g-peru",
   "new-york": "g-new-york",
 };
 
-const LEGACY_CARD_KEY: Record<ReconciliationTripId, "peru" | "newYork"> = {
+const LEGACY_CARD_KEY: Record<ReconciliationTripId, "portugal" | "peru" | "newYork"> = {
+  portugal: "portugal",
   peru: "peru",
   "new-york": "newYork",
 };
@@ -64,20 +67,23 @@ function source(
 }
 
 function baseSources(): ReconciliationSource[] {
-  return (["peru", "new-york"] as ReconciliationTripId[]).flatMap((tripId) => [
-    source(`wanderlog-${tripId}`, tripId, "wanderlog", "Wanderlog", "Trip expense log"),
-    source(`scotia-${tripId}`, tripId, "bank", "Scotiabank", "Passport Visa Infinite •••• 7283"),
-    source(
-      `export-${tripId}`,
-      tripId,
-      "import",
-      tripId === "peru" ? "Tangerine" : "Expense Export",
-      tripId === "peru" ? "Mastercard · earlier booking charges" : "Earlier card charges",
-    ),
-    ...(tripId === "peru"
-      ? [source("cash-peru", tripId, "cash", "Tangerine", "International ATM withdrawals")]
-      : []),
-  ]);
+  return RECONCILIATION_TRIPS.flatMap((tripId) => {
+    const earlierInstitution = tripId === "peru" ? "Tangerine" : "Scotiabank";
+    const earlierAccount = tripId === "peru"
+      ? "Mastercard · earlier booking charges"
+      : "Earlier statement bookings";
+    return [
+      source(`wanderlog-${tripId}`, tripId, "wanderlog", "Wanderlog", "Trip expense log"),
+      source(`scotia-${tripId}`, tripId, "bank", "Scotiabank", "Passport Visa Infinite •••• 7283"),
+      source(`export-${tripId}`, tripId, "import", earlierInstitution, earlierAccount),
+      ...(tripId !== "peru"
+        ? [source(`tangerine-${tripId}`, tripId, "bank", "Tangerine", "Money-Back Mastercard •••• 8125 · no matching activity")]
+        : []),
+      ...(tripId === "peru"
+        ? [source("cash-peru", tripId, "cash", "Tangerine", "International ATM withdrawals")]
+        : []),
+    ];
+  });
 }
 
 function transaction(
@@ -177,7 +183,7 @@ function legacyDecision(
   id: string,
   side: "left" | "right",
 ): ReconciliationQueue {
-  const tripKey = tripId === "new-york" ? "new-york" : "peru";
+  const tripKey = tripId;
   const decision = side === "left"
     ? state.decisions[`${tripKey}-${id}`]
     : state.decisions[`statement-${tripKey}-${id}`];
@@ -186,7 +192,7 @@ function legacyDecision(
 
 function buildTransactions(state: ReconciliationState, expenses: Expense[]): ReconciliationTransaction[] {
   const result: ReconciliationTransaction[] = [];
-  for (const tripId of ["peru", "new-york"] as ReconciliationTripId[]) {
+  for (const tripId of RECONCILIATION_TRIPS) {
     expenses
       .filter((expense) => expense.groupId === GROUP_BY_TRIP[tripId])
       .forEach((expense) => result.push(leftTransaction(expense, tripId, legacyDecision(state, tripId, expense.id, "left"))));
@@ -219,7 +225,11 @@ function migrateGroups(
   const groups: ReconciliationMatchGroup[] = [];
   Object.entries(state.matches).forEach(([legacyLeft, legacyRightIds]) => {
     if (legacyRightIds.length === 0) return;
-    const tripId: ReconciliationTripId = legacyLeft.startsWith("new-york-") ? "new-york" : "peru";
+    const tripId: ReconciliationTripId = legacyLeft.startsWith("new-york-")
+      ? "new-york"
+      : legacyLeft.startsWith("portugal-")
+        ? "portugal"
+        : "peru";
     const expenseId = legacyLeft.replace(`${tripId}-`, "");
     const leftId = `wl:${tripId}:${expenseId}`;
     const rightIds = legacyRightIds.map((key) => legacyRightId(tripId, key)).filter((id) => byId.has(id));
@@ -285,6 +295,7 @@ export function createReconciliationWorkspace(
       transactionIds: [],
     }],
     periods: [
+      { tripId: "portugal", status: "open" },
       { tripId: "peru", status: "open" },
       { tripId: "new-york", status: "open" },
     ],
@@ -308,8 +319,10 @@ export function ensureReconciliationWorkspace(
     const rebuiltSourcesById = new Map(rebuilt.sources.map((item) => [item.id, item]));
     const existingIds = new Set(state.workspace.transactions.map((item) => item.id));
     const existingSourceIds = new Set(state.workspace.sources.map((item) => item.id));
+    const existingPeriodTrips = new Set(state.workspace.periods.map((item) => item.tripId));
     const missingTransactions = rebuilt.transactions.filter((item) => !existingIds.has(item.id));
     const missingSources = rebuilt.sources.filter((item) => !existingSourceIds.has(item.id));
+    const missingPeriods = rebuilt.periods.filter((item) => !existingPeriodTrips.has(item.tripId));
     const repairedTransactions = state.workspace.transactions.map((item) => {
       if (Number.isFinite(item.originalAmountCents)) return item;
       const source = rebuiltById.get(item.id);
@@ -333,6 +346,7 @@ export function ensureReconciliationWorkspace(
         ...missingSources,
       ],
       transactions: [...repairedTransactions, ...missingTransactions],
+      periods: [...state.workspace.periods, ...missingPeriods],
       rules: state.workspace.rules.map((item) => item.id === "default-exact"
         ? {
             ...item,

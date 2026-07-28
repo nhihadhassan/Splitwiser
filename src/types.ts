@@ -79,7 +79,7 @@ export interface StatementTransaction {
 
 export type CashTransaction = StatementTransaction;
 
-export type ReconciliationTripId = "peru" | "new-york";
+export type ReconciliationTripId = "portugal" | "peru" | "new-york";
 export type ReconciliationSide = "left" | "right";
 export type ReconciliationQueue =
   | "unmatched"
@@ -222,10 +222,12 @@ export interface ReconciliationState {
   cashRemaining: string;
   cashTransactions: CashTransaction[];
   cardTransactions: {
+    portugal: StatementTransaction[];
     peru: StatementTransaction[];
     newYork: StatementTransaction[];
   };
   exportTransactions: {
+    portugal: StatementTransaction[];
     peru: StatementTransaction[];
     newYork: StatementTransaction[];
   };

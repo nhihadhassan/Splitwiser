@@ -30,6 +30,11 @@ import "./ReconciliationPage.css";
 type QueueTab = "unmatched" | "suggested" | "exception" | "reconciled" | "excluded";
 
 const tripMeta: Record<ReconciliationTripId, { name: string; dates: string; note: string }> = {
+  portugal: {
+    name: "Portugal",
+    dates: "Jun 8 – Jun 24, 2026",
+    note: "23 on-trip Scotiabank charges and 9 earlier Scotiabank bookings were verified. The supplied Tangerine files contain no matching Portugal activity.",
+  },
   peru: {
     name: "Peru",
     dates: "Jul 11 – Jul 26, 2026",
@@ -38,7 +43,7 @@ const tripMeta: Record<ReconciliationTripId, { name: string; dates: string; note
   "new-york": {
     name: "New York",
     dates: "Jun 25 – Jun 28, 2026",
-    note: "Wanderlog expenses against the supplied card statement, with missing charges handled as supported exceptions.",
+    note: "20 on-trip Scotiabank charges and the earlier FlightHub booking were verified. The supplied Tangerine files contain no matching New York activity.",
   },
 };
 
@@ -87,7 +92,7 @@ function groupType(leftCount: number, rightCount: number): string {
 export function ReconciliationPage() {
   const { state, dispatch } = useStore();
   const workspace = state.reconciliation.workspace as ReconciliationWorkspace;
-  const [trip, setTrip] = useState<ReconciliationTripId>("peru");
+  const [trip, setTrip] = useState<ReconciliationTripId>("portugal");
   const [queue, setQueue] = useState<QueueTab>("unmatched");
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
@@ -633,7 +638,9 @@ export function ReconciliationPage() {
           <Ledger
             side="right"
             title="Account activity"
-            subtitle={trip === "peru" ? "Card charges and Tangerine cash withdrawals" : "What actually left your accounts"}
+            subtitle={trip === "peru"
+              ? "Card charges and Tangerine cash withdrawals"
+              : "Verified Scotiabank charges · no matching Tangerine activity"}
             rows={visibleRight}
             selected={selectedRight}
             onToggle={(id, event) => toggleSelection("right", id, event, visibleRight)}

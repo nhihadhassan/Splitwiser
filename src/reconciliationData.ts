@@ -55,6 +55,32 @@ const PERU_SCOTIABANK_TRANSACTIONS: StatementTransaction[] = [
   { id: "scotia-peru-jul11-wifi", date: "Jul 11, 2026", description: "Wi-Fi Onboard LAN", detail: "Apple Pay", amount: 15.95 },
 ];
 
+const PORTUGAL_SCOTIABANK_TRANSACTIONS: StatementTransaction[] = [
+  { id: "scotia-pt-jun24-areas", date: "Jun 24, 2026", description: "Areas Portugal SA", detail: "Maia", amount: 6.40 },
+  { id: "scotia-pt-jun24-condes", date: "Jun 24, 2026", description: "Condes Azev Palace", detail: "Porto - Apple Pay", amount: 10.54 },
+  { id: "scotia-pt-jun24-tim-hortons", date: "Jun 24, 2026", description: "Tim Hortons", detail: "Dorval, QC - Apple Pay", amount: 21.69 },
+  { id: "scotia-pt-jun24-duty-free", date: "Jun 24, 2026", description: "Porto Duty Free Walk", detail: "Maia", amount: 20.43 },
+  { id: "scotia-pt-jun24-uber", date: "Jun 24, 2026", description: "Uber", detail: "Help.Uber.Com", amount: 42.12 },
+  { id: "scotia-pt-jun23-manteigaria-325", date: "Jun 23, 2026", description: "Manteigaria", detail: "Porto - Apple Pay", amount: 3.25 },
+  { id: "scotia-pt-jun23-padaria", date: "Jun 23, 2026", description: "Padaria Pastelaria", detail: "Porto - Apple Pay", amount: 1.55 },
+  { id: "scotia-pt-jun23-lin-244", date: "Jun 23, 2026", description: "Lin Yingya", detail: "Porto - Apple Pay", amount: 2.44 },
+  { id: "scotia-pt-jun23-lin-407", date: "Jun 23, 2026", description: "Lin Yingya", detail: "Porto - Apple Pay", amount: 4.07 },
+  { id: "scotia-pt-jun23-clerigos-488", date: "Jun 23, 2026", description: "Manteigaria Clerigos", detail: "Porto - Apple Pay", amount: 4.88 },
+  { id: "scotia-pt-jun23-manteigaria-488", date: "Jun 23, 2026", description: "Manteigaria", detail: "Porto - Apple Pay", amount: 4.88 },
+  { id: "scotia-pt-jun23-clerigos-732", date: "Jun 23, 2026", description: "Manteigaria Clerigos", detail: "Porto - Apple Pay", amount: 7.32 },
+  { id: "scotia-pt-jun23-favorita", date: "Jun 23, 2026", description: "Favorita Bolhão", detail: "Portugal - Apple Pay", amount: 14.48 },
+  { id: "scotia-pt-jun23-cafe-santiago", date: "Jun 23, 2026", description: "Cafe Santiago", detail: "Porto - Apple Pay", amount: 27.50 },
+  { id: "scotia-pt-jun22-pao-fofo", date: "Jun 22, 2026", description: "Padaria Pao Fofo", detail: "Porto - Apple Pay", amount: 2.03 },
+  { id: "scotia-pt-jun22-fabrica-nata", date: "Jun 22, 2026", description: "Fábrica da Nata", detail: "Porto - Apple Pay", amount: 2.44 },
+  { id: "scotia-pt-jun22-estacao-309", date: "Jun 22, 2026", description: "Restaurante da Estação", detail: "Peso da Regua - Apple Pay", amount: 3.09 },
+  { id: "scotia-pt-jun22-clerigos-1", date: "Jun 22, 2026", description: "Manteigaria Clerigos", detail: "Porto - Apple Pay", amount: 4.88 },
+  { id: "scotia-pt-jun22-clerigos-2", date: "Jun 22, 2026", description: "Manteigaria Clerigos", detail: "Porto - Apple Pay", amount: 4.88 },
+  { id: "scotia-pt-jun22-estacao-944", date: "Jun 22, 2026", description: "Restaurante da Estação", detail: "Peso da Regua - Apple Pay", amount: 9.44 },
+  { id: "scotia-pt-jun21-combi", date: "Jun 21, 2026", description: "Combi Coffee Nomad", detail: "Porto - Apple Pay", amount: 2.93 },
+  { id: "scotia-pt-jun21-tapan", date: "Jun 21, 2026", description: "Tapan Kumar", detail: "Porto - Apple Pay", amount: 8.14 },
+  { id: "scotia-pt-jun21-pina-colada", date: "Jun 21, 2026", description: "Pina Colada", detail: "Porto - Apple Pay", amount: 13.02 },
+];
+
 const NEW_YORK_SCOTIABANK_TRANSACTIONS: StatementTransaction[] = [
   { id: "scotia-ny-jun27-gofresh", date: "Jun 27, 2026", description: "Go Fresh Deli Grill", detail: "Astoria, NY - Apple Pay", amount: 1.59 },
   { id: "scotia-ny-jun27-nyct-1", date: "Jun 27, 2026", description: "NYCT Paygo", detail: "New York, NY - Apple Pay", amount: 4.26 },
@@ -79,6 +105,7 @@ const NEW_YORK_SCOTIABANK_TRANSACTIONS: StatementTransaction[] = [
 ];
 
 export const DEFAULT_SCOTIABANK_TRANSACTIONS: ReconciliationState["cardTransactions"] = {
+  portugal: PORTUGAL_SCOTIABANK_TRANSACTIONS,
   peru: PERU_SCOTIABANK_TRANSACTIONS,
   newYork: NEW_YORK_SCOTIABANK_TRANSACTIONS,
 };
@@ -107,6 +134,17 @@ export const DEFAULT_NEW_YORK_MATCHES: Record<string, string[]> = {
 };
 
 export const DEFAULT_EXPENSE_EXPORT_TRANSACTIONS: ReconciliationState["exportTransactions"] = {
+  portugal: [
+    { id: "export-pt-2026-05-28-air-transat-return", date: "May 28, 2026", description: "Air Transat AO742L", detail: "AIR TRANSAT AO742L 8778726728 QC · Scotiabank June e-statement", amount: 727.87 },
+    { id: "export-pt-2026-05-28-air-transat-outbound", date: "May 28, 2026", description: "Air Transat YPTTO3", detail: "AIR TRANSAT YPTTO3 8778726728 QC · Scotiabank June e-statement", amount: 735.70 },
+    { id: "export-pt-2026-05-29-getyourguide", date: "May 29, 2026", description: "GetYourGuide Canada", detail: "GetYourGuide Canada Inc Vancouver BC · Scotiabank June e-statement", amount: 289.06 },
+    { id: "export-pt-2026-05-31-hostelworld-3824", date: "May 31, 2026", description: "Hostelworld", detail: "WWW.HOSTELWORLD.COM DUBLIN AMT · Scotiabank June e-statement", amount: 38.24 },
+    { id: "export-pt-2026-05-31-hostelworld-2873", date: "May 31, 2026", description: "Hostelworld", detail: "WWW.HOSTELWORLD.COM DUBLIN AMT · Scotiabank June e-statement", amount: 28.73 },
+    { id: "export-pt-2026-05-31-hostelworld-9496", date: "May 31, 2026", description: "Hostelworld", detail: "WWW.HOSTELWORLD.COM DUBLIN AMT · Scotiabank June e-statement", amount: 94.96 },
+    { id: "export-pt-2026-05-31-hostelworld-7496", date: "May 31, 2026", description: "Hostelworld", detail: "WWW.HOSTELWORLD.COM DUBLIN AMT · Scotiabank June e-statement", amount: 74.96 },
+    { id: "export-pt-2026-06-03-hostelworld", date: "Jun 3, 2026", description: "Hostelworld", detail: "WWW.HOSTELWORLD.COM DUBLIN AMT · Scotiabank June e-statement", amount: 6.83 },
+    { id: "export-pt-2026-06-07-airbnb", date: "Jun 7, 2026", description: "Airbnb", detail: "AIRBNB HMXT4PHSFQ · Scotiabank June e-statement", amount: 465.03 },
+  ],
   peru: [
     { id: "export-peru-2026-01-11-latam-1", date: "Jan 11, 2026", description: "LATAM Airlines", detail: "LAN AIR 00456024660155 · Tangerine Mastercard", amount: 906.91 },
     { id: "export-peru-2026-01-11-latam-2", date: "Jan 11, 2026", description: "LATAM Airlines", detail: "LAN AIR 00456024660156 · Tangerine Mastercard", amount: 906.91 },
@@ -122,5 +160,7 @@ export const DEFAULT_EXPENSE_EXPORT_TRANSACTIONS: ReconciliationState["exportTra
     { id: "export-peru-2026-01-26-hostel-1", date: "Jan 26, 2026", description: "Hostelworld", detail: "WWW.HOSTELWORLD.COM DUBLIN · Tangerine Mastercard", amount: 8.21 },
     { id: "export-peru-2026-01-26-hostel-2", date: "Jan 26, 2026", description: "Hostelworld", detail: "WWW.HOSTELWORLD.COM DUBLIN · Tangerine Mastercard", amount: 15.41 },
   ],
-  newYork: [],
+  newYork: [
+    { id: "export-ny-2026-04-08-flighthub", date: "Apr 8, 2026", description: "FlightHub", detail: "WWW.FLIGHTHUB.COM 800-900-1431 PE · Scotiabank April e-statement", amount: 521.76 },
+  ],
 };

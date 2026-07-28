@@ -122,8 +122,14 @@ function normalizeState(state: Omit<AppState, "reconciliation"> & Partial<AppSta
       ...state.reconciliation,
       matches: state.reconciliation?.matches ?? {},
       cashTransactions: state.reconciliation?.cashTransactions ?? DEFAULT_PERU_CASH_TRANSACTIONS,
-      cardTransactions: state.reconciliation?.cardTransactions ?? DEFAULT_SCOTIABANK_TRANSACTIONS,
-      exportTransactions: state.reconciliation?.exportTransactions ?? DEFAULT_EXPENSE_EXPORT_TRANSACTIONS,
+      cardTransactions: {
+        ...DEFAULT_SCOTIABANK_TRANSACTIONS,
+        ...state.reconciliation?.cardTransactions,
+      },
+      exportTransactions: {
+        ...DEFAULT_EXPENSE_EXPORT_TRANSACTIONS,
+        ...state.reconciliation?.exportTransactions,
+      },
     },
   });
   const seededTripExpenses = seedState().expenses.filter((expense) => expense.id.startsWith("e-ny-card-"));
@@ -154,12 +160,16 @@ function normalizeState(state: Omit<AppState, "reconciliation"> & Partial<AppSta
     matches: mergedNewYorkMatches,
   };
   const savedTripExpenses = normalized.expenses.filter(
-    (expense) => expense.groupId === "g-peru" || expense.groupId === "g-new-york",
+    (expense) => expense.groupId === "g-portugal"
+      || expense.groupId === "g-peru"
+      || expense.groupId === "g-new-york",
   );
   const reconciliationExpenses = savedTripExpenses.length > 0
     ? savedTripExpenses
     : seedState().expenses.filter(
-      (expense) => expense.groupId === "g-peru" || expense.groupId === "g-new-york",
+      (expense) => expense.groupId === "g-portugal"
+        || expense.groupId === "g-peru"
+        || expense.groupId === "g-new-york",
     );
   normalized.reconciliation.workspace = ensureReconciliationWorkspace(
     normalized.reconciliation,
