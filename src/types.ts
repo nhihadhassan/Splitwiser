@@ -69,7 +69,7 @@ export interface Settlement {
 
 export type ReconciliationDecision = "include" | "exclude" | "personal" | "review";
 
-export interface CashTransaction {
+export interface StatementTransaction {
   id: string;
   date: string;
   description: string;
@@ -77,10 +77,16 @@ export interface CashTransaction {
   amount: number;
 }
 
+export type CashTransaction = StatementTransaction;
+
 export interface ReconciliationState {
   decisions: Record<string, ReconciliationDecision>;
   cashRemaining: string;
   cashTransactions: CashTransaction[];
+  cardTransactions: {
+    peru: StatementTransaction[];
+    newYork: StatementTransaction[];
+  };
 }
 
 export interface AppState {

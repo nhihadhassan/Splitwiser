@@ -1,6 +1,6 @@
 import type { AppState } from "./types";
 import { splitEqually } from "./utils/money";
-import { DEFAULT_PERU_CASH_TRANSACTIONS } from "./reconciliationData";
+import { DEFAULT_PERU_CASH_TRANSACTIONS, DEFAULT_SCOTIABANK_TRANSACTIONS } from "./reconciliationData";
 
 export const AVATAR_COLORS = [
   "#5BC5A7",
@@ -60,6 +60,7 @@ export function seedState(): AppState {
       decisions: {},
       cashRemaining: "",
       cashTransactions: DEFAULT_PERU_CASH_TRANSACTIONS,
+      cardTransactions: DEFAULT_SCOTIABANK_TRANSACTIONS,
     },
   };
 

@@ -1,306 +1,374 @@
 import { useMemo, useState } from "react";
 import { uid, useStore } from "../store";
+import type { ReconciliationDecision, StatementTransaction } from "../types";
 import { formatMoney } from "../utils/money";
-import type { ReconciliationDecision } from "../types";
+import { seedState } from "../seed";
 import "./ReconciliationPage.css";
 
 type TripKey = "peru" | "new-york";
-type ReviewItem = {
-  id: string;
-  label: string;
-  detail: string;
-  amount: number;
-  displayAmount?: string;
-  source: "Scotiabank" | "Cash";
-};
-
 type ChargeDecision = ReconciliationDecision;
-type Charge = {
-  id: string;
-  date: string;
-  label: string;
-  detail: string;
-  source: "Wanderlog" | "Scotiabank" | "Cash";
-  amount: number;
-  displayAmount?: string;
-  defaultDecision: ChargeDecision;
-};
 
-const reviewItems: Record<TripKey, ReviewItem[]> = {
-  peru: [
-    { id: "peru-desert", label: "Desert Xtremo", detail: "Statement only · Lima · Jul 25", amount: 69.66, source: "Scotiabank" },
-    { id: "peru-hostel-1", label: "Hostelworld", detail: "Statement only · Dublin descriptor · Jul 25", amount: 11.65, source: "Scotiabank" },
-    { id: "peru-hostel-2", label: "Hostelworld", detail: "Statement only · Dublin descriptor · Jul 21", amount: 15.06, source: "Scotiabank" },
-    { id: "peru-viator", label: "Viator Tripadvisor", detail: "Likely Vinicunca · Wanderlog says CA$239.00", amount: 238.98, source: "Scotiabank" },
-    { id: "peru-los-portales", label: "Los Portalitos de Chivay", detail: "Wanderlog says CA$56.00 · statement differs", amount: 61.10, source: "Scotiabank" },
-    { id: "peru-kafi", label: "Kafi Wasi", detail: "Wanderlog says PEN 20.00 · statement amount", amount: 6.64, source: "Scotiabank" },
-    { id: "peru-waya", label: "Waya Lookout", detail: "Wanderlog says PEN 55.00 · statement amount", amount: 22.86, source: "Scotiabank" },
-    { id: "peru-refund", label: "Thank You Tan credit", detail: "CA$408.77 credit to Scotiabank · identify before netting", amount: -408.77, source: "Scotiabank" },
-  ],
-  "new-york": [
-    { id: "ny-birria", label: "Birria-Landia", detail: "Statement only · Astoria · Jun 27", amount: 25.50, source: "Scotiabank" },
-    { id: "ny-radical", label: "Radical New York", detail: "Statement only · Jun 25", amount: 25.34, source: "Scotiabank" },
-    { id: "ny-cash", label: "Cash expenses", detail: "Casa Adela and Joe's Pizza are recorded in USD", amount: 95.22, displayAmount: "US$69.50", source: "Cash" },
-  ],
-};
-
-const tripMeta: Record<TripKey, { name: string; dates: string; budget: string; status: string; intro: string }> = {
+const tripMeta: Record<TripKey, { name: string; dates: string; note: string; wanderlogTotal: number }> = {
   peru: {
     name: "Peru",
     dates: "Jul 11 - Jul 26, 2026",
-    budget: "CA$5,539.30",
-    status: "In progress",
-    intro: "Match Wanderlog against Scotiabank, then account for the cash withdrawn from Tangerine ATMs.",
+    wanderlogTotal: 5539.30,
+    note: "The right side includes this statement's Peru card charges and Tangerine cash. Older flights and bookings can be added as you find them.",
   },
   "new-york": {
     name: "New York",
     dates: "Jun 25 - Jun 28, 2026",
-    budget: "CA$855.15",
-    status: "Mostly matched",
-    intro: "The card activity is nearly complete. Only two statement charges and the USD cash entries need a decision.",
+    wanderlogTotal: 855.15,
+    note: "The Porter flight and USD cash purchases are in Wanderlog but are not present in the supplied Scotiabank statement.",
   },
 };
+
+const importedWanderlogExpenses = seedState().expenses.filter((expense) => (
+  expense.groupId === "g-peru" || expense.groupId === "g-new-york"
+));
+
+function money(amount: number) {
+  return formatMoney(Math.round(amount * 100));
+}
 
 export function ReconciliationPage() {
   const { state, dispatch } = useStore();
   const [trip, setTrip] = useState<TripKey>("peru");
-  const { decisions, cashRemaining, cashTransactions } = state.reconciliation;
-  const [filter, setFilter] = useState<"all" | ChargeDecision>("all");
   const [query, setQuery] = useState("");
   const meta = tripMeta[trip];
-  const items = reviewItems[trip];
-  const cashRecorded = cashTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
-  const cashSpent = cashRemaining === "" ? null : Math.max(0, cashRecorded - Number(cashRemaining));
+  const { decisions, cashRemaining, cashTransactions, cardTransactions } = state.reconciliation;
+  const groupId = trip === "peru" ? "g-peru" : "g-new-york";
+  const cardKey = trip === "peru" ? "peru" : "newYork";
+  const currentCardTransactions = cardTransactions[cardKey];
 
-  const charges = useMemo<Charge[]>(() => {
-    const groupId = trip === "peru" ? "g-peru" : "g-new-york";
-    const wanderlogCharges = state.expenses
-      .filter((expense) => expense.groupId === groupId)
-      .map((expense) => ({
-        id: expense.id,
-        date: expense.date,
-        label: expense.description,
-        detail: expense.notes?.replace("Imported from Wanderlog: ", "") ?? "Imported from Wanderlog",
-        source: "Wanderlog" as const,
-        amount: expense.amount / 100,
-        defaultDecision: "include" as const,
-      }));
-    const statementCharges = items.map((item) => ({
-      id: item.id,
-      date: "To review",
-      label: item.label,
-      detail: item.detail,
-      source: item.source,
-      amount: item.amount,
-      displayAmount: item.displayAmount,
-      defaultDecision: "review" as const,
-    }));
-    return [...wanderlogCharges, ...statementCharges].sort((a, b) => b.date.localeCompare(a.date));
-  }, [items, state.expenses, trip]);
+  const wanderlogCharges = useMemo(() => {
+    const savedTripExpenses = state.expenses.filter((expense) => expense.groupId === groupId);
+    const sourceExpenses = savedTripExpenses.length > 0
+      ? savedTripExpenses
+      : importedWanderlogExpenses.filter((expense) => expense.groupId === groupId);
+    return [...sourceExpenses].sort((a, b) => b.date.localeCompare(a.date));
+  }, [groupId, state.expenses]);
 
-  const decisionFor = (charge: Charge): ChargeDecision => decisions[`${trip}-${charge.id}`] ?? charge.defaultDecision;
-  const totals = useMemo(() => {
-    return charges.reduce<Record<ChargeDecision, number>>((result, charge) => {
-      result[decisionFor(charge)] += charge.amount;
-      return result;
-    }, { include: 0, exclude: 0, personal: 0, review: 0 });
-  // decisions are intentionally the only mutable input to the reconciliation totals
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [charges, decisions, trip]);
-  const completed = charges.filter((charge) => decisionFor(charge) !== "review").length;
-  const progress = charges.length === 0 ? 0 : Math.round((completed / charges.length) * 100);
-  const visibleCharges = charges.filter((charge) => {
-    const decision = decisionFor(charge);
-    const matchesFilter = filter === "all" || decision === filter;
-    const needle = query.trim().toLowerCase();
-    const matchesQuery = needle === "" || `${charge.label} ${charge.detail} ${charge.source}`.toLowerCase().includes(needle);
-    return matchesFilter && matchesQuery;
+  const decisionFor = (id: string): ChargeDecision => decisions[`${trip}-${id}`] ?? "include";
+  const excludedWanderlogCharges = wanderlogCharges.filter((charge) => {
+    const decision = decisionFor(charge.id);
+    return decision === "exclude" || decision === "personal";
   });
+  const includedWanderlogCharges = wanderlogCharges.filter((charge) => !excludedWanderlogCharges.includes(charge));
+  const importedEstimateTotal = wanderlogCharges.reduce((sum, charge) => sum + charge.amount / 100, 0);
+  const wanderlogConversionAdjustment = meta.wanderlogTotal - importedEstimateTotal;
+  const excludedWanderlogTotal = excludedWanderlogCharges.reduce((sum, charge) => sum + charge.amount / 100, 0);
+  const wanderlogTotal = Math.max(0, meta.wanderlogTotal - excludedWanderlogTotal);
+  const cardTotal = currentCardTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+  const cashRecorded = cashTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+  const parsedCashRemaining = Math.max(0, Number(cashRemaining) || 0);
+  const cashSpent = trip === "peru" ? Math.max(0, cashRecorded - parsedCashRemaining) : 0;
+  const statementTotal = cardTotal + cashSpent;
+  const variance = wanderlogTotal - statementTotal;
+  const isBalanced = Math.abs(variance) < 0.01;
+  const searchNeedle = query.trim().toLowerCase();
 
-  const summary = useMemo(() => {
-    if (trip === "peru") {
-      return [
-        ["Wanderlog budget", "CA$5,539.30", "Trip source"],
-        ["Tangerine cash withdrawn", "CA$1,470.69", "10 ATM withdrawals + fee"],
-        ["Scotiabank card", "Reviewing", "CAD, PEN and USD entries"],
-      ];
-    }
-    return [
-      ["Wanderlog logged", "CA$757.24 + US$69.50", "Card and cash"],
-      ["Flight included", "CA$521.76", "Not on current statement"],
-      ["Items to review", "3", "2 card charges + cash"],
-    ];
-  }, [trip]);
+  const visibleWanderlogCharges = wanderlogCharges.filter((charge) => (
+    searchNeedle === ""
+    || `${charge.date} ${charge.description} ${charge.notes ?? ""}`.toLowerCase().includes(searchNeedle)
+  ));
+  const visibleCardTransactions = currentCardTransactions.filter((transaction) => (
+    searchNeedle === ""
+    || `${transaction.date} ${transaction.description} ${transaction.detail}`.toLowerCase().includes(searchNeedle)
+  ));
+  const visibleCashTransactions = cashTransactions.filter((transaction) => (
+    searchNeedle === ""
+    || `${transaction.date} ${transaction.description} ${transaction.detail}`.toLowerCase().includes(searchNeedle)
+  ));
 
-  function setDecision(chargeId: string, decision: ChargeDecision) {
+  function updateReconciliation(patch: Partial<typeof state.reconciliation>) {
     dispatch({
       type: "updateReconciliation",
-      reconciliation: {
-        ...state.reconciliation,
-        decisions: { ...decisions, [`${trip}-${chargeId}`]: decision },
+      reconciliation: { ...state.reconciliation, ...patch },
+    });
+  }
+
+  function setDecision(chargeId: string, decision: ChargeDecision) {
+    updateReconciliation({
+      decisions: { ...decisions, [`${trip}-${chargeId}`]: decision },
+    });
+  }
+
+  function updateCardTransaction(id: string, patch: Partial<StatementTransaction>) {
+    updateReconciliation({
+      cardTransactions: {
+        ...cardTransactions,
+        [cardKey]: currentCardTransactions.map((transaction) => (
+          transaction.id === id ? { ...transaction, ...patch } : transaction
+        )),
       },
     });
   }
 
-  function updateCashTransaction(id: string, patch: Partial<(typeof cashTransactions)[number]>) {
-    dispatch({
-      type: "updateReconciliation",
-      reconciliation: {
-        ...state.reconciliation,
-        cashTransactions: cashTransactions.map((transaction) => transaction.id === id ? { ...transaction, ...patch } : transaction),
+  function addCardTransaction() {
+    updateReconciliation({
+      cardTransactions: {
+        ...cardTransactions,
+        [cardKey]: [
+          ...currentCardTransactions,
+          { id: uid(), date: "", description: "New card charge", detail: "", amount: 0 },
+        ],
       },
+    });
+  }
+
+  function updateCashTransaction(id: string, patch: Partial<StatementTransaction>) {
+    updateReconciliation({
+      cashTransactions: cashTransactions.map((transaction) => (
+        transaction.id === id ? { ...transaction, ...patch } : transaction
+      )),
     });
   }
 
   function addCashTransaction() {
-    dispatch({
-      type: "updateReconciliation",
-      reconciliation: {
-        ...state.reconciliation,
-        cashTransactions: [...cashTransactions, { id: uid(), date: "", description: "New cash entry", detail: "", amount: 0 }],
-      },
+    updateReconciliation({
+      cashTransactions: [
+        ...cashTransactions,
+        { id: uid(), date: "", description: "New cash withdrawal", detail: "", amount: 0 },
+      ],
     });
   }
 
   return (
-    <>
-      <main className="pane pane-wide reconciliation-page">
-        <div className="pane-header hero-header">
-          <div>
-            <p className="eyebrow">Trip Reconciliation</p>
-            <h1>Close the loop</h1>
-          </div>
-          <span className={`status-chip ${progress === 100 ? "settled" : "owed"}`}>{progress === 100 ? "Ready to close" : meta.status}</span>
+    <main className="pane pane-wide reconciliation-page">
+      <div className="pane-header hero-header">
+        <div>
+          <p className="eyebrow">Trip reconciliation</p>
+          <h1>Wanderlog vs. statements</h1>
         </div>
+        <span className={`status-chip ${isBalanced ? "settled" : "owed"}`}>
+          {isBalanced ? "Balanced" : `${money(Math.abs(variance))} to explain`}
+        </span>
+      </div>
 
-        <div className="reconciliation-tabs" role="tablist" aria-label="Trips">
-          {(Object.keys(tripMeta) as TripKey[]).map((key) => (
-            <button key={key} className={trip === key ? "active" : ""} onClick={() => setTrip(key)} role="tab" aria-selected={trip === key}>
-              <span>{tripMeta[key].name}</span>
-              <small>{tripMeta[key].dates}</small>
-            </button>
-          ))}
+      <div className="reconciliation-tabs" role="tablist" aria-label="Trips">
+        {(Object.keys(tripMeta) as TripKey[]).map((key) => (
+          <button
+            key={key}
+            className={trip === key ? "active" : ""}
+            onClick={() => setTrip(key)}
+            role="tab"
+            aria-selected={trip === key}
+          >
+            <span>{tripMeta[key].name}</span>
+            <small>{tripMeta[key].dates}</small>
+          </button>
+        ))}
+      </div>
+
+      <section className="reconciliation-intro">
+        <div>
+          <p className="eyebrow">{meta.dates}</p>
+          <h2>{meta.name} expense review</h2>
+          <p>{meta.note}</p>
         </div>
+        <label className="ledger-search">
+          <span>Search both sides</span>
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Date, merchant, or note"
+          />
+        </label>
+      </section>
 
-        <section className="reconciliation-intro">
-          <div>
-            <p className="eyebrow">{meta.dates}</p>
-            <h2>{meta.name} expense review</h2>
-            <p>{meta.intro}</p>
-          </div>
-          <div className="reconciliation-progress">
-            <span>{completed} of {items.length} review items checked</span>
-            <div
-              className="balance-meter"
-              role="progressbar"
-              aria-label="Reconciliation progress"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={progress}
-            >
-              <span style={{ width: `${progress}%` }} />
-            </div>
-          </div>
-        </section>
+      <section className={`reconciliation-equation ${isBalanced ? "balanced" : ""}`} aria-label="Reconciliation equation">
+        <div>
+          <span>Wanderlog total</span>
+          <strong>{money(wanderlogTotal)}</strong>
+          <small>{includedWanderlogCharges.length} included line items</small>
+        </div>
+        <div className="equation-result" aria-label={isBalanced ? "Totals match" : "Totals do not match"}>
+          <span>{isBalanced ? "=" : "≠"}</span>
+          <strong>{isBalanced ? "Balanced" : `${variance > 0 ? "Left is higher" : "Right is higher"} by ${money(Math.abs(variance))}`}</strong>
+        </div>
+        <div>
+          <span>Scotiabank + cash spent</span>
+          <strong>{money(statementTotal)}</strong>
+          <small>{currentCardTransactions.length} card charges{trip === "peru" ? " + Tangerine cash" : ""}</small>
+        </div>
+      </section>
 
-        <section className="reconciliation-totals" aria-label="Reconciliation totals">
-          <div><span>Included total</span><strong>{formatMoney(Math.round(totals.include * 100))}</strong></div>
-          <div><span>Needs review</span><strong>{formatMoney(Math.round(totals.review * 100))}</strong></div>
-          <div><span>Excluded or personal</span><strong>{formatMoney(Math.round((totals.exclude + totals.personal) * 100))}</strong></div>
-        </section>
-
-        <section className="reconciliation-summary">
-          {summary.map(([label, value, detail]) => (
-            <div className="reconciliation-summary-cell" key={label}>
-              <span className="eyebrow">{label}</span>
-              <strong>{value}</strong>
-              <small>{detail}</small>
-            </div>
-          ))}
-        </section>
-
-        {trip === "peru" && (
-          <section className="module-card reconciliation-cash">
-            <div className="module-heading">
-              <div>
-                <p className="eyebrow">Cash source</p>
-                <h2>Tangerine ATM withdrawals</h2>
-              </div>
-              <strong className="reconciliation-total">{formatMoney(Math.round(cashRecorded * 100))}</strong>
-            </div>
-            <p className="muted-copy">Every cash movement is listed below as a statement line. Edit the date, merchant, note, or amount directly; the total and cash-spent estimate update immediately.</p>
-            <div className="cash-ledger" role="region" aria-label="Tangerine cash statement">
-              <div className="cash-ledger-header" aria-hidden="true"><span>Date</span><span>Transaction</span><span>Amount</span></div>
-              {cashTransactions.map((transaction) => (
-                <div className="cash-ledger-row" key={transaction.id}>
-                  <input className="cash-ledger-date" aria-label="Transaction date" value={transaction.date} onChange={(event) => updateCashTransaction(transaction.id, { date: event.target.value })} />
-                  <div className="cash-ledger-description">
-                    <input aria-label="Transaction description" value={transaction.description} onChange={(event) => updateCashTransaction(transaction.id, { description: event.target.value })} />
-                    <input aria-label="Transaction detail" value={transaction.detail} onChange={(event) => updateCashTransaction(transaction.id, { detail: event.target.value })} placeholder="Optional note" />
-                  </div>
-                  <label className="cash-ledger-amount"><span>CA$</span><input aria-label="Transaction amount" type="number" min="0" step="0.01" value={transaction.amount} onChange={(event) => updateCashTransaction(transaction.id, { amount: Number(event.target.value) || 0 })} /></label>
-                </div>
-              ))}
-            </div>
-            <button className="cash-add-line" type="button" onClick={addCashTransaction}>Add cash line</button>
-            <div className="cash-entry-row">
-              <label className="field">
-                <span>Cash brought home</span>
-                <div className="amount-input"><span className="currency">CA$</span><input type="number" min="0" step="0.01" value={cashRemaining} onChange={(event) => dispatch({ type: "updateReconciliation", reconciliation: { ...state.reconciliation, cashRemaining: event.target.value } })} placeholder="0.00" /></div>
-              </label>
-              <div className="cash-spent-result">
-                <span>Estimated cash spent</span>
-                <strong>{cashSpent === null ? "Enter remaining cash" : `CA$${cashSpent.toFixed(2)}`}</strong>
-              </div>
-            </div>
-          </section>
-        )}
-
-        <section className="module-card reconciliation-review">
-          <div className="module-heading">
+      <div className="reconciliation-compare-grid">
+        <section className="comparison-ledger" aria-labelledby="wanderlog-ledger-title">
+          <header className="comparison-ledger-header">
             <div>
-              <p className="eyebrow">Charge spreadsheet</p>
-              <h2>Review every charge</h2>
+              <p className="eyebrow">Left side</p>
+              <h2 id="wanderlog-ledger-title">Wanderlog items</h2>
+              <span>What you recorded as trip spending</span>
             </div>
-            <span className="status-chip owed">{totals.review > 0 ? `${formatMoney(Math.round(totals.review * 100))} pending` : "All decided"}</span>
+            <strong>{money(wanderlogTotal)}</strong>
+          </header>
+
+          <div className="ledger-column-labels wanderlog-labels" aria-hidden="true">
+            <span>Date</span><span>Line item</span><span>Amount</span><span>Status</span>
           </div>
-          <div className="reconciliation-toolbar">
-            <label className="reconciliation-search"><span>Search</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Merchant or note" /></label>
-            <label className="reconciliation-filter"><span>Show</span><select value={filter} onChange={(event) => setFilter(event.target.value as "all" | ChargeDecision)}><option value="all">All charges</option><option value="review">Needs review</option><option value="include">Included</option><option value="exclude">Excluded</option><option value="personal">Personal</option></select></label>
-          </div>
-          <div className="reconciliation-table-wrap">
-            <table className="reconciliation-table">
-              <thead><tr><th>Date</th><th>Charge</th><th>Source</th><th>Amount</th><th>Decision</th></tr></thead>
-              <tbody>
-                {visibleCharges.map((charge) => {
-                  const decision = decisionFor(charge);
-                  return <tr key={charge.id} className={`decision-${decision}`}>
-                    <td>{charge.date}</td>
-                    <td><strong>{charge.label}</strong><small>{charge.detail}</small></td>
-                    <td><span className="source-tag">{charge.source}</span></td>
-                    <td><strong>{charge.displayAmount ?? formatMoney(Math.round(charge.amount * 100))}</strong></td>
-                    <td><select aria-label={`Decision for ${charge.label}`} value={decision} onChange={(event) => setDecision(charge.id, event.target.value as ChargeDecision)}><option value="include">Include</option><option value="review">Needs review</option><option value="personal">Personal</option><option value="exclude">Exclude</option></select></td>
-                  </tr>;
-                })}
-              </tbody>
-            </table>
-            {visibleCharges.length === 0 && <p className="reconciliation-empty">No charges match this view.</p>}
+          <div className="statement-lines">
+            {visibleWanderlogCharges.map((charge) => {
+              const decision = decisionFor(charge.id);
+              return (
+                <div className={`statement-line wanderlog-line decision-${decision}`} key={charge.id}>
+                  <span className="statement-date">{charge.date}</span>
+                  <div className="statement-description">
+                    <strong>{charge.description}</strong>
+                    <small>{charge.notes?.replace("Imported from Wanderlog: ", "") ?? "Imported from Wanderlog"}</small>
+                  </div>
+                  <strong className="statement-amount">{money(charge.amount / 100)}</strong>
+                  <select
+                    className="statement-decision"
+                    aria-label={`Status for ${charge.description}`}
+                    value={decision}
+                    onChange={(event) => setDecision(charge.id, event.target.value as ChargeDecision)}
+                  >
+                    <option value="include">Include</option>
+                    <option value="review">Review</option>
+                    <option value="personal">Personal</option>
+                    <option value="exclude">Exclude</option>
+                  </select>
+                </div>
+              );
+            })}
+            {searchNeedle === "" && Math.abs(wanderlogConversionAdjustment) >= 0.01 && (
+              <div className="statement-line wanderlog-line conversion-adjustment-line">
+                <span className="statement-date">Summary</span>
+                <div className="statement-description">
+                  <strong>Wanderlog conversion adjustment</strong>
+                  <small>Aligns the imported CAD estimates with Wanderlog's published trip total</small>
+                </div>
+                <strong className="statement-amount">{money(wanderlogConversionAdjustment)}</strong>
+                <span className="adjustment-status">Automatic</span>
+              </div>
+            )}
+            {visibleWanderlogCharges.length === 0 && <p className="reconciliation-empty">No Wanderlog items match this search.</p>}
           </div>
         </section>
-      </main>
 
-      <aside className="rail">
-        <div className="rail-card">
-          <h2>How to finish</h2>
-          <p className="muted-copy">Use the dropdown beside each charge to include it, flag it for review, mark it personal, or exclude it. Totals update immediately and follow the ledger's save status.</p>
-          <p className="muted-copy">For Peru, enter the amount of cash you brought home so cash withdrawn can be separated from cash spent.</p>
-        </div>
-        <div className="rail-card">
-          <span className="eyebrow">Trip budget</span>
-          <strong className="rail-number">{meta.budget}</strong>
-          <span className="muted-copy">Wanderlog source total</span>
-        </div>
-      </aside>
-    </>
+        <section className="comparison-ledger" aria-labelledby="statement-ledger-title">
+          <header className="comparison-ledger-header">
+            <div>
+              <p className="eyebrow">Right side</p>
+              <h2 id="statement-ledger-title">Bank and cash</h2>
+              <span>What actually left your accounts</span>
+            </div>
+            <strong>{money(statementTotal)}</strong>
+          </header>
+
+          <div className="statement-source-heading">
+            <div>
+              <span className="source-mark scotia" aria-hidden="true">S</span>
+              <div><strong>Scotiabank credit card</strong><small>Passport Visa Infinite •••• 7283</small></div>
+            </div>
+            <strong>{money(cardTotal)}</strong>
+          </div>
+          <div className="ledger-column-labels" aria-hidden="true">
+            <span>Date</span><span>Transaction</span><span>Amount</span>
+          </div>
+          <div className="statement-lines">
+            {visibleCardTransactions.map((transaction) => (
+              <EditableStatementLine
+                key={transaction.id}
+                transaction={transaction}
+                onChange={(patch) => updateCardTransaction(transaction.id, patch)}
+              />
+            ))}
+            {visibleCardTransactions.length === 0 && <p className="reconciliation-empty">No Scotiabank charges match this search.</p>}
+          </div>
+          <button className="statement-add-line" type="button" onClick={addCardTransaction}>+ Add card charge</button>
+
+          {trip === "peru" && (
+            <>
+              <div className="statement-source-heading cash-source-heading">
+                <div>
+                  <span className="source-mark tangerine" aria-hidden="true">T</span>
+                  <div><strong>Tangerine cash withdrawals</strong><small>Cash spent = withdrawn minus cash brought home</small></div>
+                </div>
+                <strong>{money(cashSpent)}</strong>
+              </div>
+              <div className="ledger-column-labels" aria-hidden="true">
+                <span>Date</span><span>Transaction</span><span>Amount</span>
+              </div>
+              <div className="statement-lines">
+                {visibleCashTransactions.map((transaction) => (
+                  <EditableStatementLine
+                    key={transaction.id}
+                    transaction={transaction}
+                    onChange={(patch) => updateCashTransaction(transaction.id, patch)}
+                  />
+                ))}
+                {visibleCashTransactions.length === 0 && <p className="reconciliation-empty">No Tangerine withdrawals match this search.</p>}
+              </div>
+              <button className="statement-add-line" type="button" onClick={addCashTransaction}>+ Add cash withdrawal</button>
+
+              <div className="cash-adjustment-line">
+                <div>
+                  <strong>Cash brought home</strong>
+                  <small>{cashRemaining === "" ? "Currently assuming CA$0 remained" : `${money(cashRecorded)} withdrawn in total`}</small>
+                </div>
+                <label>
+                  <span>CA$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={cashRemaining}
+                    onChange={(event) => updateReconciliation({ cashRemaining: event.target.value })}
+                    placeholder="0.00"
+                    aria-label="Cash brought home"
+                  />
+                </label>
+              </div>
+            </>
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}
+
+function EditableStatementLine({
+  transaction,
+  onChange,
+}: {
+  transaction: StatementTransaction;
+  onChange: (patch: Partial<StatementTransaction>) => void;
+}) {
+  return (
+    <div className="statement-line editable-statement-line">
+      <input
+        className="statement-date-input"
+        aria-label="Transaction date"
+        value={transaction.date}
+        onChange={(event) => onChange({ date: event.target.value })}
+      />
+      <div className="statement-description editable-description">
+        <input
+          aria-label="Transaction description"
+          value={transaction.description}
+          onChange={(event) => onChange({ description: event.target.value })}
+        />
+        <input
+          aria-label="Transaction detail"
+          value={transaction.detail}
+          onChange={(event) => onChange({ detail: event.target.value })}
+          placeholder="Optional note"
+        />
+      </div>
+      <label className="statement-amount-input">
+        <span>CA$</span>
+        <input
+          aria-label="Transaction amount"
+          type="number"
+          min="0"
+          step="0.01"
+          value={transaction.amount}
+          onChange={(event) => onChange({ amount: Number(event.target.value) || 0 })}
+        />
+      </label>
+    </div>
   );
 }

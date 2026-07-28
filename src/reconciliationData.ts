@@ -1,4 +1,4 @@
-import type { CashTransaction } from "./types";
+import type { CashTransaction, ReconciliationState, StatementTransaction } from "./types";
 
 export const DEFAULT_PERU_CASH_TRANSACTIONS: CashTransaction[] = [
   { id: "cash-prior", date: "Before Jul 12", description: "Previous cash withdrawal", detail: "500 PEN cash received", amount: 212.00 },
@@ -14,3 +14,71 @@ export const DEFAULT_PERU_CASH_TRANSACTIONS: CashTransaction[] = [
   { id: "cash-jul-23", date: "Jul 23, 2026", description: "International ABM withdrawal", detail: "SBP, Ag. Diagonal 2, Lima", amount: 170.23 },
   { id: "cash-jul-26", date: "Jul 26, 2026", description: "International ABM withdrawal", detail: "SBP, Larco II, Lima", amount: 21.25 },
 ];
+
+const PERU_SCOTIABANK_TRANSACTIONS: StatementTransaction[] = [
+  { id: "scotia-peru-jul25-hostelworld", date: "Jul 25, 2026", description: "Hostelworld", detail: "Dublin", amount: 11.65 },
+  { id: "scotia-peru-jul25-desert", date: "Jul 25, 2026", description: "Desert Xtremo", detail: "Lima", amount: 69.66 },
+  { id: "scotia-peru-jul24-openpay", date: "Jul 24, 2026", description: "Openpay", detail: "Pisco", amount: 2.91 },
+  { id: "scotia-peru-jul23-kafi", date: "Jul 23, 2026", description: "Kafi Wasi", detail: "Arequipa", amount: 6.64 },
+  { id: "scotia-peru-jul23-mandil", date: "Jul 23, 2026", description: "Mandil Taqueria", detail: "Miraflores - Apple Pay", amount: 30.61 },
+  { id: "scotia-peru-jul22-kao", date: "Jul 22, 2026", description: "Kao Restaurante", detail: "Arequipa", amount: 8.10 },
+  { id: "scotia-peru-jul22-waya", date: "Jul 22, 2026", description: "Waya Lookout", detail: "Lima", amount: 22.86 },
+  { id: "scotia-peru-jul21-uber", date: "Jul 21, 2026", description: "Uber", detail: "Lima", amount: 3.66 },
+  { id: "scotia-peru-jul21-hostelworld", date: "Jul 21, 2026", description: "Hostelworld", detail: "Dublin", amount: 15.06 },
+  { id: "scotia-peru-jul21-dbaos", date: "Jul 21, 2026", description: "D Baos", detail: "Arequipa", amount: 36.95 },
+  { id: "scotia-peru-jul20-tusuy", date: "Jul 20, 2026", description: "Tusuy", detail: "Chivay", amount: 34.30 },
+  { id: "scotia-peru-jul20-portalitos", date: "Jul 20, 2026", description: "Los Portalitos De Chi", detail: "Lima", amount: 61.10 },
+  { id: "scotia-peru-jul19-uber", date: "Jul 19, 2026", description: "Uber", detail: "Lima", amount: 3.30 },
+  { id: "scotia-peru-jul19-dbaos", date: "Jul 19, 2026", description: "D Baos", detail: "Arequipa", amount: 16.06 },
+  { id: "scotia-peru-jul19-jayari", date: "Jul 19, 2026", description: "Jayari Eirl", detail: "Arequipa - Apple Pay", amount: 19.82 },
+  { id: "scotia-peru-jul19-mundo", date: "Jul 19, 2026", description: "Mundo Epicureo E.I.R.L", detail: "Yanahuara - Apple Pay", amount: 33.03 },
+  { id: "scotia-peru-jul17-casa-1", date: "Jul 17, 2026", description: "Casa Market", detail: "Lima", amount: 1.87 },
+  { id: "scotia-peru-jul17-casa-2", date: "Jul 17, 2026", description: "Casa Market", detail: "Lima - Apple Pay", amount: 15.30 },
+  { id: "scotia-peru-jul17-jacks", date: "Jul 17, 2026", description: "Jacks Cafe Bar", detail: "Lima - Apple Pay", amount: 26.95 },
+  { id: "scotia-peru-jul17-panzotis", date: "Jul 17, 2026", description: "Panzotis", detail: "Lima - Apple Pay", amount: 59.08 },
+  { id: "scotia-peru-jul17-peru-hop", date: "Jul 17, 2026", description: "Peru Hop", detail: "Apple Pay", amount: 410.44 },
+  { id: "scotia-peru-jul16-amara", date: "Jul 16, 2026", description: "Amara Textiles Andinos", detail: "Quiquijana", amount: 14.52 },
+  { id: "scotia-peru-jul16-viator", date: "Jul 16, 2026", description: "Viator Tripadvisor UK", detail: "London", amount: 81.08 },
+  { id: "scotia-peru-jul15-coffee", date: "Jul 15, 2026", description: "Central Coffee Shop", detail: "Lima", amount: 10.45 },
+  { id: "scotia-peru-jul15-arzobispado", date: "Jul 15, 2026", description: "Arzobispado", detail: "Cusco - Apple Pay", amount: 11.99 },
+  { id: "scotia-peru-jul15-ernesto", date: "Jul 15, 2026", description: "Ernesto", detail: "Lima", amount: 12.54 },
+  { id: "scotia-peru-jul15-mapacho", date: "Jul 15, 2026", description: "Mapacho Craft Beer", detail: "Cusco", amount: 61.50 },
+  { id: "scotia-peru-jul14-museo", date: "Jul 14, 2026", description: "Museo De La Papa Rest", detail: "Lima", amount: 22.15 },
+  { id: "scotia-peru-jul14-andean", date: "Jul 14, 2026", description: "Andean Organica", detail: "Huayllabamba", amount: 32.05 },
+  { id: "scotia-peru-jul14-viator", date: "Jul 14, 2026", description: "Viator Tripadvisor UK", detail: "London", amount: 238.98 },
+  { id: "scotia-peru-jul13-nina", date: "Jul 13, 2026", description: "Nina", detail: "Lima", amount: 36.63 },
+  { id: "scotia-peru-jul13-samay", date: "Jul 13, 2026", description: "Samay Wasi Youth Hostel", detail: "Lima", amount: 67.31 },
+  { id: "scotia-peru-jul12-gatos", date: "Jul 12, 2026", description: "Gatos Market", detail: "Cusco", amount: 0.63 },
+  { id: "scotia-peru-jul12-angel", date: "Jul 12, 2026", description: "Angel Samir", detail: "Lima", amount: 4.38 },
+  { id: "scotia-peru-jul12-uber", date: "Jul 12, 2026", description: "Uber", detail: "Help.uber.com", amount: 8.60 },
+  { id: "scotia-peru-jul12-counter", date: "Jul 12, 2026", description: "Counter", detail: "Cusco", amount: 111.99 },
+  { id: "scotia-peru-jul11-wifi", date: "Jul 11, 2026", description: "Wi-Fi Onboard LAN", detail: "Apple Pay", amount: 15.95 },
+];
+
+const NEW_YORK_SCOTIABANK_TRANSACTIONS: StatementTransaction[] = [
+  { id: "scotia-ny-jun27-gofresh", date: "Jun 27, 2026", description: "Go Fresh Deli Grill", detail: "Astoria, NY - Apple Pay", amount: 1.59 },
+  { id: "scotia-ny-jun27-nyct-1", date: "Jun 27, 2026", description: "NYCT Paygo", detail: "New York, NY - Apple Pay", amount: 4.26 },
+  { id: "scotia-ny-jun27-nyct-2", date: "Jun 27, 2026", description: "NYCT Paygo", detail: "New York, NY - Apple Pay", amount: 4.26 },
+  { id: "scotia-ny-jun27-nj-mark", date: "Jun 27, 2026", description: "NJ Transit Paygo", detail: "Paterson, NJ - Apple Pay", amount: 5.83 },
+  { id: "scotia-ny-jun27-dumbo", date: "Jun 27, 2026", description: "Dumbo Market", detail: "Long Island City, NY - Apple Pay", amount: 6.24 },
+  { id: "scotia-ny-jun27-nj-pabt", date: "Jun 27, 2026", description: "NJ Transit PABT", detail: "New York, NY - Apple Pay", amount: 7.53 },
+  { id: "scotia-ny-jun27-bertoni", date: "Jun 27, 2026", description: "Bertoni Gelato", detail: "Brooklyn, NY - Apple Pay", amount: 14.70 },
+  { id: "scotia-ny-jun27-liberty", date: "Jun 27, 2026", description: "Liberty Bagels Midtown", detail: "New York, NY - Apple Pay", amount: 23.21 },
+  { id: "scotia-ny-jun27-birria", date: "Jun 27, 2026", description: "Birrielandia", detail: "Astoria, NY - Apple Pay", amount: 25.50 },
+  { id: "scotia-ny-jun27-central", date: "Jun 27, 2026", description: "Central Park Cafe", detail: "New York, NY - Apple Pay", amount: 27.01 },
+  { id: "scotia-ny-jun26-nyct", date: "Jun 26, 2026", description: "NYCT Paygo", detail: "New York, NY - Apple Pay", amount: 4.26 },
+  { id: "scotia-ny-jun26-nj", date: "Jun 26, 2026", description: "NJ Transit Paygo Fairview", detail: "Fairview, NJ - Apple Pay", amount: 5.84 },
+  { id: "scotia-ny-jun26-halo", date: "Jun 26, 2026", description: "Halo Deli", detail: "New York, NY - Apple Pay", amount: 17.59 },
+  { id: "scotia-ny-jun26-mahmouds", date: "Jun 26, 2026", description: "Mahmouds Corner Halal", detail: "Woodside, NY - Apple Pay", amount: 24.76 },
+  { id: "scotia-ny-jun25-nyct", date: "Jun 25, 2026", description: "NYCT Paygo", detail: "New York, NY - Apple Pay", amount: 4.28 },
+  { id: "scotia-ny-jun25-bagel", date: "Jun 25, 2026", description: "Bagel Town", detail: "New York, NY - Apple Pay", amount: 6.20 },
+  { id: "scotia-ny-jun25-nj-pabt", date: "Jun 25, 2026", description: "NJ Transit PABT", detail: "New York, NY - Apple Pay", amount: 7.55 },
+  { id: "scotia-ny-jun25-liberty", date: "Jun 25, 2026", description: "Liberty Bagels Midtown", detail: "New York, NY - Apple Pay", amount: 15.36 },
+  { id: "scotia-ny-jun25-radical", date: "Jun 25, 2026", description: "Radical New York", detail: "Roma", amount: 25.34 },
+  { id: "scotia-ny-jun25-airport", date: "Jun 25, 2026", description: "NJ Transit Newark Airport", detail: "Newark, NJ - Apple Pay", amount: 49.16 },
+];
+
+export const DEFAULT_SCOTIABANK_TRANSACTIONS: ReconciliationState["cardTransactions"] = {
+  peru: PERU_SCOTIABANK_TRANSACTIONS,
+  newYork: NEW_YORK_SCOTIABANK_TRANSACTIONS,
+};
