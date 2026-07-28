@@ -38,6 +38,7 @@ export function ReconciliationPage() {
   const [trip, setTrip] = useState<TripKey>("peru");
   const [query, setQuery] = useState("");
   const [selectedWanderlogId, setSelectedWanderlogId] = useState<string | null>(null);
+  const [showReconciled, setShowReconciled] = useState(true);
   const meta = tripMeta[trip];
   const { decisions, matches, cashRemaining, cashTransactions, cardTransactions, exportTransactions } = state.reconciliation;
   const groupId = trip === "peru" ? "g-peru" : "g-new-york";
@@ -116,8 +117,22 @@ export function ReconciliationPage() {
     : undefined;
   const selectedMatchKeys = selectedLeftKey ? matches[selectedLeftKey] ?? [] : [];
   const selectedMatchTotal = selectedMatchKeys.reduce((sum, key) => sum + (rightLineByKey.get(key)?.amount ?? 0), 0);
-  const matchedWanderlogCount = includedWanderlogCharges.filter((charge) => (matches[`${trip}-${charge.id}`] ?? []).length > 0).length;
-  const unmatchedIncludedCount = includedWanderlogCharges.length - matchedWanderlogCount;
+  const selectedDifference = selectedLeft ? selectedLeft.amount / 100 - selectedMatchTotal : 0;
+  const reconciledGroups = includedWanderlogCharges.map((charge) => {
+    const leftKey = `${trip}-${charge.id}`;
+    const matchKeys = matches[leftKey] ?? [];
+    const lines = matchKeys.map((key) => rightLineByKey.get(key)).filter((line): line is RightLine => Boolean(line));
+    const matchedTotal = lines.reduce((sum, line) => sum + line.amount, 0);
+    return { charge, leftKey, lines, matchedTotal, difference: charge.amount / 100 - matchedTotal };
+  }).filter((group) => group.lines.length > 0 && Math.abs(group.difference) < 0.01);
+  const reconciledLeftKeys = new Set(reconciledGroups.map((group) => group.leftKey));
+  const reconciledRightKeys = new Set(reconciledGroups.flatMap((group) => group.lines.map((line) => line.key)));
+  const reconciledWanderlogCount = reconciledGroups.length;
+  const unmatchedIncludedCount = includedWanderlogCharges.length - reconciledWanderlogCount;
+  const activeVisibleWanderlogCharges = visibleWanderlogCharges.filter((charge) => !reconciledLeftKeys.has(`${trip}-${charge.id}`));
+  const activeVisibleCardTransactions = visibleCardTransactions.filter((transaction) => !reconciledRightKeys.has(`scotia:${transaction.id}`));
+  const activeVisibleExportTransactions = visibleExportTransactions.filter((transaction) => !reconciledRightKeys.has(`export:${transaction.id}`));
+  const activeVisibleCashTransactions = visibleCashTransactions.filter((transaction) => !reconciledRightKeys.has(`cash:${transaction.id}`));
 
   function updateReconciliation(patch: Partial<typeof state.reconciliation>) {
     dispatch({
@@ -148,6 +163,13 @@ export function ReconciliationPage() {
     ]));
     nextMatches[selectedLeftKey] = isAlreadyMatched ? current.filter((key) => key !== rightKey) : [...current, rightKey];
     updateReconciliation({ matches: nextMatches });
+  }
+
+  function clearMatches(leftKey: string) {
+    const nextMatches = { ...matches };
+    delete nextMatches[leftKey];
+    updateReconciliation({ matches: nextMatches });
+    setSelectedWanderlogId(leftKey.replace(`${trip}-`, ""));
   }
 
   function updateCardTransaction(id: string, patch: Partial<StatementTransaction>) {
@@ -265,19 +287,24 @@ export function ReconciliationPage() {
       </section>
 
       <section className="matching-toolbar" aria-label="Transaction matching workspace">
-        <div>
-          <p className="eyebrow">Matching workspace</p>
+        <div className="matching-toolbar-context">
+          <p className="eyebrow">Active reconciliation</p>
           {selectedLeft ? (
-            <strong>Matching “{selectedLeft.description}” · {money(selectedLeft.amount / 100)}</strong>
+            <strong>Matching “{selectedLeft.description}”</strong>
           ) : (
-            <strong>Select a Wanderlog line to match it to the right</strong>
+            <strong>Select an unmatched Wanderlog line to begin</strong>
           )}
-          <span>{unmatchedIncludedCount} included Wanderlog line{unmatchedIncludedCount === 1 ? "" : "s"} still unmatched · {matchedWanderlogCount} linked</span>
+          <span>{unmatchedIncludedCount} still to reconcile · {reconciledWanderlogCount} reconciled</span>
         </div>
         {selectedLeft && (
-          <div className="matching-toolbar-summary">
-            <span>{selectedMatchKeys.length} linked</span>
-            <strong>{money(selectedMatchTotal)}</strong>
+          <div className="matching-metrics" aria-label="Selected match difference">
+            <div><span>Wanderlog</span><strong>{money(selectedLeft.amount / 100)}</strong></div>
+            <div><span>Matched</span><strong>{money(selectedMatchTotal)}</strong></div>
+            <div className={Math.abs(selectedDifference) < 0.01 ? "difference-balanced" : "difference-open"}>
+              <span>Difference</span>
+              <strong>{Math.abs(selectedDifference) < 0.01 ? "$0.00" : `${selectedDifference > 0 ? "+" : "−"}${money(Math.abs(selectedDifference))}`}</strong>
+            </div>
+            <span className="matching-link-count">{selectedMatchKeys.length} line{selectedMatchKeys.length === 1 ? "" : "s"}</span>
             <button type="button" onClick={() => setSelectedWanderlogId(null)}>Clear selection</button>
           </div>
         )}
@@ -298,7 +325,7 @@ export function ReconciliationPage() {
             <span>Date</span><span>Line item</span><span>Amount</span><span>Status</span>
           </div>
           <div className="statement-lines">
-            {visibleWanderlogCharges.map((charge) => {
+            {activeVisibleWanderlogCharges.map((charge) => {
               const decision = decisionFor(charge.id);
               const matchCount = (matches[`${trip}-${charge.id}`] ?? []).length;
               return (
@@ -346,7 +373,7 @@ export function ReconciliationPage() {
                 <span className="adjustment-status">Automatic</span>
               </div>
             )}
-            {visibleWanderlogCharges.length === 0 && <p className="reconciliation-empty">No Wanderlog items match this search.</p>}
+            {activeVisibleWanderlogCharges.length === 0 && <p className="reconciliation-empty">No unmatched Wanderlog items match this search.</p>}
           </div>
         </section>
 
@@ -371,7 +398,7 @@ export function ReconciliationPage() {
             <span>Date</span><span>Transaction</span><span>Amount</span><span>Status</span>
           </div>
           <div className="statement-lines">
-            {visibleCardTransactions.map((transaction) => (
+            {activeVisibleCardTransactions.map((transaction) => (
               <EditableStatementLine
                 key={transaction.id}
                 transaction={transaction}
@@ -384,7 +411,7 @@ export function ReconciliationPage() {
                 onToggleMatch={() => toggleMatch(`scotia:${transaction.id}`)}
               />
             ))}
-            {visibleCardTransactions.length === 0 && <p className="reconciliation-empty">No Scotiabank charges match this search.</p>}
+            {activeVisibleCardTransactions.length === 0 && <p className="reconciliation-empty">No unmatched Scotiabank charges match this search.</p>}
           </div>
           <button className="statement-add-line" type="button" onClick={addCardTransaction}>+ Add card charge</button>
 
@@ -401,7 +428,7 @@ export function ReconciliationPage() {
                 <span>Date</span><span>Transaction</span><span>Amount</span><span>Status</span>
               </div>
               <div className="statement-lines">
-                {visibleExportTransactions.map((transaction) => (
+                {activeVisibleExportTransactions.map((transaction) => (
                   <EditableStatementLine
                     key={transaction.id}
                     transaction={transaction}
@@ -414,7 +441,7 @@ export function ReconciliationPage() {
                     onToggleMatch={() => toggleMatch(`export:${transaction.id}`)}
                   />
                 ))}
-                {visibleExportTransactions.length === 0 && <p className="reconciliation-empty">No export charges match this search.</p>}
+                {activeVisibleExportTransactions.length === 0 && <p className="reconciliation-empty">No unmatched export charges match this search.</p>}
               </div>
               <button className="statement-add-line" type="button" onClick={() => updateReconciliation({ exportTransactions: { ...exportTransactions, [cardKey]: [...currentExportTransactions, { id: uid(), date: "", description: "New exported charge", detail: "Tangerine Mastercard", amount: 0 }] } })}>+ Add exported charge</button>
             </>
@@ -433,7 +460,7 @@ export function ReconciliationPage() {
                 <span>Date</span><span>Transaction</span><span>Amount</span><span>Status</span>
               </div>
               <div className="statement-lines">
-                {visibleCashTransactions.map((transaction) => (
+                {activeVisibleCashTransactions.map((transaction) => (
                   <EditableStatementLine
                     key={transaction.id}
                     transaction={transaction}
@@ -446,7 +473,7 @@ export function ReconciliationPage() {
                     onToggleMatch={() => toggleMatch(`cash:${transaction.id}`)}
                   />
                 ))}
-                {visibleCashTransactions.length === 0 && <p className="reconciliation-empty">No Tangerine withdrawals match this search.</p>}
+                {activeVisibleCashTransactions.length === 0 && <p className="reconciliation-empty">No unmatched Tangerine withdrawals match this search.</p>}
               </div>
               <button className="statement-add-line" type="button" onClick={addCashTransaction}>+ Add cash withdrawal</button>
 
@@ -472,6 +499,53 @@ export function ReconciliationPage() {
           )}
         </section>
       </div>
+
+      <section className="reconciled-section" aria-labelledby="reconciled-title">
+        <button
+          className="reconciled-section-header"
+          type="button"
+          onClick={() => setShowReconciled((value) => !value)}
+          aria-expanded={showReconciled}
+        >
+          <span className="reconciled-toggle" aria-hidden="true">{showReconciled ? "−" : "+"}</span>
+          <span>
+            <p className="eyebrow">Reconciled</p>
+            <strong id="reconciled-title">{reconciledGroups.length} matched group{reconciledGroups.length === 1 ? "" : "s"}</strong>
+          </span>
+          <small>{showReconciled ? "Hide matched items" : "Show matched items"}</small>
+        </button>
+        {showReconciled && (
+          <div className="reconciled-groups">
+            {reconciledGroups.map((group) => (
+              <article className="reconciled-group" key={group.leftKey}>
+                <div className="reconciled-origin">
+                  <div>
+                    <span className="reconciled-label">Wanderlog</span>
+                    <strong>{group.charge.description}</strong>
+                    <small>{group.charge.date} · {group.lines.length} matched statement line{group.lines.length === 1 ? "" : "s"}</small>
+                  </div>
+                  <strong>{money(group.charge.amount / 100)}</strong>
+                </div>
+                <div className="reconciled-links">
+                  {group.lines.map((line) => (
+                    <div className="reconciled-link" key={line.key}>
+                      <span>{line.source}</span>
+                      <strong>{line.description}</strong>
+                      <small>{line.date}{line.detail ? ` · ${line.detail}` : ""}</small>
+                      <b>{money(line.amount)}</b>
+                    </div>
+                  ))}
+                </div>
+                <div className="reconciled-group-footer">
+                  <span>Difference $0.00</span>
+                  <button type="button" onClick={() => clearMatches(group.leftKey)}>Reopen</button>
+                </div>
+              </article>
+            ))}
+            {reconciledGroups.length === 0 && <p className="reconciliation-empty">Completed matches will collect here once both sides reach a $0.00 difference.</p>}
+          </div>
+        )}
+      </section>
     </main>
   );
 }
