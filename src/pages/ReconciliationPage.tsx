@@ -163,7 +163,6 @@ export function ReconciliationPage() {
 
   function matchesFilters(item: ReconciliationTransaction): boolean {
     if (queueFor(item) !== queue) return false;
-    if (item.accountType === "cash") return false;
     if (searchNeedle && !item.normalizedText.includes(searchNeedle)) return false;
     if (sourceFilter !== "all" && item.sourceId !== sourceFilter) return false;
     if (categoryFilter !== "all" && item.category !== categoryFilter) return false;
@@ -560,7 +559,7 @@ export function ReconciliationPage() {
             ? suggestions.length
             : key === "reconciled"
               ? confirmedGroups.length
-              : transactions.filter((item) => item.accountType !== "cash" && queueFor(item) === key).length;
+              : transactions.filter((item) => queueFor(item) === key).length;
           return (
             <button type="button" className={queue === key ? "active" : ""} key={key} onClick={() => setQueue(key)}>
               {queueLabels[key]} <span>{count}</span>
@@ -625,11 +624,11 @@ export function ReconciliationPage() {
           <Ledger
             side="right"
             title="Bank statement"
-            subtitle="What actually left your accounts"
+            subtitle={trip === "peru" ? "Card charges and Tangerine cash withdrawals" : "What actually left your accounts"}
             rows={visibleRight}
             selected={selectedRight}
             onToggle={(id, event) => toggleSelection("right", id, event, visibleRight)}
-            onSelectVisible={() => selectVisible("right", visibleRight)}
+            onSelectVisible={() => selectVisible("right", visibleRight.filter((item) => item.accountType !== "cash"))}
             onEdit={editTransaction}
             disabled={isClosed}
             sourceById={new Map(sources.map((item) => [item.id, item.institution]))}
@@ -772,12 +771,13 @@ function Ledger({
   disabled: boolean;
   sourceById: Map<string, string>;
 }) {
-  const allSelected = rows.length > 0 && rows.every((item) => selected.includes(item.id));
+  const selectableRows = rows.filter((item) => item.accountType !== "cash");
+  const allSelected = selectableRows.length > 0 && selectableRows.every((item) => selected.includes(item.id));
   return (
     <section className="recon-ledger">
       <header>
         <label>
-          <input type="checkbox" checked={allSelected} onChange={onSelectVisible} disabled={rows.length === 0 || disabled} />
+          <input type="checkbox" checked={allSelected} onChange={onSelectVisible} disabled={selectableRows.length === 0 || disabled} />
           <span><strong>{title}</strong><small>{subtitle}</small></span>
         </label>
         <strong>{money(rows.reduce((sum, item) => sum + item.postedCadCents, 0))}</strong>
@@ -787,20 +787,25 @@ function Ledger({
         {rows.map((item) => (
           <article
             key={item.id}
-            className={`recon-line ${selected.includes(item.id) ? "selected" : ""}`}
+            className={`recon-line ${item.accountType === "cash" ? "cash-line" : ""} ${selected.includes(item.id) ? "selected" : ""}`}
             onClick={(event) => {
+              if (item.accountType === "cash") return;
               if ((event.target as HTMLElement).closest("input, select, button")) return;
               onToggle(item.id, event);
             }}
           >
-            <input
-              type="checkbox"
-              aria-label={`Select ${item.description}`}
-              checked={selected.includes(item.id)}
-              onChange={() => undefined}
-              onClick={(event) => onToggle(item.id, event)}
-              disabled={disabled}
-            />
+            {item.accountType === "cash" ? (
+              <span className="cash-control-mark" title="Cash control activity" aria-label="Cash control activity">◇</span>
+            ) : (
+              <input
+                type="checkbox"
+                aria-label={`Select ${item.description}`}
+                checked={selected.includes(item.id)}
+                onChange={() => undefined}
+                onClick={(event) => onToggle(item.id, event)}
+                disabled={disabled}
+              />
+            )}
             <input
               className="recon-date-input"
               value={item.date}
@@ -811,6 +816,7 @@ function Ledger({
             <div className="recon-description">
               <input value={item.description} onChange={(event) => onEdit(item.id, { description: event.target.value })} disabled={disabled} aria-label="Description" />
               <small>{item.reference || item.notes || "No reference"}</small>
+              {item.accountType === "cash" && <em className="cash-control-note">Cash control, reconciled through ending cash</em>}
               {item.currency !== "CAD" && <em>{item.currency} {(item.originalAmountCents / 100).toFixed(2)} original</em>}
             </div>
             <span className="recon-source">{sourceById.get(item.sourceId) ?? item.sourceId}</span>

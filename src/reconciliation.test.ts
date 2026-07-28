@@ -18,6 +18,7 @@ describe("reconciliation schema migration", () => {
     expect(workspace.transactions.some((item) => item.tripId === "peru" && item.side === "left")).toBe(true);
     expect(workspace.transactions.some((item) => item.tripId === "new-york" && item.side === "right")).toBe(true);
     expect(workspace.transactions.every((item) => Number.isInteger(item.postedCadCents))).toBe(true);
+    expect(workspace.transactions.every((item) => Number.isInteger(item.originalAmountCents))).toBe(true);
   });
 
   it("preserves valid legacy matches and ignores stale IDs", () => {

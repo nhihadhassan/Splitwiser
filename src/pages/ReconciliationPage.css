@@ -1632,6 +1632,30 @@
   box-shadow: none;
 }
 
+.recon-line.cash-line {
+  background: color-mix(in oklab, var(--color-bg-row) 88%, var(--color-bg-accent-subtle));
+}
+
+.recon-line.cash-line:hover {
+  background: color-mix(in oklab, var(--color-bg-raised) 88%, var(--color-bg-accent-subtle));
+}
+
+.cash-control-mark {
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 1px solid var(--color-border-emphasis);
+  border-radius: 50%;
+  color: var(--color-accent);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.recon-description .cash-control-note {
+  color: var(--color-accent);
+}
+
 .recon-line input[type="checkbox"],
 .recon-ledger input[type="checkbox"] {
   accent-color: var(--color-accent);

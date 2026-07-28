@@ -104,7 +104,7 @@ function transaction(
 }
 
 function leftTransaction(expense: Expense, tripId: ReconciliationTripId, status: ReconciliationQueue): ReconciliationTransaction {
-  const original = expense.notes?.match(/(?:CA\$|CAD |PEN |USD )([\d,.]+)/i);
+  const original = expense.notes?.match(/(?:CA\$|CAD |PEN |USD )([\d,]+(?:\.\d+)?)/i);
   const currency = expense.notes?.includes("PEN ") ? "PEN" : expense.notes?.includes("USD ") ? "USD" : "CAD";
   const originalAmountCents = original
     ? Math.round(Number(original[1].replace(/,/g, "")) * 100)
@@ -297,12 +297,17 @@ export function ensureReconciliationWorkspace(
 ): ReconciliationWorkspace {
   if (state.workspace?.schemaVersion === RECONCILIATION_SCHEMA_VERSION) {
     const rebuilt = createReconciliationWorkspace(state, expenses);
+    const rebuiltById = new Map(rebuilt.transactions.map((item) => [item.id, item]));
     const existingIds = new Set(state.workspace.transactions.map((item) => item.id));
     const missingTransactions = rebuilt.transactions.filter((item) => !existingIds.has(item.id));
-    if (missingTransactions.length === 0) return state.workspace;
+    const repairedTransactions = state.workspace.transactions.map((item) => {
+      if (Number.isFinite(item.originalAmountCents)) return item;
+      const source = rebuiltById.get(item.id);
+      return source ? { ...item, originalAmountCents: source.originalAmountCents } : item;
+    });
     return {
       ...state.workspace,
-      transactions: [...state.workspace.transactions, ...missingTransactions],
+      transactions: [...repairedTransactions, ...missingTransactions],
     };
   }
   return createReconciliationWorkspace(state, expenses);
