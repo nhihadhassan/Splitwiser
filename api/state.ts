@@ -11,7 +11,8 @@ type LedgerState = {
 };
 
 type StoredLedger = {
-  version: 1;
+  version: 1 | 2;
+  revision?: number;
   updatedAt: string;
   state: LedgerState;
 };
@@ -67,10 +68,14 @@ async function readLedger(pathname: string): Promise<StoredLedger | null> {
   if (!blob || blob.statusCode !== 200) return null;
 
   const stored = (await new Response(blob.stream).json()) as StoredLedger;
-  if (stored.version !== 1 || !isLedgerState(stored.state)) {
+  if ((stored.version !== 1 && stored.version !== 2) || !isLedgerState(stored.state)) {
     throw new Error("Stored ledger is invalid.");
   }
-  return stored;
+  return {
+    ...stored,
+    version: 2,
+    revision: stored.revision ?? 1,
+  };
 }
 
 export default {
@@ -100,13 +105,29 @@ export default {
           return json({ error: "Ledger is too large to save." }, 413);
         }
 
-        const body = JSON.parse(bodyText) as { state?: unknown };
+        const body = JSON.parse(bodyText) as {
+          state?: unknown;
+          expectedRevision?: unknown;
+          force?: unknown;
+        };
         if (!isLedgerState(body.state)) {
           return json({ error: "Ledger data is invalid." }, 400);
         }
+        const current = await readLedger(pathname);
+        const currentRevision = current?.revision ?? 0;
+        const expectedRevision = Number(body.expectedRevision ?? 0);
+        const force = body.force === true;
+        if (!force && (!Number.isInteger(expectedRevision) || expectedRevision !== currentRevision)) {
+          return json({
+            error: "This ledger changed on another device. Choose which version to keep.",
+            revision: currentRevision,
+            updatedAt: current?.updatedAt,
+          }, 409);
+        }
 
         const ledger: StoredLedger = {
-          version: 1,
+          version: 2,
+          revision: currentRevision + 1,
           updatedAt: new Date().toISOString(),
           state: body.state,
         };
@@ -118,7 +139,7 @@ export default {
           cacheControlMaxAge: 60,
         });
 
-        return json({ updatedAt: ledger.updatedAt });
+        return json({ updatedAt: ledger.updatedAt, revision: ledger.revision });
       }
 
       return new Response(null, {

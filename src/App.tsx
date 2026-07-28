@@ -13,7 +13,7 @@ import { ReconciliationPage } from "./pages/ReconciliationPage";
 export default function App() {
   return (
     <StoreProvider>
-      <HashRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+      <HashRouter>
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />

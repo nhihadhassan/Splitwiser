@@ -236,7 +236,7 @@ function loadInitialState(): AppState {
   return emptyState();
 }
 
-export type CloudStatus = "local" | "connecting" | "saving" | "synced" | "error";
+export type CloudStatus = "local" | "connecting" | "saving" | "synced" | "error" | "conflict";
 
 interface CloudControls {
   status: CloudStatus;
@@ -248,6 +248,8 @@ interface CloudControls {
   connect: (syncKey: string) => Promise<boolean>;
   disconnect: () => void;
   retry: () => Promise<void>;
+  useCloudVersion: () => Promise<void>;
+  keepLocalVersion: () => Promise<void>;
 }
 
 interface StoreValue {
@@ -272,24 +274,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [remoteReady, setRemoteReady] = useState(false);
   const stateRef = useRef(state);
   const saveTimer = useRef<number | null>(null);
+  const cloudRevision = useRef(0);
+  const conflictActive = useRef(false);
 
   useEffect(() => {
     stateRef.current = state;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 
-    if (!syncKey || !remoteReady) return;
+    if (!syncKey || !remoteReady || conflictActive.current) return;
 
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
     setCloudStatus("saving");
     saveTimer.current = window.setTimeout(async () => {
       try {
-        const result = await saveCloudState(syncKey, stateRef.current);
+        const result = await saveCloudState(syncKey, stateRef.current, cloudRevision.current);
+        cloudRevision.current = result.revision;
         setLastSavedAt(result.updatedAt);
         setCloudError(null);
         setCloudStatus("synced");
       } catch (error) {
         setCloudError(error instanceof Error ? error.message : "Online saving failed.");
-        setCloudStatus("error");
+        if (error instanceof CloudSyncError && error.status === 409) {
+          conflictActive.current = true;
+          setCloudStatus("conflict");
+        } else {
+          setCloudStatus("error");
+        }
       }
     }, 700);
 
@@ -310,6 +320,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           throw new CloudSyncError("This sync key does not have an online ledger.", 404);
         }
         dispatch({ type: "replace", state: ledger.state });
+        cloudRevision.current = ledger.revision;
+        conflictActive.current = false;
         setLastSavedAt(ledger.updatedAt);
         setRemoteReady(true);
         setCloudStatus("synced");
@@ -329,7 +341,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setCloudStatus("connecting");
     setCloudError(null);
     try {
-      const result = await saveCloudState(key, stateRef.current);
+      const result = await saveCloudState(key, stateRef.current, 0);
+      cloudRevision.current = result.revision;
+      conflictActive.current = false;
       localStorage.setItem(SYNC_KEY_STORAGE_KEY, key);
       setSyncKey(key);
       setRemoteReady(true);
@@ -353,6 +367,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         throw new CloudSyncError("No online ledger was found for that sync key.", 404);
       }
       dispatch({ type: "replace", state: ledger.state });
+      cloudRevision.current = ledger.revision;
+      conflictActive.current = false;
       localStorage.setItem(SYNC_KEY_STORAGE_KEY, key);
       setSyncKey(key);
       setRemoteReady(true);
@@ -374,6 +390,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setRemoteReady(false);
     setLastSavedAt(null);
     setCloudError(null);
+    cloudRevision.current = 0;
+    conflictActive.current = false;
     setCloudStatus("local");
   }, []);
 
@@ -382,12 +400,54 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setCloudStatus("saving");
     setCloudError(null);
     try {
-      const result = await saveCloudState(syncKey, stateRef.current);
+      const result = await saveCloudState(syncKey, stateRef.current, cloudRevision.current);
+      cloudRevision.current = result.revision;
       setRemoteReady(true);
       setLastSavedAt(result.updatedAt);
       setCloudStatus("synced");
     } catch (error) {
       setCloudError(error instanceof Error ? error.message : "Online saving failed.");
+      if (error instanceof CloudSyncError && error.status === 409) {
+        conflictActive.current = true;
+        setCloudStatus("conflict");
+      } else {
+        setCloudStatus("error");
+      }
+    }
+  }, [syncKey]);
+
+  const useCloudVersion = useCallback(async () => {
+    if (!syncKey) return;
+    setCloudStatus("connecting");
+    try {
+      const ledger = await loadCloudState(syncKey);
+      if (!ledger) throw new CloudSyncError("The online ledger was not found.", 404);
+      cloudRevision.current = ledger.revision;
+      conflictActive.current = false;
+      dispatch({ type: "replace", state: ledger.state });
+      setLastSavedAt(ledger.updatedAt);
+      setCloudError(null);
+      setRemoteReady(true);
+      setCloudStatus("synced");
+    } catch (error) {
+      setCloudError(error instanceof Error ? error.message : "Could not load the online version.");
+      setCloudStatus("error");
+    }
+  }, [syncKey]);
+
+  const keepLocalVersion = useCallback(async () => {
+    if (!syncKey) return;
+    setCloudStatus("saving");
+    try {
+      const result = await saveCloudState(syncKey, stateRef.current, cloudRevision.current, true);
+      cloudRevision.current = result.revision;
+      conflictActive.current = false;
+      setLastSavedAt(result.updatedAt);
+      setCloudError(null);
+      setRemoteReady(true);
+      setCloudStatus("synced");
+    } catch (error) {
+      setCloudError(error instanceof Error ? error.message : "Could not keep the local version.");
       setCloudStatus("error");
     }
   }, [syncKey]);
@@ -408,6 +468,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       connect: connectCloud,
       disconnect: disconnectCloud,
       retry: retryCloud,
+      useCloudVersion,
+      keepLocalVersion,
     }),
     [
       cloudError,
@@ -416,8 +478,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       disconnectCloud,
       enableCloud,
       lastSavedAt,
+      keepLocalVersion,
       retryCloud,
       syncKey,
+      useCloudVersion,
     ],
   );
 

@@ -32,7 +32,8 @@
   border-color: var(--color-border-emphasis);
 }
 
-.cloud-status-error {
+.cloud-status-error,
+.cloud-status-conflict {
   color: var(--color-negative);
   border-color: var(--color-negative-border);
   background: var(--color-negative-subtle);
@@ -97,7 +98,8 @@
   background: var(--color-accent);
 }
 
-.cloud-sync-error .cloud-sync-indicator {
+.cloud-sync-error .cloud-sync-indicator,
+.cloud-sync-conflict .cloud-sync-indicator {
   background: var(--color-negative);
   box-shadow: 0 0 0 4px var(--color-negative-subtle);
 }
@@ -176,7 +178,8 @@
 }
 
 .cloud-sync-key-callout,
-.cloud-sync-error {
+.cloud-sync-error,
+.cloud-sync-conflict {
   flex: 1 1 100%;
   padding-top: 14px;
   border-top: 1px solid var(--color-border-default);
@@ -216,6 +219,25 @@
   font-size: 12px;
 }
 
+.cloud-sync-conflict {
+  align-items: center;
+  color: var(--color-negative);
+  display: grid;
+  flex: 1 1 100%;
+  gap: 10px;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+}
+
+.cloud-sync-conflict > div {
+  display: grid;
+  gap: 3px;
+}
+
+.cloud-sync-conflict span {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
 @media (max-width: 680px) {
   .cloud-status-badge {
     min-height: 36px;
@@ -238,6 +260,10 @@
   }
 
   .cloud-sync-key-callout {
+    grid-template-columns: 1fr;
+  }
+
+  .cloud-sync-conflict {
     grid-template-columns: 1fr;
   }
 }

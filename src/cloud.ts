@@ -3,13 +3,15 @@ import type { AppState } from "./types";
 export const SYNC_KEY_STORAGE_KEY = "splitwiser-sync-key-v1";
 
 type RemoteLedger = {
-  version: 1;
+  version: 2;
+  revision: number;
   updatedAt: string;
   state: AppState;
 };
 
 type SaveResult = {
   updatedAt: string;
+  revision: number;
 };
 
 export class CloudSyncError extends Error {
@@ -59,6 +61,8 @@ export async function loadCloudState(
 export async function saveCloudState(
   syncKey: string,
   state: AppState,
+  expectedRevision = 0,
+  force = false,
 ): Promise<SaveResult> {
   const response = await fetch("/api/state", {
     method: "PUT",
@@ -66,7 +70,7 @@ export async function saveCloudState(
       ...authorization(syncKey),
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ state }),
+    body: JSON.stringify({ state, expectedRevision, force }),
   });
 
   if (!response.ok) throw await responseError(response);

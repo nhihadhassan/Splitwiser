@@ -11,6 +11,8 @@ function statusCopy(status: ReturnType<typeof useStore>["cloud"]["status"]): str
       return "Saved online";
     case "error":
       return "Online save paused";
+    case "conflict":
+      return "Choose which ledger to keep";
     default:
       return "Saved on this device";
   }
@@ -132,7 +134,22 @@ export function CloudSyncPanel() {
         </div>
       )}
 
-      {cloud.error && (
+      {cloud.status === "conflict" && (
+        <div className="cloud-sync-conflict" role="alert">
+          <div>
+            <strong>Changes were found on another device</strong>
+            <span>No data was overwritten. Choose the online copy or keep this device’s copy.</span>
+          </div>
+          <button className="btn btn-secondary" type="button" onClick={cloud.useCloudVersion}>
+            Use online version
+          </button>
+          <button className="btn btn-primary" type="button" onClick={cloud.keepLocalVersion}>
+            Keep this version
+          </button>
+        </div>
+      )}
+
+      {cloud.error && cloud.status !== "conflict" && (
         <div className="cloud-sync-error" role="alert">
           <span>{cloud.error}</span>
           {cloud.hasKey && (
