@@ -1299,8 +1299,18 @@ a {
 
 .expense-detail .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
+}
+
+.inline-quick-split {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-default);
 }
 
 .empty-state {
@@ -2119,6 +2129,10 @@ a {
     display: grid;
     grid-template-columns: 38px 44px minmax(0, 1fr) minmax(92px, auto);
     align-items: start;
+  }
+
+  .expense-detail {
+    padding: 16px;
   }
 
   .expense-row .date {

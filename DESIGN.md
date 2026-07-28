@@ -207,7 +207,7 @@ Only one contextual Add Expense action appears on a page. The global action is o
 
 - **Style:** Fully rounded (999px), Hairline border, Muted Parchment text, and compact 6px by 10px padding.
 - **State:** Selected chips use Sand Gold fill, Ink on Gold text, and `aria-pressed`. Unselected chips remain neutral.
-- **Quick split:** Group expenses expose a compact preset row for an equal split and one 100% share action per active member. A 100% action assigns the entire expense to that member and gives every other member a zero share; it never changes who originally paid.
+- **Quick split:** Group expenses expose the same compact presets in both the expanded ledger row and the full edit dialog. A 100% action assigns the entire expense to that member and gives every other member a zero share; it never changes who originally paid.
 
 ### Cards / Containers
 

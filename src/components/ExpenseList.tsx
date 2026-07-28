@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { Expense, Settlement } from "../types";
 import { ME, useStore } from "../store";
-import { formatMoney } from "../utils/money";
+import { formatMoney, splitEqually } from "../utils/money";
 import { monthDay, monthLabel } from "../utils/dates";
 import { CATEGORY_META } from "../utils/categories";
 import { Avatar } from "./Avatar";
@@ -28,6 +28,23 @@ export function ExpenseList({
   const { state, dispatch, peopleById } = useStore();
   const [openId, setOpenId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Expense | null>(null);
+
+  function applyQuickSplit(expense: Expense, personId?: string) {
+    const equalShares = personId ? null : splitEqually(expense.amount, expense.splits.length);
+    dispatch({
+      type: "updateExpense",
+      expense: {
+        ...expense,
+        splitMethod: personId ? "percentage" : "equally",
+        splits: expense.splits.map((split, index) => ({
+          ...split,
+          owes: personId
+            ? split.personId === personId ? expense.amount : 0
+            : equalShares?.[index] ?? 0,
+        })),
+      },
+    });
+  }
 
   const items = useMemo(() => {
     const feed: FeedItem[] = [
@@ -108,6 +125,11 @@ export function ExpenseList({
           : undefined;
         const isOpen = openId === e.id;
         const notePreview = e.notes?.replace(/^Imported from Wanderlog:\s*/i, "") ?? "No note";
+        const fullSplitId = e.splits.find(
+          (split) =>
+            split.owes === e.amount &&
+            e.splits.every((candidate) => candidate.personId === split.personId || candidate.owes === 0),
+        )?.personId;
 
         return (
           <div key={e.id}>
@@ -189,6 +211,36 @@ export function ExpenseList({
                     );
                   })}
                 </ul>
+                {e.groupId && e.splits.length >= 2 && (
+                  <div className="inline-quick-split">
+                    <span className="field-label" id={`quick-split-${e.id}`}>Quick split</span>
+                    <div className="quick-action-row" role="group" aria-labelledby={`quick-split-${e.id}`}>
+                      <button
+                        type="button"
+                        className={`chip quick-action ${e.splitMethod === "equally" ? "on" : ""}`}
+                        aria-pressed={e.splitMethod === "equally"}
+                        onClick={() => applyQuickSplit(e)}
+                      >
+                        {e.splits.length === 2 ? "50/50" : "Split evenly"}
+                      </button>
+                      {e.splits.map((split) => {
+                        const person = peopleById.get(split.personId);
+                        const name = split.personId === ME ? "you" : person?.name ?? "member";
+                        return (
+                          <button
+                            key={split.personId}
+                            type="button"
+                            className={`chip quick-action ${fullSplitId === split.personId ? "on" : ""}`}
+                            aria-pressed={fullSplitId === split.personId}
+                            onClick={() => applyQuickSplit(e, split.personId)}
+                          >
+                            <Avatar person={person} size={18} /> 100% {name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <div className="actions">
                   <button
                     className="btn btn-secondary"
