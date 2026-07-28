@@ -19,7 +19,7 @@ private Vercel Blob for cross-device access using a private sync key.
 | App code | Complete, on `main` |
 | `npm run build` | Passes (strict TS + Vite prod build) |
 | Deployment | Live on Vercel production at `splitwiser-xi.vercel.app` |
-| First run | Empty ledger; existing browser data is preserved |
+| First run | Loads the bundled trip ledgers; existing browser data is preserved |
 | Backend | Vercel Function + Private Blob online ledger |
 | Current UI | Splitwiser-branded premium ledger design, originally adapted from the Stitch "Velvet Ledger" direction |
 
@@ -152,9 +152,9 @@ npm test
 - **Online save.** Enabling online saving creates a high-entropy sync key and
   migrates the current browser ledger to the linked private Blob store. The same
   key connects another browser. The key is the credential and must remain private.
-- **First run.** A browser without cached data or a sync key starts with an empty
-  ledger. The historical trip seed remains in `src/seed.ts` as source material,
-  but is no longer loaded automatically.
+- **First run.** A browser without cached data or a sync key loads the bundled
+  trip ledgers so the reconciliation workspace is usable immediately. Existing
+  browser or cloud state remains authoritative and is preserved.
 - **Single-currency.** Amounts render with a `$` glyph but the numbers are CAD.
 - **Private Blob resource.** The linked store is `splitwiser-state` in `yul1`.
   Vercel injects `BLOB_READ_WRITE_TOKEN`; keep it server-only.

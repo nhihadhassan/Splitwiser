@@ -260,6 +260,11 @@ a {
   box-shadow: 0 5px 14px oklch(44% 0.09 220 / 0.22);
 }
 
+.country-flag-icon-central-america {
+  background: oklch(77% 0.07 174);
+  box-shadow: 0 5px 14px oklch(45% 0.08 166 / 0.22);
+}
+
 .country-flag-icon svg {
   position: absolute;
   top: 50%;
@@ -272,6 +277,10 @@ a {
 }
 
 .country-flag-icon .new-york-art {
+  box-shadow: none;
+}
+
+.country-flag-icon .central-america-art {
   box-shadow: none;
 }
 

@@ -216,14 +216,7 @@ function normalizeState(state: Omit<AppState, "reconciliation"> & Partial<AppSta
 }
 
 function emptyState(): AppState {
-  return addCentralAmericaTrip({
-    people: [{ id: ME, name: "Nhihad", color: "#5BC5A7" }],
-    groups: [],
-    expenses: [],
-    settlements: [],
-    reconciliation: loadLegacyReconciliation(),
-    dataMigrations: [],
-  });
+  return normalizeState(seedState());
 }
 
 function isAppState(value: unknown): value is AppState {

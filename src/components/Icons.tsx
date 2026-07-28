@@ -81,8 +81,47 @@ export function NewYorkIcon({ size = 44 }: { size?: number }) {
   );
 }
 
+export function CentralAmericaIcon({ size = 44 }: { size?: number }) {
+  return (
+    <span
+      className="country-flag-icon country-flag-icon-central-america"
+      style={{ width: size, height: size }}
+      aria-label="Central America, volcano route"
+      role="img"
+    >
+      <svg
+        className="central-america-art"
+        width={size * 0.76}
+        height={size * 0.76}
+        viewBox="0 0 60 60"
+        fill="none"
+        aria-hidden="true"
+      >
+        <circle cx="43" cy="15" r="6" fill="#E7BF67" />
+        <path
+          d="M8 44 23 24l8 11 7-8 14 17H8Z"
+          fill="#267767"
+          stroke="#174D45"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M13 47c8-7 15-5 21-10 5-4 7-9 14-13"
+          stroke="#FAF2D3"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray="1 6"
+        />
+        <circle cx="13" cy="47" r="3" fill="#E7BF67" stroke="#174D45" strokeWidth="1.5" />
+        <circle cx="48" cy="24" r="3" fill="#E7BF67" stroke="#174D45" strokeWidth="1.5" />
+      </svg>
+    </span>
+  );
+}
+
 export function GroupBadge({ type, name, size = 44 }: { type: GroupType; name: string; size?: number }) {
   const normalized = name.toLowerCase();
+  if (type === "trip" && normalized.includes("central america")) return <CentralAmericaIcon size={size} />;
   if (type === "trip" && (normalized.includes("new york") || normalized.includes("nyc"))) return <NewYorkIcon size={size} />;
   if (type === "trip" && normalized.includes("peru")) return <CountryFlagIcon country="peru" size={size} />;
   if (type === "trip" && normalized.includes("portugal")) return <CountryFlagIcon country="portugal" size={size} />;
