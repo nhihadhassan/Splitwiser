@@ -37,8 +37,8 @@ const tripMeta: Record<ReconciliationTripId, { name: string; dates: string; note
   },
   peru: {
     name: "Peru",
-    dates: "Jul 11 – Jul 26, 2026",
-    note: "Match Wanderlog activities directly to Scotiabank charges, Tangerine bookings, and Tangerine cash withdrawals.",
+    dates: "Jul 11 – Jul 27, 2026",
+    note: "39 trip-related Scotiabank charges, Tangerine bookings, and Tangerine cash withdrawals are ready to match against Wanderlog.",
   },
   "new-york": {
     name: "New York",

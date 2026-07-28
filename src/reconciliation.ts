@@ -328,6 +328,22 @@ export function ensureReconciliationWorkspace(
       const source = rebuiltById.get(item.id);
       return source ? { ...item, originalAmountCents: source.originalAmountCents } : item;
     });
+    const refreshAuditId = "audit-expense-export-2026-07-28";
+    const importedPeruIds = missingTransactions
+      .filter((item) => item.id === "scotia:peru:scotia-peru-jul26-larco"
+        || item.id === "scotia:peru:scotia-peru-jul27-hopp")
+      .map((item) => item.id);
+    const refreshAuditEvents = importedPeruIds.length > 0
+      && !state.workspace.auditEvents.some((item) => item.id === refreshAuditId)
+      ? [{
+          id: refreshAuditId,
+          tripId: "peru" as const,
+          action: "import" as const,
+          timestamp: "2026-07-28T00:00:00.000Z",
+          summary: "Added 2 newly posted Scotiabank charges from the refreshed expense export",
+          transactionIds: importedPeruIds,
+        }]
+      : [];
     return {
       ...state.workspace,
       sources: [
@@ -346,6 +362,7 @@ export function ensureReconciliationWorkspace(
         ...missingSources,
       ],
       transactions: [...repairedTransactions, ...missingTransactions],
+      auditEvents: [...state.workspace.auditEvents, ...refreshAuditEvents],
       periods: [...state.workspace.periods, ...missingPeriods],
       rules: state.workspace.rules.map((item) => item.id === "default-exact"
         ? {

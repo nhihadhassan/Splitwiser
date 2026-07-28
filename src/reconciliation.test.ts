@@ -43,6 +43,16 @@ describe("reconciliation schema migration", () => {
     expect(workspace.periods.some((item) => item.tripId === "portugal")).toBe(true);
   });
 
+  it("includes the latest Peru charges from the refreshed expense export", () => {
+    const state = seedState();
+    const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
+    const peruScotia = workspace.transactions.filter((item) => item.sourceId === "scotia-peru");
+
+    expect(peruScotia).toHaveLength(39);
+    expect(peruScotia.find((item) => item.description === "Larco")?.postedCadCents).toBe(1443);
+    expect(peruScotia.find((item) => item.description === "Hopp")?.postedCadCents).toBe(1490);
+  });
+
   it("preserves valid legacy matches and ignores stale IDs", () => {
     const state = seedState();
     const left = state.expenses.find((item) => item.id === "e-ny-002")!;
@@ -93,6 +103,26 @@ describe("reconciliation schema migration", () => {
     expect(repaired.sources.find((item) => item.id === "export-peru")?.institution).toBe("Tangerine");
     expect(repaired.rules.find((item) => item.id === "default-exact")?.amountToleranceCents)
       .toBe(SUGGESTION_AMOUNT_TOLERANCE_CENTS);
+  });
+
+  it("adds newly imported Peru charges to an existing workspace without changing matches", () => {
+    const state = seedState();
+    const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
+    const omittedIds = new Set([
+      "scotia:peru:scotia-peru-jul26-larco",
+      "scotia:peru:scotia-peru-jul27-hopp",
+    ]);
+    state.reconciliation.workspace = {
+      ...workspace,
+      transactions: workspace.transactions.filter((item) => !omittedIds.has(item.id)),
+    };
+    const existingGroupIds = state.reconciliation.workspace.matchGroups.map((group) => group.id);
+
+    const repaired = ensureReconciliationWorkspace(state.reconciliation, state.expenses);
+
+    expect(repaired.transactions.filter((item) => omittedIds.has(item.id))).toHaveLength(2);
+    expect(repaired.matchGroups.map((group) => group.id)).toEqual(existingGroupIds);
+    expect(repaired.auditEvents.some((item) => item.id === "audit-expense-export-2026-07-28")).toBe(true);
   });
 });
 

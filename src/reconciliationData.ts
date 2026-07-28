@@ -16,6 +16,8 @@ export const DEFAULT_PERU_CASH_TRANSACTIONS: CashTransaction[] = [
 ];
 
 const PERU_SCOTIABANK_TRANSACTIONS: StatementTransaction[] = [
+  { id: "scotia-peru-jul27-hopp", date: "Jul 27, 2026", description: "Hopp", detail: "EXPENSES_EXPORT · Scotiabank Visa", amount: 14.90 },
+  { id: "scotia-peru-jul26-larco", date: "Jul 26, 2026", description: "Larco", detail: "EXPENSES_EXPORT · Scotiabank Visa", amount: 14.43 },
   { id: "scotia-peru-jul25-hostelworld", date: "Jul 25, 2026", description: "Hostelworld", detail: "Dublin", amount: 11.65 },
   { id: "scotia-peru-jul25-desert", date: "Jul 25, 2026", description: "Desert Xtremo", detail: "Lima", amount: 69.66 },
   { id: "scotia-peru-jul24-openpay", date: "Jul 24, 2026", description: "Openpay", detail: "Pisco", amount: 2.91 },

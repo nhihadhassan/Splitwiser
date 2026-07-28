@@ -113,22 +113,55 @@ function loadLegacyReconciliation(): ReconciliationState {
   };
 }
 
+function mergeStatementTransactions<T extends { id: string }>(
+  canonical: T[],
+  saved: T[] | undefined,
+): T[] {
+  if (!saved) return canonical;
+  const savedIds = new Set(saved.map((item) => item.id));
+  return [...saved, ...canonical.filter((item) => !savedIds.has(item.id))];
+}
+
 function normalizeState(state: Omit<AppState, "reconciliation"> & Partial<AppState>): AppState {
+  const savedReconciliation = state.reconciliation;
   const normalized = addCentralAmericaTrip({
     ...state,
     dataMigrations: state.dataMigrations ?? [],
     reconciliation: {
       ...loadLegacyReconciliation(),
-      ...state.reconciliation,
-      matches: state.reconciliation?.matches ?? {},
-      cashTransactions: state.reconciliation?.cashTransactions ?? DEFAULT_PERU_CASH_TRANSACTIONS,
+      ...savedReconciliation,
+      matches: savedReconciliation?.matches ?? {},
+      cashTransactions: mergeStatementTransactions(
+        DEFAULT_PERU_CASH_TRANSACTIONS,
+        savedReconciliation?.cashTransactions,
+      ),
       cardTransactions: {
-        ...DEFAULT_SCOTIABANK_TRANSACTIONS,
-        ...state.reconciliation?.cardTransactions,
+        portugal: mergeStatementTransactions(
+          DEFAULT_SCOTIABANK_TRANSACTIONS.portugal,
+          savedReconciliation?.cardTransactions?.portugal,
+        ),
+        peru: mergeStatementTransactions(
+          DEFAULT_SCOTIABANK_TRANSACTIONS.peru,
+          savedReconciliation?.cardTransactions?.peru,
+        ),
+        newYork: mergeStatementTransactions(
+          DEFAULT_SCOTIABANK_TRANSACTIONS.newYork,
+          savedReconciliation?.cardTransactions?.newYork,
+        ),
       },
       exportTransactions: {
-        ...DEFAULT_EXPENSE_EXPORT_TRANSACTIONS,
-        ...state.reconciliation?.exportTransactions,
+        portugal: mergeStatementTransactions(
+          DEFAULT_EXPENSE_EXPORT_TRANSACTIONS.portugal,
+          savedReconciliation?.exportTransactions?.portugal,
+        ),
+        peru: mergeStatementTransactions(
+          DEFAULT_EXPENSE_EXPORT_TRANSACTIONS.peru,
+          savedReconciliation?.exportTransactions?.peru,
+        ),
+        newYork: mergeStatementTransactions(
+          DEFAULT_EXPENSE_EXPORT_TRANSACTIONS.newYork,
+          savedReconciliation?.exportTransactions?.newYork,
+        ),
       },
     },
   });
