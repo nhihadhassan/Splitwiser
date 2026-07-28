@@ -59,8 +59,13 @@ export function ReconciliationPage() {
   const wanderlogConversionAdjustment = meta.wanderlogTotal - importedEstimateTotal;
   const excludedWanderlogTotal = excludedWanderlogCharges.reduce((sum, charge) => sum + charge.amount / 100, 0);
   const wanderlogTotal = Math.max(0, meta.wanderlogTotal - excludedWanderlogTotal);
-  const cardTotal = currentCardTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
-  const cashRecorded = cashTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+  const statementDecisionFor = (id: string): "include" | "exclude" => (
+    decisions[`statement-${trip}-${id}`] === "exclude" ? "exclude" : "include"
+  );
+  const includedCardTransactions = currentCardTransactions.filter((transaction) => statementDecisionFor(transaction.id) === "include");
+  const includedCashTransactions = cashTransactions.filter((transaction) => statementDecisionFor(transaction.id) === "include");
+  const cardTotal = includedCardTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+  const cashRecorded = includedCashTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
   const parsedCashRemaining = Math.max(0, Number(cashRemaining) || 0);
   const cashSpent = trip === "peru" ? Math.max(0, cashRecorded - parsedCashRemaining) : 0;
   const statementTotal = cardTotal + cashSpent;
@@ -91,6 +96,12 @@ export function ReconciliationPage() {
   function setDecision(chargeId: string, decision: ChargeDecision) {
     updateReconciliation({
       decisions: { ...decisions, [`${trip}-${chargeId}`]: decision },
+    });
+  }
+
+  function setStatementDecision(transactionId: string, decision: "include" | "exclude") {
+    updateReconciliation({
+      decisions: { ...decisions, [`statement-${trip}-${transactionId}`]: decision },
     });
   }
 
@@ -190,7 +201,7 @@ export function ReconciliationPage() {
         <div>
           <span>Scotiabank + cash spent</span>
           <strong>{money(statementTotal)}</strong>
-          <small>{currentCardTransactions.length} card charges{trip === "peru" ? " + Tangerine cash" : ""}</small>
+          <small>{includedCardTransactions.length} of {currentCardTransactions.length} card charges included{trip === "peru" ? " + Tangerine cash" : ""}</small>
         </div>
       </section>
 
@@ -266,7 +277,7 @@ export function ReconciliationPage() {
             <strong>{money(cardTotal)}</strong>
           </div>
           <div className="ledger-column-labels" aria-hidden="true">
-            <span>Date</span><span>Transaction</span><span>Amount</span>
+            <span>Date</span><span>Transaction</span><span>Amount</span><span>Status</span>
           </div>
           <div className="statement-lines">
             {visibleCardTransactions.map((transaction) => (
@@ -274,6 +285,8 @@ export function ReconciliationPage() {
                 key={transaction.id}
                 transaction={transaction}
                 onChange={(patch) => updateCardTransaction(transaction.id, patch)}
+                decision={statementDecisionFor(transaction.id)}
+                onDecisionChange={(decision) => setStatementDecision(transaction.id, decision)}
               />
             ))}
             {visibleCardTransactions.length === 0 && <p className="reconciliation-empty">No Scotiabank charges match this search.</p>}
@@ -290,7 +303,7 @@ export function ReconciliationPage() {
                 <strong>{money(cashSpent)}</strong>
               </div>
               <div className="ledger-column-labels" aria-hidden="true">
-                <span>Date</span><span>Transaction</span><span>Amount</span>
+                <span>Date</span><span>Transaction</span><span>Amount</span><span>Status</span>
               </div>
               <div className="statement-lines">
                 {visibleCashTransactions.map((transaction) => (
@@ -298,6 +311,8 @@ export function ReconciliationPage() {
                     key={transaction.id}
                     transaction={transaction}
                     onChange={(patch) => updateCashTransaction(transaction.id, patch)}
+                    decision={statementDecisionFor(transaction.id)}
+                    onDecisionChange={(decision) => setStatementDecision(transaction.id, decision)}
                   />
                 ))}
                 {visibleCashTransactions.length === 0 && <p className="reconciliation-empty">No Tangerine withdrawals match this search.</p>}
@@ -333,12 +348,16 @@ export function ReconciliationPage() {
 function EditableStatementLine({
   transaction,
   onChange,
+  decision,
+  onDecisionChange,
 }: {
   transaction: StatementTransaction;
   onChange: (patch: Partial<StatementTransaction>) => void;
+  decision: "include" | "exclude";
+  onDecisionChange: (decision: "include" | "exclude") => void;
 }) {
   return (
-    <div className="statement-line editable-statement-line">
+    <div className={`statement-line editable-statement-line decision-${decision}`}>
       <input
         className="statement-date-input"
         aria-label="Transaction date"
@@ -369,6 +388,15 @@ function EditableStatementLine({
           onChange={(event) => onChange({ amount: Number(event.target.value) || 0 })}
         />
       </label>
+      <select
+        className="statement-decision right-statement-decision"
+        aria-label={`Status for ${transaction.description}`}
+        value={decision}
+        onChange={(event) => onDecisionChange(event.target.value as "include" | "exclude")}
+      >
+        <option value="include">Include</option>
+        <option value="exclude">Exclude</option>
+      </select>
     </div>
   );
 }
