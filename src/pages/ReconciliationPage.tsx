@@ -24,7 +24,7 @@ import {
   reconciliationTotals,
   type ImportPreviewRow,
 } from "../reconciliation";
-import { formatMoney } from "../utils/money";
+import { centsToInput, formatMoney, parseMoney } from "../utils/money";
 import "./ReconciliationPage.css";
 
 type QueueTab = "unmatched" | "suggested" | "exception" | "reconciled" | "excluded";
@@ -752,6 +752,65 @@ function MatchMetric({ label, count, total }: { label: string; count: number; to
   return <div className="recon-match-metric"><span>{label} · {count}</span><strong>{money(total)}</strong></div>;
 }
 
+function EditableMoneyInput({
+  cents,
+  disabled,
+  onCommit,
+}: {
+  cents: number;
+  disabled: boolean;
+  onCommit: (cents: number) => void;
+}) {
+  const formatted = centsToInput(cents);
+  const [draft, setDraft] = useState(formatted);
+  const isFocused = useRef(false);
+  const cancelOnBlur = useRef(false);
+
+  useEffect(() => {
+    if (!isFocused.current) setDraft(formatted);
+  }, [formatted]);
+
+  function commit(value: string) {
+    const nextCents = parseMoney(value);
+    if (!Number.isFinite(nextCents)) {
+      setDraft(formatted);
+      return;
+    }
+    setDraft(centsToInput(nextCents));
+    if (nextCents !== cents) onCommit(nextCents);
+  }
+
+  return (
+    <input
+      value={draft}
+      onFocus={(event) => {
+        isFocused.current = true;
+        event.currentTarget.select();
+      }}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={(event) => {
+        isFocused.current = false;
+        if (cancelOnBlur.current) {
+          cancelOnBlur.current = false;
+          setDraft(formatted);
+          return;
+        }
+        commit(event.currentTarget.value);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") event.currentTarget.blur();
+        if (event.key === "Escape") {
+          cancelOnBlur.current = true;
+          event.currentTarget.blur();
+        }
+      }}
+      inputMode="decimal"
+      disabled={disabled}
+      aria-label="Posted CAD amount"
+    />
+  );
+}
+
 function Ledger({
   side,
   title,
@@ -818,7 +877,14 @@ function Ledger({
               {item.currency !== "CAD" && <em>{item.currency} {(item.originalAmountCents / 100).toFixed(2)} original</em>}
             </div>
             <span className="recon-source">{sourceById.get(item.sourceId) ?? item.sourceId}</span>
-            <label className="recon-amount-input"><span>CA$</span><input value={(item.postedCadCents / 100).toFixed(2)} onChange={(event) => onEdit(item.id, { postedCadCents: Math.round((Number(event.target.value) || 0) * 100) })} inputMode="decimal" disabled={disabled} aria-label="Posted CAD amount" /></label>
+            <label className="recon-amount-input">
+              <span>CA$</span>
+              <EditableMoneyInput
+                cents={item.postedCadCents}
+                disabled={disabled}
+                onCommit={(postedCadCents) => onEdit(item.id, { postedCadCents })}
+              />
+            </label>
           </article>
         ))}
         {rows.length === 0 && <p className="recon-empty">No {side === "left" ? "Wanderlog" : "statement"} transactions in this view.</p>}
