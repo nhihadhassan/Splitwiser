@@ -1464,10 +1464,26 @@ a {
 }
 
 .chip-row,
-.group-type-row {
+.group-type-row,
+.quick-action-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.quick-setup {
+  padding: 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-inset);
+}
+
+.quick-action-row {
+  align-items: center;
+}
+
+.quick-action {
+  min-height: 38px;
 }
 
 .chip,

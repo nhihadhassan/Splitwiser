@@ -151,6 +151,16 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
     }
   }
 
+  function applyEqualSplit() {
+    setMethod("equally");
+    setError("");
+  }
+
+  function applyPayer(personId: string) {
+    setPayerId(personId);
+    setError("");
+  }
+
   function save() {
     if (!description.trim()) return setError("Enter a description.");
     if (!amountValid) return setError("Enter a valid amount greater than zero.");
@@ -287,6 +297,37 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
           </select>
         </div>
       </div>
+
+      {group && activeIds.length >= 2 && (
+        <div className="field quick-setup">
+          <span className="field-label" id={`${fieldId}-quick-setup`}>Quick setup</span>
+          <div className="quick-action-row" role="group" aria-labelledby={`${fieldId}-quick-setup`}>
+            <button
+              type="button"
+              className={`chip quick-action ${method === "equally" ? "on" : ""}`}
+              aria-pressed={method === "equally"}
+              onClick={applyEqualSplit}
+            >
+              {activeIds.length === 2 ? "Split 50/50" : "Split evenly"}
+            </button>
+            {activeIds.map((id) => {
+              const person = peopleById.get(id);
+              const name = id === ME ? "You" : person?.name ?? "Member";
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  className={`chip quick-action ${payerId === id ? "on" : ""}`}
+                  aria-pressed={payerId === id}
+                  onClick={() => applyPayer(id)}
+                >
+                  <Avatar person={person} size={18} /> {name} paid all
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="field">
         <span className="field-label" id={`${fieldId}-split-method`}>Split</span>
