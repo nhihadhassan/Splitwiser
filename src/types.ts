@@ -87,6 +87,10 @@ export interface ReconciliationState {
     peru: StatementTransaction[];
     newYork: StatementTransaction[];
   };
+  exportTransactions: {
+    peru: StatementTransaction[];
+    newYork: StatementTransaction[];
+  };
 }
 
 export interface AppState {

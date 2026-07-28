@@ -82,3 +82,22 @@ export const DEFAULT_SCOTIABANK_TRANSACTIONS: ReconciliationState["cardTransacti
   peru: PERU_SCOTIABANK_TRANSACTIONS,
   newYork: NEW_YORK_SCOTIABANK_TRANSACTIONS,
 };
+
+export const DEFAULT_EXPENSE_EXPORT_TRANSACTIONS: ReconciliationState["exportTransactions"] = {
+  peru: [
+    { id: "export-peru-2026-01-11-latam-1", date: "Jan 11, 2026", description: "LATAM Airlines", detail: "LAN AIR 00456024660155 · Tangerine Mastercard", amount: 906.91 },
+    { id: "export-peru-2026-01-11-latam-2", date: "Jan 11, 2026", description: "LATAM Airlines", detail: "LAN AIR 00456024660156 · Tangerine Mastercard", amount: 906.91 },
+    { id: "export-peru-2026-01-17-machu", date: "Jan 17, 2026", description: "Machu Picchu (Peru)", detail: "UNIDAD EJECUTORA MC CU CUSCO · Tangerine Mastercard", amount: 135.61 },
+    { id: "export-peru-2026-01-18-inca-rail", date: "Jan 18, 2026", description: "Inca Rail", detail: "INCA RAIL EUROPE B.V. · Tangerine Mastercard", amount: 511.09 },
+    { id: "export-peru-2026-01-19-viator", date: "Jan 19, 2026", description: "Viator", detail: "VIATORTRIPADVISOR UK · Tangerine Mastercard", amount: 113.80 },
+    { id: "export-peru-2026-01-20-hostel-1", date: "Jan 20, 2026", description: "Hostelworld", detail: "WWW.HOSTELWORLD.COM DUBLIN · Tangerine Mastercard", amount: 13.27 },
+    { id: "export-peru-2026-01-20-hostel-2", date: "Jan 20, 2026", description: "Hostelworld", detail: "WWW.HOSTELWORLD.COM DUBLIN · Tangerine Mastercard", amount: 26.29 },
+    { id: "export-peru-2026-01-24-hostel-1", date: "Jan 24, 2026", description: "Hostelworld", detail: "WWW.HOSTELWORLD.COM DUBLIN · Tangerine Mastercard", amount: 13.77 },
+    { id: "export-peru-2026-01-24-hostel-2", date: "Jan 24, 2026", description: "Hostelworld", detail: "WWW.HOSTELWORLD.COM DUBLIN · Tangerine Mastercard", amount: 5.13 },
+    { id: "export-peru-2026-01-25-hostel-1", date: "Jan 25, 2026", description: "Hostelworld", detail: "WWW.HOSTELWORLD.COM DUBLIN · Tangerine Mastercard", amount: 9.52 },
+    { id: "export-peru-2026-01-25-hostel-2", date: "Jan 25, 2026", description: "Hostelworld", detail: "WWW.HOSTELWORLD.COM DUBLIN · Tangerine Mastercard", amount: 19.03 },
+    { id: "export-peru-2026-01-26-hostel-1", date: "Jan 26, 2026", description: "Hostelworld", detail: "WWW.HOSTELWORLD.COM DUBLIN · Tangerine Mastercard", amount: 8.21 },
+    { id: "export-peru-2026-01-26-hostel-2", date: "Jan 26, 2026", description: "Hostelworld", detail: "WWW.HOSTELWORLD.COM DUBLIN · Tangerine Mastercard", amount: 15.41 },
+  ],
+  newYork: [],
+};

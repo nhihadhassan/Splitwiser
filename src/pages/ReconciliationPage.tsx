@@ -13,7 +13,7 @@ const tripMeta: Record<TripKey, { name: string; dates: string; note: string; wan
     name: "Peru",
     dates: "Jul 11 - Jul 26, 2026",
     wanderlogTotal: 5539.30,
-    note: "The right side includes this statement's Peru card charges and Tangerine cash. Older flights and bookings can be added as you find them.",
+    note: "The right side includes Scotiabank, earlier Tangerine Mastercard charges from the expense export, and Tangerine cash. Older bookings can be added as you find them.",
   },
   "new-york": {
     name: "New York",
@@ -36,10 +36,11 @@ export function ReconciliationPage() {
   const [trip, setTrip] = useState<TripKey>("peru");
   const [query, setQuery] = useState("");
   const meta = tripMeta[trip];
-  const { decisions, cashRemaining, cashTransactions, cardTransactions } = state.reconciliation;
+  const { decisions, cashRemaining, cashTransactions, cardTransactions, exportTransactions } = state.reconciliation;
   const groupId = trip === "peru" ? "g-peru" : "g-new-york";
   const cardKey = trip === "peru" ? "peru" : "newYork";
   const currentCardTransactions = cardTransactions[cardKey];
+  const currentExportTransactions = exportTransactions[cardKey];
 
   const wanderlogCharges = useMemo(() => {
     const savedTripExpenses = state.expenses.filter((expense) => expense.groupId === groupId);
@@ -63,12 +64,14 @@ export function ReconciliationPage() {
     decisions[`statement-${trip}-${id}`] === "exclude" ? "exclude" : "include"
   );
   const includedCardTransactions = currentCardTransactions.filter((transaction) => statementDecisionFor(transaction.id) === "include");
+  const includedExportTransactions = currentExportTransactions.filter((transaction) => statementDecisionFor(transaction.id) === "include");
   const includedCashTransactions = cashTransactions.filter((transaction) => statementDecisionFor(transaction.id) === "include");
   const cardTotal = includedCardTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+  const exportTotal = includedExportTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
   const cashRecorded = includedCashTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
   const parsedCashRemaining = Math.max(0, Number(cashRemaining) || 0);
   const cashSpent = trip === "peru" ? Math.max(0, cashRecorded - parsedCashRemaining) : 0;
-  const statementTotal = cardTotal + cashSpent;
+  const statementTotal = cardTotal + exportTotal + cashSpent;
   const variance = wanderlogTotal - statementTotal;
   const isBalanced = Math.abs(variance) < 0.01;
   const searchNeedle = query.trim().toLowerCase();
@@ -78,6 +81,10 @@ export function ReconciliationPage() {
     || `${charge.date} ${charge.description} ${charge.notes ?? ""}`.toLowerCase().includes(searchNeedle)
   ));
   const visibleCardTransactions = currentCardTransactions.filter((transaction) => (
+    searchNeedle === ""
+    || `${transaction.date} ${transaction.description} ${transaction.detail}`.toLowerCase().includes(searchNeedle)
+  ));
+  const visibleExportTransactions = currentExportTransactions.filter((transaction) => (
     searchNeedle === ""
     || `${transaction.date} ${transaction.description} ${transaction.detail}`.toLowerCase().includes(searchNeedle)
   ));
@@ -133,6 +140,17 @@ export function ReconciliationPage() {
       cashTransactions: cashTransactions.map((transaction) => (
         transaction.id === id ? { ...transaction, ...patch } : transaction
       )),
+    });
+  }
+
+  function updateExportTransaction(id: string, patch: Partial<StatementTransaction>) {
+    updateReconciliation({
+      exportTransactions: {
+        ...exportTransactions,
+        [cardKey]: currentExportTransactions.map((transaction) => (
+          transaction.id === id ? { ...transaction, ...patch } : transaction
+        )),
+      },
     });
   }
 
@@ -201,7 +219,7 @@ export function ReconciliationPage() {
         <div>
           <span>Scotiabank + cash spent</span>
           <strong>{money(statementTotal)}</strong>
-          <small>{includedCardTransactions.length} of {currentCardTransactions.length} card charges included{trip === "peru" ? " + Tangerine cash" : ""}</small>
+          <small>{includedCardTransactions.length} of {currentCardTransactions.length} Scotia + {includedExportTransactions.length} export charges included{trip === "peru" ? " + Tangerine cash" : ""}</small>
         </div>
       </section>
 
@@ -292,6 +310,34 @@ export function ReconciliationPage() {
             {visibleCardTransactions.length === 0 && <p className="reconciliation-empty">No Scotiabank charges match this search.</p>}
           </div>
           <button className="statement-add-line" type="button" onClick={addCardTransaction}>+ Add card charge</button>
+
+          {currentExportTransactions.length > 0 && (
+            <>
+              <div className="statement-source-heading export-source-heading">
+                <div>
+                  <span className="source-mark export" aria-hidden="true">E</span>
+                  <div><strong>Tangerine Mastercard — expense export</strong><small>Earlier Peru charges found in EXPENSES_EXPORT</small></div>
+                </div>
+                <strong>{money(exportTotal)}</strong>
+              </div>
+              <div className="ledger-column-labels" aria-hidden="true">
+                <span>Date</span><span>Transaction</span><span>Amount</span><span>Status</span>
+              </div>
+              <div className="statement-lines">
+                {visibleExportTransactions.map((transaction) => (
+                  <EditableStatementLine
+                    key={transaction.id}
+                    transaction={transaction}
+                    onChange={(patch) => updateExportTransaction(transaction.id, patch)}
+                    decision={statementDecisionFor(transaction.id)}
+                    onDecisionChange={(decision) => setStatementDecision(transaction.id, decision)}
+                  />
+                ))}
+                {visibleExportTransactions.length === 0 && <p className="reconciliation-empty">No export charges match this search.</p>}
+              </div>
+              <button className="statement-add-line" type="button" onClick={() => updateReconciliation({ exportTransactions: { ...exportTransactions, [cardKey]: [...currentExportTransactions, { id: uid(), date: "", description: "New exported charge", detail: "Tangerine Mastercard", amount: 0 }] } })}>+ Add exported charge</button>
+            </>
+          )}
 
           {trip === "peru" && (
             <>

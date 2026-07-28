@@ -24,7 +24,7 @@ import {
   saveCloudState,
   SYNC_KEY_STORAGE_KEY,
 } from "./cloud";
-import { DEFAULT_PERU_CASH_TRANSACTIONS, DEFAULT_SCOTIABANK_TRANSACTIONS } from "./reconciliationData";
+import { DEFAULT_EXPENSE_EXPORT_TRANSACTIONS, DEFAULT_PERU_CASH_TRANSACTIONS, DEFAULT_SCOTIABANK_TRANSACTIONS } from "./reconciliationData";
 
 export const ME = "me";
 
@@ -103,6 +103,7 @@ function loadLegacyReconciliation(): ReconciliationState {
     cashRemaining: localStorage.getItem("splitwiser-peru-cash-remaining") ?? "",
     cashTransactions: DEFAULT_PERU_CASH_TRANSACTIONS,
     cardTransactions: DEFAULT_SCOTIABANK_TRANSACTIONS,
+    exportTransactions: DEFAULT_EXPENSE_EXPORT_TRANSACTIONS,
   };
 }
 
@@ -114,6 +115,7 @@ function normalizeState(state: Omit<AppState, "reconciliation"> & Partial<AppSta
       ...state.reconciliation,
       cashTransactions: state.reconciliation?.cashTransactions ?? DEFAULT_PERU_CASH_TRANSACTIONS,
       cardTransactions: state.reconciliation?.cardTransactions ?? DEFAULT_SCOTIABANK_TRANSACTIONS,
+      exportTransactions: state.reconciliation?.exportTransactions ?? DEFAULT_EXPENSE_EXPORT_TRANSACTIONS,
     },
   };
 }
