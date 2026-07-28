@@ -22,6 +22,10 @@ const STATUS_COPY: Record<CloudStatus, { label: string; detail: string }> = {
     label: "Sync paused",
     detail: "Online saving needs attention. Open All Expenses to retry.",
   },
+  conflict: {
+    label: "Sync conflict",
+    detail: "This ledger changed on another device. Open All Expenses to choose a version.",
+  },
 };
 
 export function CloudStatusBadge() {
