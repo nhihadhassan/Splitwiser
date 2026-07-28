@@ -251,9 +251,18 @@ export function ReconciliationPage() {
       setNotice("One of these transactions already belongs to a confirmed group.");
       return;
     }
-    const groupAdjustment = group ? undefined : adjustmentCents
-      ? { amountCents: adjustmentCents, reason: adjustmentReason, note: adjustmentNote.trim() }
-      : undefined;
+    const suggestedDifference = leftTotalCents - rightTotalCents;
+    const groupAdjustment = group
+      ? suggestedDifference === 0
+        ? undefined
+        : {
+            amountCents: suggestedDifference,
+            reason: "fx" as const,
+            note: `Accepted suggested match with ${money(Math.abs(suggestedDifference))} difference within the CA$0.50 tolerance.`,
+          }
+      : adjustmentCents
+        ? { amountCents: adjustmentCents, reason: adjustmentReason, note: adjustmentNote.trim() }
+        : undefined;
     const differenceCents = leftTotalCents - rightTotalCents - (groupAdjustment?.amountCents ?? 0);
     if (differenceCents !== 0) {
       setNotice(`This group still has ${money(Math.abs(differenceCents))} to explain.`);
@@ -906,7 +915,7 @@ function SuggestionList({
 }) {
   return (
     <section className="recon-suggestions">
-      <header><div><p className="eyebrow">Explainable suggestions</p><h2>{suggestions.length} candidates</h2></div><span>Exact CAD · ±7 days · merchant evidence</span></header>
+      <header><div><p className="eyebrow">Explainable suggestions</p><h2>{suggestions.length} candidates</h2></div><span>Within CA$0.50 · ±7 days · merchant evidence</span></header>
       {suggestions.map((group) => {
         const left = byId.get(group.leftIds[0]);
         const right = byId.get(group.rightIds[0]);

@@ -8,6 +8,7 @@ import {
   normalizeSearch,
   previewDelimitedImport,
   reconciliationTotals,
+  SUGGESTION_AMOUNT_TOLERANCE_CENTS,
 } from "./reconciliation";
 
 describe("reconciliation schema migration", () => {
@@ -63,11 +64,16 @@ describe("reconciliation schema migration", () => {
       sources: workspace.sources.map((item) => item.id === "export-peru"
         ? { ...item, institution: "Expense Export" }
         : item),
+      rules: workspace.rules.map((item) => item.id === "default-exact"
+        ? { ...item, amountToleranceCents: 1 }
+        : item),
     };
 
     const repaired = ensureReconciliationWorkspace(state.reconciliation, state.expenses);
 
     expect(repaired.sources.find((item) => item.id === "export-peru")?.institution).toBe("Tangerine");
+    expect(repaired.rules.find((item) => item.id === "default-exact")?.amountToleranceCents)
+      .toBe(SUGGESTION_AMOUNT_TOLERANCE_CENTS);
   });
 });
 
@@ -106,6 +112,28 @@ describe("matching and controls", () => {
     expect(first.length).toBeGreaterThan(0);
     expect(first.map((item) => item.id)).toEqual(second.map((item) => item.id));
     expect(first.every((item) => item.explanation.length >= 2)).toBe(true);
+  });
+
+  it("suggests matches up to 50 cents apart but not 51 cents apart", () => {
+    const state = seedState();
+    const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
+    const candidate = generateSuggestions(workspace, "new-york")[0];
+    expect(candidate).toBeDefined();
+    const rightId = candidate.rightIds[0];
+    const hasCandidate = (differenceCents: number) => {
+      const shifted = {
+        ...workspace,
+        transactions: workspace.transactions.map((item) => item.id === rightId
+          ? { ...item, postedCadCents: item.postedCadCents + differenceCents }
+          : item),
+      };
+      return generateSuggestions(shifted, "new-york").some((item) => (
+        item.leftIds[0] === candidate.leftIds[0] && item.rightIds[0] === rightId
+      ));
+    };
+
+    expect(hasCandidate(50)).toBe(true);
+    expect(hasCandidate(51)).toBe(false);
   });
 
   it("summarizes cash available, remaining, and used", () => {

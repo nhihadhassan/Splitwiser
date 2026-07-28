@@ -13,6 +13,7 @@ import type {
 } from "./types";
 
 export const RECONCILIATION_SCHEMA_VERSION = 2 as const;
+export const SUGGESTION_AMOUNT_TOLERANCE_CENTS = 50;
 
 const GROUP_BY_TRIP: Record<ReconciliationTripId, string> = {
   peru: "g-peru",
@@ -266,11 +267,11 @@ export function createReconciliationWorkspace(
     rules: [
       {
         id: "default-exact",
-        name: "Exact amount within 7 days",
+        name: "Amount within CA$0.50 and 7 days",
         priority: 10,
         sourceIds: [],
         dateToleranceDays: 7,
-        amountToleranceCents: 1,
+        amountToleranceCents: SUGGESTION_AMOUNT_TOLERANCE_CENTS,
         enabled: true,
       },
     ],
@@ -332,6 +333,13 @@ export function ensureReconciliationWorkspace(
         ...missingSources,
       ],
       transactions: [...repairedTransactions, ...missingTransactions],
+      rules: state.workspace.rules.map((item) => item.id === "default-exact"
+        ? {
+            ...item,
+            name: "Amount within CA$0.50 and 7 days",
+            amountToleranceCents: SUGGESTION_AMOUNT_TOLERANCE_CENTS,
+          }
+        : item),
     };
   }
   return createReconciliationWorkspace(state, expenses);
@@ -510,10 +518,14 @@ export function generateSuggestions(
         dateDays: dateDistance(leftItem.postedDate, rightItem.postedDate),
         merchant: merchantScore(leftItem.description, rightItem.description),
       }))
-      .filter(({ rightItem, dateDays }) => Math.abs(leftItem.postedCadCents - rightItem.postedCadCents) <= 1 && dateDays <= 7)
+      .filter(({ rightItem, dateDays }) => (
+        Math.abs(leftItem.postedCadCents - rightItem.postedCadCents) <= SUGGESTION_AMOUNT_TOLERANCE_CENTS
+        && dateDays <= 7
+      ))
       .sort((a, b) => b.merchant - a.merchant || a.dateDays - b.dateDays || a.rightItem.id.localeCompare(b.rightItem.id));
     if (exact.length === 0) return;
     const best = exact[0];
+    const amountDifference = leftItem.postedCadCents - best.rightItem.postedCadCents;
     const ambiguous = exact.length > 1 && exact[1].merchant === best.merchant && exact[1].dateDays === best.dateDays;
     const confidence = best.merchant >= 0.5 && best.dateDays <= 3 ? "high" : best.dateDays <= 7 ? "medium" : "low";
     candidates.push({
@@ -528,7 +540,9 @@ export function generateSuggestions(
       differenceCents: leftItem.postedCadCents - best.rightItem.postedCadCents,
       confidence,
       explanation: [
-        "Exact CAD amount",
+        amountDifference === 0
+          ? "Exact CAD amount"
+          : `CA$${(Math.abs(amountDifference) / 100).toFixed(2)} amount difference (within CA$0.50 tolerance)`,
         `${best.dateDays} day${best.dateDays === 1 ? "" : "s"} apart`,
         best.merchant > 0 ? "Merchant text overlaps" : "Merchant differs",
       ],
