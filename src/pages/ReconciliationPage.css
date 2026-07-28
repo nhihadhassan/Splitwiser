@@ -1274,3 +1274,724 @@
     gap: 3px;
   }
 }
+
+/* Warm Ledger reconciliation skin
+   Keeps the professional workflow while returning the page to Splitwiser's
+   established charcoal, parchment, gold, and mint visual language. */
+
+.reconciliation-page {
+  --recon-ink: var(--color-text-primary);
+  --recon-muted: var(--color-text-tertiary);
+  --recon-line: var(--color-border-default);
+  --recon-soft: var(--color-bg-inset);
+  --recon-green: var(--color-positive);
+  --recon-green-soft: var(--color-positive-subtle);
+  --recon-amber: var(--color-accent);
+  --recon-red: var(--color-negative);
+  grid-column: 1 / -1;
+  min-width: 0;
+  color: var(--color-text-primary);
+}
+
+.recon-titlebar {
+  align-items: flex-end;
+  border: 0;
+  padding: 0 0 26px;
+}
+
+.recon-titlebar h1 {
+  color: var(--color-text-primary);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 42px;
+  letter-spacing: 0;
+}
+
+.recon-titlebar p:last-child {
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.recon-period-status {
+  border: 1px solid var(--color-positive-border);
+  color: var(--color-positive);
+  background: var(--color-positive-subtle);
+}
+
+.recon-period-status.closed {
+  border-color: var(--color-border-default);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-subtle);
+}
+
+.reconciliation-tabs {
+  overflow: hidden;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: var(--color-bg-panel);
+  padding: 0 20px;
+}
+
+.reconciliation-tabs button {
+  min-width: 190px;
+  color: var(--color-text-tertiary);
+  padding: 18px 14px 15px;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.reconciliation-tabs button:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-subtle);
+}
+
+.reconciliation-tabs button.active {
+  border-bottom-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-bg-accent-faint);
+}
+
+.reconciliation-tabs span {
+  font-size: 15px;
+}
+
+.reconciliation-tabs small {
+  color: var(--color-text-tertiary);
+}
+
+.recon-overview {
+  border: 1px solid var(--color-border-default);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  background: var(--color-bg-panel);
+  padding: 22px;
+}
+
+.recon-trip-context {
+  padding-right: 30px;
+}
+
+.recon-trip-context > strong {
+  color: var(--color-text-primary);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 25px;
+}
+
+.recon-trip-context p,
+.recon-metric small {
+  color: var(--color-text-tertiary);
+}
+
+.recon-trip-context > span,
+.recon-metric > span {
+  color: var(--color-text-tertiary);
+}
+
+.recon-metric {
+  border-left-color: var(--color-border-default);
+  padding: 8px 20px;
+}
+
+.recon-metric strong {
+  color: var(--color-text-primary);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.recon-commandbar {
+  top: 88px;
+  z-index: 22;
+  gap: 10px;
+  margin: 16px 0 0;
+  border: 1px solid var(--color-border-emphasis);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-raised);
+  padding: 12px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .18);
+}
+
+.recon-search {
+  min-height: 42px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  background: var(--color-bg-control);
+}
+
+.recon-search:focus-within {
+  border-color: var(--color-accent);
+  background: var(--color-bg-control);
+  box-shadow: 0 0 0 3px var(--color-bg-accent-subtle);
+}
+
+.recon-search > span,
+.recon-search kbd {
+  color: var(--color-text-tertiary);
+}
+
+.recon-search input {
+  color: var(--color-text-primary);
+}
+
+.recon-search input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.recon-search kbd {
+  border-color: var(--color-border-default);
+  background: var(--color-bg-raised);
+}
+
+.recon-tool-button,
+.recon-more summary,
+.recon-filters button,
+.recon-close button,
+.recon-group-body > button,
+.exception-register button {
+  min-height: 38px;
+  border-color: var(--color-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-subtle);
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.recon-tool-button:hover,
+.recon-more summary:hover,
+.recon-filters button:hover,
+.recon-close button:hover,
+.recon-group-body > button:hover,
+.exception-register button:hover {
+  border-color: var(--color-border-emphasis);
+  color: var(--color-accent);
+  background: var(--color-bg-accent-subtle);
+}
+
+.recon-more > div {
+  border-color: var(--color-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  background: var(--color-bg-raised);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .34);
+}
+
+.recon-more button,
+.recon-more label {
+  color: var(--color-text-secondary);
+}
+
+.recon-more button:hover,
+.recon-more label:hover {
+  color: var(--color-accent);
+  background: var(--color-bg-accent-subtle);
+}
+
+.recon-queues {
+  gap: 26px;
+  margin-top: 14px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: var(--color-bg-panel);
+  padding: 0 20px;
+}
+
+.recon-queues button {
+  color: var(--color-text-tertiary);
+  padding: 17px 0 14px;
+}
+
+.recon-queues button:hover {
+  color: var(--color-text-primary);
+}
+
+.recon-queues button.active {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.recon-queues span {
+  color: var(--color-text-secondary);
+  background: var(--color-bg-raised);
+}
+
+.recon-queues button.active span {
+  color: var(--color-on-accent);
+  background: var(--color-accent);
+}
+
+.recon-filters {
+  align-items: end;
+  border: 1px solid var(--color-border-default);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  background: var(--color-bg-inset);
+  padding: 12px 20px;
+}
+
+.recon-filters label {
+  color: var(--color-text-tertiary);
+}
+
+.recon-filters select,
+.recon-filters input,
+.recon-import-controls input,
+.recon-import-controls select,
+.recon-import-controls textarea {
+  min-height: 38px;
+  border-color: var(--color-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  background: var(--color-bg-control);
+}
+
+.recon-filters select:focus,
+.recon-filters input:focus,
+.recon-import-controls input:focus,
+.recon-import-controls select:focus,
+.recon-import-controls textarea:focus {
+  outline: 2px solid var(--color-focus-ring-soft);
+  outline-offset: 1px;
+}
+
+.recon-filters > span {
+  color: var(--color-text-tertiary);
+}
+
+.recon-notice {
+  margin-top: 12px;
+  border: 1px solid var(--color-positive-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-positive);
+  background: var(--color-positive-subtle);
+}
+
+.recon-ledgers {
+  align-items: start;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.recon-ledger {
+  overflow: hidden;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-panel);
+}
+
+.recon-ledger + .recon-ledger {
+  border-left: 1px solid var(--color-border-default);
+}
+
+.recon-ledger > header {
+  min-height: 82px;
+  border-bottom-color: var(--color-border-default);
+  background: var(--color-bg-header);
+  padding: 18px 20px;
+}
+
+.recon-ledger > header strong {
+  color: var(--color-text-primary);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 20px;
+}
+
+.recon-ledger > header > strong {
+  color: var(--color-accent);
+  font-family: Geist, sans-serif;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+.recon-ledger > header small {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+}
+
+.recon-ledger-labels {
+  min-height: 34px;
+  align-items: center;
+  border-bottom-color: var(--color-border-default);
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-inset);
+}
+
+.recon-line {
+  min-height: 72px;
+  border-bottom-color: var(--color-border-default);
+  background: var(--color-bg-row);
+  padding: 9px 15px;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.recon-line:hover {
+  background: var(--color-bg-raised);
+}
+
+.recon-line.selected {
+  border-color: var(--color-border-emphasis);
+  background: var(--color-bg-accent-selected);
+  box-shadow: none;
+}
+
+.recon-line input[type="checkbox"],
+.recon-ledger input[type="checkbox"] {
+  accent-color: var(--color-accent);
+}
+
+.recon-date-input,
+.recon-description input,
+.recon-amount-input input {
+  color: var(--color-text-primary);
+}
+
+.recon-date-input {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+}
+
+.recon-description input {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.recon-description small,
+.recon-source {
+  color: var(--color-text-tertiary);
+}
+
+.recon-description em {
+  color: var(--color-accent);
+}
+
+.recon-date-input:hover,
+.recon-description input:hover,
+.recon-amount-input input:hover,
+.recon-date-input:focus,
+.recon-description input:focus,
+.recon-amount-input input:focus {
+  border-color: var(--color-border-emphasis);
+  color: var(--color-text-primary);
+  background: var(--color-bg-control);
+}
+
+.recon-amount-input span {
+  color: var(--color-text-tertiary);
+}
+
+.recon-amount-input input {
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.recon-empty {
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-inset);
+}
+
+.recon-matchbar {
+  left: 288px;
+  border-top: 1px solid var(--color-border-emphasis);
+  color: var(--color-text-primary);
+  background: var(--color-bg-raised);
+  box-shadow: 0 -16px 40px rgba(0, 0, 0, .34);
+}
+
+.recon-match-summary > span,
+.recon-match-metric span,
+.recon-adjustment > span,
+.recon-difference > span {
+  color: var(--color-text-tertiary);
+}
+
+.recon-match-summary strong,
+.recon-match-metric strong {
+  color: var(--color-text-primary);
+}
+
+.recon-match-summary small {
+  color: var(--color-accent);
+}
+
+.recon-difference strong {
+  color: var(--color-negative);
+}
+
+.recon-difference.balanced strong {
+  color: var(--color-positive);
+}
+
+.recon-adjustment > div {
+  border-bottom-color: var(--color-border-default);
+}
+
+.recon-adjustment input,
+.recon-adjustment-detail select,
+.recon-adjustment-detail input,
+.recon-support select,
+.recon-support input {
+  color: var(--color-text-primary);
+  background: var(--color-bg-control);
+  border-color: var(--color-border-default);
+}
+
+.recon-match-actions button,
+.recon-support button {
+  min-height: 38px;
+  border-color: var(--color-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-subtle);
+}
+
+.reconciliation-page .recon-confirm {
+  min-height: 38px;
+  border-color: var(--color-accent);
+  border-radius: var(--radius-sm);
+  color: var(--color-on-accent);
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-strong));
+}
+
+.reconciliation-page .recon-confirm:hover:not(:disabled) {
+  color: var(--color-on-accent);
+  background: linear-gradient(135deg, oklch(89% 0.09 78), var(--color-accent));
+}
+
+.recon-support summary {
+  color: var(--color-text-secondary);
+}
+
+.recon-import,
+.recon-suggestions,
+.recon-groups,
+.exception-register,
+.cash-control,
+.recon-close,
+.recon-activity {
+  margin-top: 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  background: var(--color-bg-panel);
+  padding: 22px;
+}
+
+.recon-import {
+  background: var(--color-bg-panel);
+}
+
+.recon-import h2,
+.recon-suggestions h2,
+.cash-control h2,
+.recon-close h2,
+.recon-activity h2,
+.exception-register h2 {
+  color: var(--color-text-primary);
+  font-family: "Source Serif 4", Georgia, serif;
+}
+
+.recon-import > header > span,
+.recon-suggestions > header > span,
+.recon-import-controls label {
+  color: var(--color-text-tertiary);
+}
+
+.recon-import-controls button {
+  min-height: 38px;
+  border: 1px solid var(--color-border-emphasis);
+  border-radius: var(--radius-sm);
+  color: var(--color-accent);
+  background: var(--color-bg-accent-subtle);
+}
+
+.recon-import-summary {
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-inset);
+}
+
+.recon-import-preview > div,
+.recon-suggestions article,
+.recon-groups details,
+.exception-register article,
+.recon-activity > div {
+  border-bottom-color: var(--color-border-default);
+}
+
+.recon-import-preview .flagged {
+  color: var(--color-negative);
+}
+
+.recon-import-report {
+  color: var(--color-positive);
+}
+
+.recon-suggestions article small,
+.recon-suggestions article span,
+.recon-suggestions ul {
+  color: var(--color-text-tertiary);
+}
+
+.recon-suggestions article strong {
+  color: var(--color-text-primary);
+}
+
+.suggestion-confidence {
+  border: 1px solid var(--color-positive-border);
+  color: var(--color-positive) !important;
+  background: var(--color-positive-subtle);
+}
+
+.suggestion-confidence.ambiguous,
+.suggestion-confidence.medium {
+  border-color: var(--color-border-emphasis);
+  color: var(--color-accent) !important;
+  background: var(--color-bg-accent-subtle);
+}
+
+.recon-suggestions article button {
+  min-height: 38px;
+  border-color: var(--color-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-subtle);
+}
+
+.recon-suggestions article button:hover:not(:disabled) {
+  border-color: var(--color-border-emphasis);
+  color: var(--color-accent);
+  background: var(--color-bg-accent-subtle);
+}
+
+.recon-groups summary small,
+.recon-group-column > strong,
+.recon-group-column > div span,
+.exception-register article small,
+.recon-activity span,
+.recon-activity small {
+  color: var(--color-text-tertiary);
+}
+
+.recon-group-check {
+  color: var(--color-on-accent);
+  background: var(--color-positive);
+}
+
+.recon-group-body {
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-inset);
+}
+
+.recon-group-column > div {
+  border-top-color: var(--color-border-default);
+}
+
+.exception-register article > span {
+  color: var(--color-accent);
+}
+
+.cash-control {
+  background: var(--color-bg-panel);
+}
+
+.cash-control > header > strong {
+  color: var(--color-positive);
+}
+
+.cash-equation .recon-metric,
+.cash-equation > label {
+  border-left-color: var(--color-border-default);
+}
+
+.cash-equation > label > span,
+.cash-equation > label small {
+  color: var(--color-text-tertiary);
+}
+
+.cash-equation input {
+  border-bottom-color: var(--color-border-default);
+  color: var(--color-text-primary);
+}
+
+.recon-close li {
+  color: var(--color-text-tertiary);
+}
+
+.recon-close li.done {
+  color: var(--color-positive);
+}
+
+@media (max-width: 1119px) {
+  .recon-matchbar {
+    left: 0;
+  }
+
+  .recon-commandbar {
+    top: 74px;
+  }
+}
+
+@media (max-width: 760px) {
+  .recon-titlebar {
+    padding: 0 0 18px;
+  }
+
+  .recon-titlebar h1 {
+    font-size: 32px;
+  }
+
+  .reconciliation-tabs,
+  .recon-queues {
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    padding: 0 14px;
+  }
+
+  .recon-overview,
+  .recon-filters {
+    padding: 14px;
+  }
+
+  .recon-commandbar {
+    margin-top: 12px;
+    border-radius: var(--radius-md);
+    padding: 10px;
+    top: 68px;
+  }
+
+  .recon-tool-button,
+  .recon-more summary {
+    min-height: 44px;
+  }
+
+  .recon-ledgers {
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .recon-ledger + .recon-ledger {
+    border-top: 1px solid var(--color-border-default);
+  }
+
+  .recon-ledger > header {
+    min-height: 74px;
+  }
+
+  .recon-line {
+    min-height: 68px;
+  }
+
+  .recon-matchbar {
+    bottom: 70px;
+  }
+
+  .recon-import,
+  .recon-suggestions,
+  .recon-groups,
+  .exception-register,
+  .cash-control,
+  .recon-close,
+  .recon-activity {
+    margin-top: 12px;
+    padding: 18px 14px;
+  }
+}
