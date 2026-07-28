@@ -1,4 +1,5 @@
 import type { AppState } from "./types";
+import { addCentralAmericaTrip } from "./centralAmericaTrip";
 import { splitEqually } from "./utils/money";
 import { DEFAULT_EXPENSE_EXPORT_TRANSACTIONS, DEFAULT_PERU_CASH_TRANSACTIONS, DEFAULT_SCOTIABANK_TRANSACTIONS } from "./reconciliationData";
 
@@ -64,6 +65,7 @@ export function seedState(): AppState {
       cardTransactions: DEFAULT_SCOTIABANK_TRANSACTIONS,
       exportTransactions: DEFAULT_EXPENSE_EXPORT_TRANSACTIONS,
     },
+    dataMigrations: [],
   };
 
   const addEqual = (
@@ -337,5 +339,5 @@ export function seedState(): AppState {
     addWanderlog(id, description, amount, currency, category, date, "g-peru", peru),
   );
 
-  return state;
+  return addCentralAmericaTrip(state);
 }

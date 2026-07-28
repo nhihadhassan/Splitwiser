@@ -24,6 +24,7 @@ import {
   saveCloudState,
   SYNC_KEY_STORAGE_KEY,
 } from "./cloud";
+import { addCentralAmericaTrip } from "./centralAmericaTrip";
 import { DEFAULT_EXPENSE_EXPORT_TRANSACTIONS, DEFAULT_PERU_CASH_TRANSACTIONS, DEFAULT_SCOTIABANK_TRANSACTIONS } from "./reconciliationData";
 
 export const ME = "me";
@@ -109,8 +110,9 @@ function loadLegacyReconciliation(): ReconciliationState {
 }
 
 function normalizeState(state: Omit<AppState, "reconciliation"> & Partial<AppState>): AppState {
-  return {
+  return addCentralAmericaTrip({
     ...state,
+    dataMigrations: state.dataMigrations ?? [],
     reconciliation: {
       ...loadLegacyReconciliation(),
       ...state.reconciliation,
@@ -119,17 +121,18 @@ function normalizeState(state: Omit<AppState, "reconciliation"> & Partial<AppSta
       cardTransactions: state.reconciliation?.cardTransactions ?? DEFAULT_SCOTIABANK_TRANSACTIONS,
       exportTransactions: state.reconciliation?.exportTransactions ?? DEFAULT_EXPENSE_EXPORT_TRANSACTIONS,
     },
-  };
+  });
 }
 
 function emptyState(): AppState {
-  return {
+  return addCentralAmericaTrip({
     people: [{ id: ME, name: "Nhihad", color: "#5BC5A7" }],
     groups: [],
     expenses: [],
     settlements: [],
     reconciliation: loadLegacyReconciliation(),
-  };
+    dataMigrations: [],
+  });
 }
 
 function isAppState(value: unknown): value is AppState {

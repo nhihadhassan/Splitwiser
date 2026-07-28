@@ -101,4 +101,5 @@ export interface AppState {
   expenses: Expense[];
   settlements: Settlement[];
   reconciliation: ReconciliationState;
+  dataMigrations: string[];
 }
