@@ -25,6 +25,16 @@ private Vercel Blob for cross-device access using a private sync key.
 
 Recent shipped changes:
 
+- Added a versioned trip-reconciliation workspace for Peru and New York with
+  integer-cent transactions, source lineage, grouped matches, exceptions,
+  audit events, close snapshots, and legacy-data migration.
+- Added shared search and filters, persistent multi-selection on both ledgers,
+  many-to-many matching, explainable suggestions, CSV/table-paste import
+  preview with duplicate detection, and JSON/CSV recovery exports.
+- Added a separate Peru cash control (`opening + withdrawals - ending = spent`)
+  and preserved the pre-trip 500 PEN / CA$212 opening cash.
+- Added revision-aware cloud saves with an explicit conflict screen instead of
+  silently overwriting changes made on another device.
 - Reworked the old Splitwise-style shell into the current Splitwiser premium ledger UI.
 - Added a first-class **Groups** overview page.
 - Added a first-class **Settlement Center** with inbound/outbound totals, individual settlement actions, and "Settle All".
@@ -88,6 +98,7 @@ The latest confirmed production alias is:
 | `/activity` | Filterable activity timeline for expenses and payments |
 | `/all` | Searchable/filterable all-expenses feed plus online-save controls |
 | `/settlements` | Settlement Center: total payable, total expected, inbound/outbound transfers, Settle All |
+| `/reconciliation` | Trip-first matching workspace for imports, grouped matching, exceptions, cash control, close, audit, and export |
 
 ## Historical trip source
 
@@ -113,6 +124,8 @@ produced `src/seed.ts` (category map + EUR→CAD conversion), or edit the file d
 | `src/store.tsx` | React context + reducer, browser cache, and online sync state |
 | `src/cloud.ts` | Online ledger client and sync-key generation |
 | `api/state.ts` | Authenticated Vercel Function for Private Blob reads/writes |
+| `src/reconciliation.ts` | Versioned migration, cent-based selectors, import parser, suggestions, and cash controls |
+| `src/reconciliation.test.ts` | Vitest coverage for migrations, totals, imports, suggestions, and cash |
 | `src/seed.ts` | Historical trip source data + avatar palette |
 | `src/utils/money.ts` | Cent math; fair equal/weighted splitting (largest-remainder) |
 | `src/utils/balances.ts` | Pairwise debts, net balances, debt simplification |
@@ -123,6 +136,12 @@ produced `src/seed.ts` (category map + EUR→CAD conversion), or edit the file d
 | `src/styles.css` | Global design system and responsive layout styles |
 
 All money is integer cents. Splits always sum exactly to the total (no drift).
+
+Run reconciliation tests with:
+
+```bash
+npm test
+```
 
 ---
 
