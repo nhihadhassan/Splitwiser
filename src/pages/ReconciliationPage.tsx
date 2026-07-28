@@ -7,6 +7,8 @@ import "./ReconciliationPage.css";
 
 type TripKey = "peru" | "new-york";
 type ChargeDecision = ReconciliationDecision;
+type RightSource = "Scotiabank" | "Expense export" | "Tangerine cash";
+type RightLine = StatementTransaction & { key: string; source: RightSource };
 
 const tripMeta: Record<TripKey, { name: string; dates: string; note: string; wanderlogTotal: number }> = {
   peru: {
@@ -35,8 +37,9 @@ export function ReconciliationPage() {
   const { state, dispatch } = useStore();
   const [trip, setTrip] = useState<TripKey>("peru");
   const [query, setQuery] = useState("");
+  const [selectedWanderlogId, setSelectedWanderlogId] = useState<string | null>(null);
   const meta = tripMeta[trip];
-  const { decisions, cashRemaining, cashTransactions, cardTransactions, exportTransactions } = state.reconciliation;
+  const { decisions, matches, cashRemaining, cashTransactions, cardTransactions, exportTransactions } = state.reconciliation;
   const groupId = trip === "peru" ? "g-peru" : "g-new-york";
   const cardKey = trip === "peru" ? "peru" : "newYork";
   const currentCardTransactions = cardTransactions[cardKey];
@@ -93,6 +96,29 @@ export function ReconciliationPage() {
     || `${transaction.date} ${transaction.description} ${transaction.detail}`.toLowerCase().includes(searchNeedle)
   ));
 
+  const rightLines = useMemo<RightLine[]>(() => [
+    ...currentCardTransactions.map((transaction) => ({ ...transaction, key: `scotia:${transaction.id}`, source: "Scotiabank" as const })),
+    ...currentExportTransactions.map((transaction) => ({ ...transaction, key: `export:${transaction.id}`, source: "Expense export" as const })),
+    ...(trip === "peru" ? cashTransactions.map((transaction) => ({ ...transaction, key: `cash:${transaction.id}`, source: "Tangerine cash" as const })) : []),
+  ], [cashTransactions, currentCardTransactions, currentExportTransactions, trip]);
+
+  const rightLineByKey = useMemo(() => new Map(rightLines.map((line) => [line.key, line])), [rightLines]);
+  const matchedLeftKeyByRightKey = useMemo(() => {
+    const result = new Map<string, string>();
+    Object.entries(matches).forEach(([leftKey, rightKeys]) => {
+      rightKeys.forEach((rightKey) => result.set(rightKey, leftKey));
+    });
+    return result;
+  }, [matches]);
+  const selectedLeftKey = selectedWanderlogId ? `${trip}-${selectedWanderlogId}` : null;
+  const selectedLeft = selectedWanderlogId
+    ? wanderlogCharges.find((charge) => charge.id === selectedWanderlogId)
+    : undefined;
+  const selectedMatchKeys = selectedLeftKey ? matches[selectedLeftKey] ?? [] : [];
+  const selectedMatchTotal = selectedMatchKeys.reduce((sum, key) => sum + (rightLineByKey.get(key)?.amount ?? 0), 0);
+  const matchedWanderlogCount = includedWanderlogCharges.filter((charge) => (matches[`${trip}-${charge.id}`] ?? []).length > 0).length;
+  const unmatchedIncludedCount = includedWanderlogCharges.length - matchedWanderlogCount;
+
   function updateReconciliation(patch: Partial<typeof state.reconciliation>) {
     dispatch({
       type: "updateReconciliation",
@@ -110,6 +136,18 @@ export function ReconciliationPage() {
     updateReconciliation({
       decisions: { ...decisions, [`statement-${trip}-${transactionId}`]: decision },
     });
+  }
+
+  function toggleMatch(rightKey: string) {
+    if (!selectedLeftKey) return;
+    const current = matches[selectedLeftKey] ?? [];
+    const isAlreadyMatched = current.includes(rightKey);
+    const nextMatches = Object.fromEntries(Object.entries(matches).map(([leftKey, rightKeys]) => [
+      leftKey,
+      rightKeys.filter((key) => key !== rightKey),
+    ]));
+    nextMatches[selectedLeftKey] = isAlreadyMatched ? current.filter((key) => key !== rightKey) : [...current, rightKey];
+    updateReconciliation({ matches: nextMatches });
   }
 
   function updateCardTransaction(id: string, patch: Partial<StatementTransaction>) {
@@ -180,7 +218,10 @@ export function ReconciliationPage() {
           <button
             key={key}
             className={trip === key ? "active" : ""}
-            onClick={() => setTrip(key)}
+            onClick={() => {
+              setTrip(key);
+              setSelectedWanderlogId(null);
+            }}
             role="tab"
             aria-selected={trip === key}
           >
@@ -223,6 +264,25 @@ export function ReconciliationPage() {
         </div>
       </section>
 
+      <section className="matching-toolbar" aria-label="Transaction matching workspace">
+        <div>
+          <p className="eyebrow">Matching workspace</p>
+          {selectedLeft ? (
+            <strong>Matching “{selectedLeft.description}” · {money(selectedLeft.amount / 100)}</strong>
+          ) : (
+            <strong>Select a Wanderlog line to match it to the right</strong>
+          )}
+          <span>{unmatchedIncludedCount} included Wanderlog line{unmatchedIncludedCount === 1 ? "" : "s"} still unmatched · {matchedWanderlogCount} linked</span>
+        </div>
+        {selectedLeft && (
+          <div className="matching-toolbar-summary">
+            <span>{selectedMatchKeys.length} linked</span>
+            <strong>{money(selectedMatchTotal)}</strong>
+            <button type="button" onClick={() => setSelectedWanderlogId(null)}>Clear selection</button>
+          </div>
+        )}
+      </section>
+
       <div className="reconciliation-compare-grid">
         <section className="comparison-ledger" aria-labelledby="wanderlog-ledger-title">
           <header className="comparison-ledger-header">
@@ -240,25 +300,38 @@ export function ReconciliationPage() {
           <div className="statement-lines">
             {visibleWanderlogCharges.map((charge) => {
               const decision = decisionFor(charge.id);
+              const matchCount = (matches[`${trip}-${charge.id}`] ?? []).length;
               return (
-                <div className={`statement-line wanderlog-line decision-${decision}`} key={charge.id}>
+                <div
+                  className={`statement-line wanderlog-line decision-${decision} ${selectedWanderlogId === charge.id ? "match-selected" : ""}`}
+                  key={charge.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedWanderlogId(charge.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") setSelectedWanderlogId(charge.id);
+                  }}
+                >
                   <span className="statement-date">{charge.date}</span>
                   <div className="statement-description">
                     <strong>{charge.description}</strong>
                     <small>{charge.notes?.replace("Imported from Wanderlog: ", "") ?? "Imported from Wanderlog"}</small>
                   </div>
                   <strong className="statement-amount">{money(charge.amount / 100)}</strong>
-                  <select
-                    className="statement-decision"
-                    aria-label={`Status for ${charge.description}`}
-                    value={decision}
-                    onChange={(event) => setDecision(charge.id, event.target.value as ChargeDecision)}
-                  >
-                    <option value="include">Include</option>
-                    <option value="review">Review</option>
-                    <option value="personal">Personal</option>
-                    <option value="exclude">Exclude</option>
-                  </select>
+                  <div className="wanderlog-status" onClick={(event) => event.stopPropagation()}>
+                    <select
+                      className="statement-decision"
+                      aria-label={`Status for ${charge.description}`}
+                      value={decision}
+                      onChange={(event) => setDecision(charge.id, event.target.value as ChargeDecision)}
+                    >
+                      <option value="include">Include</option>
+                      <option value="review">Review</option>
+                      <option value="personal">Personal</option>
+                      <option value="exclude">Exclude</option>
+                    </select>
+                    {matchCount > 0 && <span className="match-badge">{matchCount} linked</span>}
+                  </div>
                 </div>
               );
             })}
@@ -305,6 +378,10 @@ export function ReconciliationPage() {
                 onChange={(patch) => updateCardTransaction(transaction.id, patch)}
                 decision={statementDecisionFor(transaction.id)}
                 onDecisionChange={(decision) => setStatementDecision(transaction.id, decision)}
+                matchKey={`scotia:${transaction.id}`}
+                matchedLeftKey={matchedLeftKeyByRightKey.get(`scotia:${transaction.id}`)}
+                selectedWanderlogId={selectedLeftKey}
+                onToggleMatch={() => toggleMatch(`scotia:${transaction.id}`)}
               />
             ))}
             {visibleCardTransactions.length === 0 && <p className="reconciliation-empty">No Scotiabank charges match this search.</p>}
@@ -331,6 +408,10 @@ export function ReconciliationPage() {
                     onChange={(patch) => updateExportTransaction(transaction.id, patch)}
                     decision={statementDecisionFor(transaction.id)}
                     onDecisionChange={(decision) => setStatementDecision(transaction.id, decision)}
+                    matchKey={`export:${transaction.id}`}
+                    matchedLeftKey={matchedLeftKeyByRightKey.get(`export:${transaction.id}`)}
+                    selectedWanderlogId={selectedLeftKey}
+                    onToggleMatch={() => toggleMatch(`export:${transaction.id}`)}
                   />
                 ))}
                 {visibleExportTransactions.length === 0 && <p className="reconciliation-empty">No export charges match this search.</p>}
@@ -359,6 +440,10 @@ export function ReconciliationPage() {
                     onChange={(patch) => updateCashTransaction(transaction.id, patch)}
                     decision={statementDecisionFor(transaction.id)}
                     onDecisionChange={(decision) => setStatementDecision(transaction.id, decision)}
+                    matchKey={`cash:${transaction.id}`}
+                    matchedLeftKey={matchedLeftKeyByRightKey.get(`cash:${transaction.id}`)}
+                    selectedWanderlogId={selectedLeftKey}
+                    onToggleMatch={() => toggleMatch(`cash:${transaction.id}`)}
                   />
                 ))}
                 {visibleCashTransactions.length === 0 && <p className="reconciliation-empty">No Tangerine withdrawals match this search.</p>}
@@ -396,14 +481,22 @@ function EditableStatementLine({
   onChange,
   decision,
   onDecisionChange,
+  matchKey,
+  matchedLeftKey,
+  selectedWanderlogId,
+  onToggleMatch,
 }: {
   transaction: StatementTransaction;
   onChange: (patch: Partial<StatementTransaction>) => void;
   decision: "include" | "exclude";
   onDecisionChange: (decision: "include" | "exclude") => void;
+  matchKey: string;
+  matchedLeftKey?: string;
+  selectedWanderlogId: string | null;
+  onToggleMatch: () => void;
 }) {
   return (
-    <div className={`statement-line editable-statement-line decision-${decision}`}>
+    <div className={`statement-line editable-statement-line decision-${decision}`} data-match-key={matchKey}>
       <input
         className="statement-date-input"
         aria-label="Transaction date"
@@ -434,15 +527,23 @@ function EditableStatementLine({
           onChange={(event) => onChange({ amount: Number(event.target.value) || 0 })}
         />
       </label>
-      <select
-        className="statement-decision right-statement-decision"
-        aria-label={`Status for ${transaction.description}`}
-        value={decision}
-        onChange={(event) => onDecisionChange(event.target.value as "include" | "exclude")}
-      >
-        <option value="include">Include</option>
-        <option value="exclude">Exclude</option>
-      </select>
+      <div className="statement-actions">
+        <select
+          className="statement-decision right-statement-decision"
+          aria-label={`Status for ${transaction.description}`}
+          value={decision}
+          onChange={(event) => onDecisionChange(event.target.value as "include" | "exclude")}
+        >
+          <option value="include">Include</option>
+          <option value="exclude">Exclude</option>
+        </select>
+        {selectedWanderlogId && decision === "include" && (
+          <button className={`match-action ${matchedLeftKey === selectedWanderlogId ? "linked" : ""}`} type="button" onClick={onToggleMatch}>
+            {matchedLeftKey === selectedWanderlogId ? "Unmatch" : matchedLeftKey ? "Reassign" : "Match"}
+          </button>
+        )}
+        {matchedLeftKey && !selectedWanderlogId && <span className="match-badge">Matched</span>}
+      </div>
     </div>
   );
 }

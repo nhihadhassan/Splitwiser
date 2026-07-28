@@ -100,6 +100,7 @@ function loadLegacyReconciliation(): ReconciliationState {
 
   return {
     decisions,
+    matches: {},
     cashRemaining: localStorage.getItem("splitwiser-peru-cash-remaining") ?? "",
     cashTransactions: DEFAULT_PERU_CASH_TRANSACTIONS,
     cardTransactions: DEFAULT_SCOTIABANK_TRANSACTIONS,
@@ -113,6 +114,7 @@ function normalizeState(state: Omit<AppState, "reconciliation"> & Partial<AppSta
     reconciliation: {
       ...loadLegacyReconciliation(),
       ...state.reconciliation,
+      matches: state.reconciliation?.matches ?? {},
       cashTransactions: state.reconciliation?.cashTransactions ?? DEFAULT_PERU_CASH_TRANSACTIONS,
       cardTransactions: state.reconciliation?.cardTransactions ?? DEFAULT_SCOTIABANK_TRANSACTIONS,
       exportTransactions: state.reconciliation?.exportTransactions ?? DEFAULT_EXPENSE_EXPORT_TRANSACTIONS,

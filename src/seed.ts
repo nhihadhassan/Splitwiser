@@ -58,6 +58,7 @@ export function seedState(): AppState {
     settlements: [],
     reconciliation: {
       decisions: {},
+      matches: {},
       cashRemaining: "",
       cashTransactions: DEFAULT_PERU_CASH_TRANSACTIONS,
       cardTransactions: DEFAULT_SCOTIABANK_TRANSACTIONS,

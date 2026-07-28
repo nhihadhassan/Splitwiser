@@ -101,6 +101,81 @@
   color: var(--color-positive);
 }
 
+.matching-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+  padding: 13px 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-inset);
+}
+
+.matching-toolbar > div:first-child {
+  min-width: 0;
+}
+
+.matching-toolbar strong,
+.matching-toolbar span {
+  display: block;
+}
+
+.matching-toolbar strong {
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.matching-toolbar > div:first-child > span {
+  margin-top: 4px;
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+}
+
+.matching-toolbar-summary {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 10px;
+}
+
+.matching-toolbar-summary > span {
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+}
+
+.matching-toolbar-summary > strong {
+  margin: 0;
+  color: var(--color-accent);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.matching-toolbar-summary button,
+.match-action {
+  border: 1px solid var(--color-border-default);
+  border-radius: 6px;
+  color: var(--color-text-secondary);
+  background: transparent;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.matching-toolbar-summary button {
+  padding: 6px 8px;
+}
+
+.matching-toolbar-summary button:hover,
+.match-action:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
 .reconciliation-compare-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -251,6 +326,20 @@
   background: rgba(255, 255, 255, .025);
 }
 
+.wanderlog-line {
+  cursor: pointer;
+}
+
+.wanderlog-line:focus-visible {
+  outline: 1px solid var(--color-accent);
+  outline-offset: -1px;
+}
+
+.wanderlog-line.match-selected {
+  background: var(--color-bg-accent-subtle);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
 .statement-lines .statement-line:last-child {
   border-bottom: 0;
 }
@@ -321,6 +410,37 @@
 
 .decision-review {
   background: var(--color-bg-accent-subtle);
+}
+
+.wanderlog-status,
+.statement-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.match-badge {
+  display: inline-block !important;
+  flex: 0 0 auto;
+  color: var(--color-positive) !important;
+  font-size: 9px !important;
+  font-weight: 800;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+
+.match-action {
+  flex: 0 0 auto;
+  min-height: 27px;
+  padding: 0 7px;
+  color: var(--color-accent);
+  white-space: nowrap;
+}
+
+.match-action.linked {
+  color: var(--color-positive);
 }
 
 .conversion-adjustment-line {
@@ -547,8 +667,24 @@
   }
 
   .statement-decision {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .wanderlog-status,
+  .statement-actions {
     grid-column: 2;
     grid-row: 3;
+  }
+
+  .matching-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .matching-toolbar-summary {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .adjustment-status {

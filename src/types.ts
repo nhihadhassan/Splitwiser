@@ -81,6 +81,8 @@ export type CashTransaction = StatementTransaction;
 
 export interface ReconciliationState {
   decisions: Record<string, ReconciliationDecision>;
+  /** Wanderlog line key -> statement/cash transaction keys linked to it. */
+  matches: Record<string, string[]>;
   cashRemaining: string;
   cashTransactions: CashTransaction[];
   cardTransactions: {
