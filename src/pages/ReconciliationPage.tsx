@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useStore } from "../store";
+import { uid, useStore } from "../store";
 import { formatMoney } from "../utils/money";
 import type { ReconciliationDecision } from "../types";
 import "./ReconciliationPage.css";
@@ -61,17 +61,16 @@ const tripMeta: Record<TripKey, { name: string; dates: string; budget: string; s
   },
 };
 
-const peruCashRecorded = 1679.69;
-
 export function ReconciliationPage() {
   const { state, dispatch } = useStore();
   const [trip, setTrip] = useState<TripKey>("peru");
-  const { decisions, cashRemaining } = state.reconciliation;
+  const { decisions, cashRemaining, cashTransactions } = state.reconciliation;
   const [filter, setFilter] = useState<"all" | ChargeDecision>("all");
   const [query, setQuery] = useState("");
   const meta = tripMeta[trip];
   const items = reviewItems[trip];
-  const cashSpent = cashRemaining === "" ? null : Math.max(0, peruCashRecorded - Number(cashRemaining));
+  const cashRecorded = cashTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+  const cashSpent = cashRemaining === "" ? null : Math.max(0, cashRecorded - Number(cashRemaining));
 
   const charges = useMemo<Charge[]>(() => {
     const groupId = trip === "peru" ? "g-peru" : "g-new-york";
@@ -143,6 +142,26 @@ export function ReconciliationPage() {
     });
   }
 
+  function updateCashTransaction(id: string, patch: Partial<(typeof cashTransactions)[number]>) {
+    dispatch({
+      type: "updateReconciliation",
+      reconciliation: {
+        ...state.reconciliation,
+        cashTransactions: cashTransactions.map((transaction) => transaction.id === id ? { ...transaction, ...patch } : transaction),
+      },
+    });
+  }
+
+  function addCashTransaction() {
+    dispatch({
+      type: "updateReconciliation",
+      reconciliation: {
+        ...state.reconciliation,
+        cashTransactions: [...cashTransactions, { id: uid(), date: "", description: "New cash entry", detail: "", amount: 0 }],
+      },
+    });
+  }
+
   return (
     <>
       <main className="pane pane-wide reconciliation-page">
@@ -207,16 +226,23 @@ export function ReconciliationPage() {
                 <p className="eyebrow">Cash source</p>
                 <h2>Tangerine ATM withdrawals</h2>
               </div>
-              <strong className="reconciliation-total">CA$1,679.69</strong>
+              <strong className="reconciliation-total">{formatMoney(Math.round(cashRecorded * 100))}</strong>
             </div>
-            <p className="muted-copy">CA$212.00 for 500 PEN was withdrawn before July 12. From July 12 onward, CA$1,467.69 was withdrawn across 10 international ATMs, including a CA$3.00 ABM network charge. This is cash recorded, not automatically cash spent.</p>
-            <div className="cash-breakdown">
-              <span>Before Jul 12 <strong>500 PEN · CA$212.00</strong></span>
-              <span>Jul 12 <strong>CA$256.83</strong></span>
-              <span>Jul 15 - 19 <strong>CA$678.58</strong></span>
-              <span>Jul 21 - 26 <strong>CA$532.28</strong></span>
-              <span>ABM fee <strong>CA$3.00</strong></span>
+            <p className="muted-copy">Every cash movement is listed below as a statement line. Edit the date, merchant, note, or amount directly; the total and cash-spent estimate update immediately.</p>
+            <div className="cash-ledger" role="region" aria-label="Tangerine cash statement">
+              <div className="cash-ledger-header" aria-hidden="true"><span>Date</span><span>Transaction</span><span>Amount</span></div>
+              {cashTransactions.map((transaction) => (
+                <div className="cash-ledger-row" key={transaction.id}>
+                  <input className="cash-ledger-date" aria-label="Transaction date" value={transaction.date} onChange={(event) => updateCashTransaction(transaction.id, { date: event.target.value })} />
+                  <div className="cash-ledger-description">
+                    <input aria-label="Transaction description" value={transaction.description} onChange={(event) => updateCashTransaction(transaction.id, { description: event.target.value })} />
+                    <input aria-label="Transaction detail" value={transaction.detail} onChange={(event) => updateCashTransaction(transaction.id, { detail: event.target.value })} placeholder="Optional note" />
+                  </div>
+                  <label className="cash-ledger-amount"><span>CA$</span><input aria-label="Transaction amount" type="number" min="0" step="0.01" value={transaction.amount} onChange={(event) => updateCashTransaction(transaction.id, { amount: Number(event.target.value) || 0 })} /></label>
+                </div>
+              ))}
             </div>
+            <button className="cash-add-line" type="button" onClick={addCashTransaction}>Add cash line</button>
             <div className="cash-entry-row">
               <label className="field">
                 <span>Cash brought home</span>

@@ -32,9 +32,34 @@
 .decision-exclude td, .decision-personal td { opacity: .68; }
 .reconciliation-empty { margin: 0; padding: 32px 10px; color: var(--color-text-tertiary, var(--text-soft)); text-align: center; }
 
+.cash-ledger { margin-top: 18px; border-top: 1px solid var(--color-border-default, var(--line)); }
+.cash-ledger-header, .cash-ledger-row { display: grid; grid-template-columns: 130px minmax(0, 1fr) 136px; gap: 14px; align-items: center; }
+.cash-ledger-header { padding: 10px 12px; color: var(--color-text-tertiary, var(--text-soft)); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.cash-ledger-header span:last-child { text-align: right; }
+.cash-ledger-row { min-height: 64px; padding: 9px 12px; border-top: 1px solid var(--color-border-default, var(--line)); transition: background 160ms ease; }
+.cash-ledger-row:hover { background: var(--color-bg-accent-subtle, rgba(233, 193, 118, .05)); }
+.cash-ledger input { width: 100%; border: 1px solid transparent; border-radius: 6px; color: var(--color-text-primary, var(--text)); background: transparent; font: inherit; transition: background 160ms ease, border-color 160ms ease; }
+.cash-ledger input:hover { border-color: var(--color-border-default, var(--line)); background: rgba(255, 255, 255, .025); }
+.cash-ledger input:focus { border-color: var(--color-accent, var(--gold)); outline: 0; background: var(--color-bg-input, rgba(5, 5, 5, .72)); }
+.cash-ledger-date { padding: 7px 8px; color: var(--color-text-tertiary, var(--text-soft)) !important; font-size: 12px; }
+.cash-ledger-description { min-width: 0; }
+.cash-ledger-description input:first-child { padding: 5px 8px; font-weight: 700; }
+.cash-ledger-description input:last-child { padding: 3px 8px; color: var(--color-text-tertiary, var(--text-soft)); font-size: 12px; }
+.cash-ledger-amount { display: flex; align-items: center; border: 1px solid transparent; border-radius: 6px; color: var(--color-accent, var(--gold)); font-weight: 800; transition: background 160ms ease, border-color 160ms ease; }
+.cash-ledger-amount:hover, .cash-ledger-amount:focus-within { border-color: var(--color-border-default, var(--line)); background: rgba(255, 255, 255, .025); }
+.cash-ledger-amount span { padding-left: 8px; font-size: 12px; }
+.cash-ledger-amount input { min-width: 0; padding: 7px 8px; color: var(--color-text-primary, var(--text)); text-align: right; font-weight: 800; }
+.cash-add-line { margin-top: 10px; border: 0; color: var(--color-accent, var(--gold)); background: transparent; padding: 7px 0; font-weight: 700; }
+.cash-add-line:active { transform: translateY(1px); }
+
 @media (max-width: 680px) {
   .reconciliation-totals { grid-template-columns: 1fr; }
   .reconciliation-totals div { border-right: 0; border-bottom: 1px solid var(--color-border-default, var(--line)); }
   .reconciliation-totals div:last-child { border-bottom: 0; }
   .reconciliation-toolbar { align-items: stretch; flex-direction: column; }
+  .cash-ledger-header { display: none; }
+  .cash-ledger-row { grid-template-columns: minmax(0, 1fr) 112px; gap: 4px 12px; padding: 12px 0; }
+  .cash-ledger-date { grid-column: 1; padding-left: 0; }
+  .cash-ledger-description { grid-column: 1; }
+  .cash-ledger-amount { grid-column: 2; grid-row: 1 / span 2; }
 }

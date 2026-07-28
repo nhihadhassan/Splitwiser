@@ -24,6 +24,7 @@ import {
   saveCloudState,
   SYNC_KEY_STORAGE_KEY,
 } from "./cloud";
+import { DEFAULT_PERU_CASH_TRANSACTIONS } from "./reconciliationData";
 
 export const ME = "me";
 
@@ -100,13 +101,18 @@ function loadLegacyReconciliation(): ReconciliationState {
   return {
     decisions,
     cashRemaining: localStorage.getItem("splitwiser-peru-cash-remaining") ?? "",
+    cashTransactions: DEFAULT_PERU_CASH_TRANSACTIONS,
   };
 }
 
 function normalizeState(state: Omit<AppState, "reconciliation"> & Partial<AppState>): AppState {
   return {
     ...state,
-    reconciliation: state.reconciliation ?? loadLegacyReconciliation(),
+    reconciliation: {
+      ...loadLegacyReconciliation(),
+      ...state.reconciliation,
+      cashTransactions: state.reconciliation?.cashTransactions ?? DEFAULT_PERU_CASH_TRANSACTIONS,
+    },
   };
 }
 

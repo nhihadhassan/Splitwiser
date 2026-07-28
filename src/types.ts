@@ -69,9 +69,18 @@ export interface Settlement {
 
 export type ReconciliationDecision = "include" | "exclude" | "personal" | "review";
 
+export interface CashTransaction {
+  id: string;
+  date: string;
+  description: string;
+  detail: string;
+  amount: number;
+}
+
 export interface ReconciliationState {
   decisions: Record<string, ReconciliationDecision>;
   cashRemaining: string;
+  cashTransactions: CashTransaction[];
 }
 
 export interface AppState {
