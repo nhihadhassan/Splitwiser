@@ -29,6 +29,7 @@ import { addCentralAmericaTrip } from "./centralAmericaTrip";
 import { DEFAULT_EXPENSE_EXPORT_TRANSACTIONS, DEFAULT_NEW_YORK_MATCHES, DEFAULT_PERU_CASH_TRANSACTIONS, DEFAULT_SCOTIABANK_TRANSACTIONS } from "./reconciliationData";
 import { ensureReconciliationWorkspace } from "./reconciliation";
 import { seedState } from "./seed";
+import { splitEqually } from "./utils/money";
 
 export const ME = "me";
 
@@ -130,6 +131,19 @@ function normalizeState(state: Omit<AppState, "reconciliation"> & Partial<AppSta
   normalized.expenses = normalized.expenses.concat(
     seededTripExpenses.filter((expense) => !existingExpenseIds.has(expense.id)),
   );
+  normalized.expenses = normalized.expenses.map((expense) => {
+    if (expense.id !== "e-ny-019" || expense.amount !== 584) return expense;
+    const owes = splitEqually(583, expense.splits.length);
+    return {
+      ...expense,
+      amount: 583,
+      splits: expense.splits.map((split, index) => ({
+        ...split,
+        owes: owes[index],
+        paid: split.personId === ME ? 583 : 0,
+      })),
+    };
+  });
   const mergedNewYorkMatches = { ...normalized.reconciliation.matches };
   Object.entries(DEFAULT_NEW_YORK_MATCHES).forEach(([expenseId, rightKeys]) => {
     const key = `new-york-${expenseId}`;
