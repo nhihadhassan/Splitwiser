@@ -1,5 +1,7 @@
 # Splitwiser
 
+**Live demo:** https://splitwiser-xi.vercel.app
+
 A complete recreation of the **Splitwise** expense-splitting app as a single-page web app.
 Built with React, TypeScript, and Vite; all data is stored locally in your browser
 (`localStorage`), so it works with zero backend setup.
@@ -55,3 +57,7 @@ Balances are computed from first principles on every render: each expense turns
 into pairwise debts (participants owe the payer their share), settlements reduce
 them, and the "simplify debts" option runs a greedy max-creditor/max-debtor
 matching over net balances — the same behavior Splitwise uses.
+
+## License
+
+Released under the [MIT License](LICENSE).
