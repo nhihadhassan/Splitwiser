@@ -38,6 +38,8 @@ Recent shipped changes:
 - Reworked the old Splitwise-style shell into the current Splitwiser premium ledger UI.
 - Added a first-class **Groups** overview page.
 - Added a first-class **Settlement Center** with inbound/outbound totals, individual settlement actions, and "Settle All".
+- Added group lifecycle controls: create any group with the existing icon/member/split settings, close it into a preserved read-only history view, and reopen it when needed.
+- Added reconciliation lifecycle controls: create named workspaces, close them with snapshots, archive completed work for reference, and revisit archived workspaces later.
 - Added richer dashboard modules, activity filters, expense search, category filters, desktop sidebar navigation, and mobile bottom navigation.
 - Renamed all visible AUREUM branding back to **Splitwiser**.
 
@@ -98,7 +100,7 @@ The latest confirmed production alias is:
 | `/activity` | Filterable activity timeline for expenses and payments |
 | `/all` | Searchable/filterable all-expenses feed plus online-save controls |
 | `/settlements` | Settlement Center: total payable, total expected, inbound/outbound transfers, Settle All |
-| `/reconciliation` | Trip-first matching workspace for imports, grouped matching, exceptions, cash control, close, audit, and export |
+| `/reconciliation` | Trip/workspace matching surface for imports, grouped matching, exceptions, cash control, close, archive/revisit, audit, and export |
 
 ## Historical trip source
 

@@ -50,6 +50,17 @@ export function GroupPage() {
     }
   }
 
+  function toggleClosed() {
+    dispatch({
+      type: "updateGroup",
+      group: {
+        ...group!,
+        status: group!.status === "closed" ? "open" : "closed",
+        closedAt: group!.status === "closed" ? undefined : Date.now(),
+      },
+    });
+  }
+
   return (
     <>
       <main className="pane">
@@ -58,10 +69,10 @@ export function GroupPage() {
             <span className="group-page-title"><GroupBadge type={group.type} name={group.name} size={44} /> {group.name}</span>
             <span className="sub">{group.memberIds.length} members</span>
           </h1>
-          <button className="btn btn-primary" onClick={() => setAddingExpense(true)}>
+          <button className="btn btn-primary" disabled={group.status === "closed"} onClick={() => setAddingExpense(true)}>
             Add expense
           </button>
-          <button className="btn btn-primary" onClick={() => setSettlingBlank(true)}>
+          <button className="btn btn-primary" disabled={group.status === "closed"} onClick={() => setSettlingBlank(true)}>
             Settle
           </button>
         </div>
@@ -71,6 +82,7 @@ export function GroupPage() {
           settlements={settlements}
           emptyMessage="No expenses yet."
         />
+        {group.status === "closed" && <div className="lifecycle-banner">This group is closed. Its ledger is preserved for reference; reopen it from Group settings to make changes.</div>}
       </main>
 
       <aside className="rail">
@@ -119,8 +131,11 @@ export function GroupPage() {
         <div className="rail-card">
           <h2>Group settings</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
-            <button className="btn btn-secondary" onClick={() => setEditingGroup(true)}>
+            <button className="btn btn-secondary" disabled={group.status === "closed"} onClick={() => setEditingGroup(true)}>
               Edit group
+            </button>
+            <button className="btn btn-secondary" onClick={toggleClosed}>
+              {group.status === "closed" ? "Reopen group" : "Close group"}
             </button>
             <button className="btn-link-danger" onClick={deleteGroup}>
               Delete group

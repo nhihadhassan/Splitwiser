@@ -18,6 +18,8 @@ export interface Group {
   memberIds: string[];
   createdAt: number;
   simplifyDebts: boolean;
+  status?: "open" | "closed";
+  closedAt?: number;
 }
 
 export interface ExpenseSplit {
@@ -79,7 +81,9 @@ export interface StatementTransaction {
 
 export type CashTransaction = StatementTransaction;
 
-export type ReconciliationTripId = "portugal" | "peru" | "new-york";
+/** Stable slug for a reconciliation workspace. Seeded trips use the three
+ * well-known slugs below, while user-created workspaces get their own ids. */
+export type ReconciliationTripId = string;
 export type ReconciliationSide = "left" | "right";
 export type ReconciliationQueue =
   | "unmatched"
@@ -186,7 +190,7 @@ export interface ReconciliationException {
 export interface ReconciliationAuditEvent {
   id: string;
   tripId: ReconciliationTripId;
-  action: "migrate" | "import" | "edit" | "match" | "unmatch" | "exclude" | "support" | "adjust" | "close" | "reopen";
+  action: "migrate" | "import" | "edit" | "match" | "unmatch" | "exclude" | "support" | "adjust" | "close" | "reopen" | "archive";
   timestamp: string;
   summary: string;
   transactionIds: string[];
@@ -197,9 +201,12 @@ export interface ReconciliationAuditEvent {
 export interface ReconciliationPeriod {
   tripId: ReconciliationTripId;
   status: "open" | "closed";
+  name?: string;
+  dates?: string;
   closedAt?: string;
   reopenedAt?: string;
   closeSnapshot?: string;
+  archivedAt?: string;
 }
 
 export interface ReconciliationWorkspace {

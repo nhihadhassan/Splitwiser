@@ -914,6 +914,28 @@ a {
   margin-top: auto;
 }
 
+.pane-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lifecycle-note {
+  color: var(--muted, #746f67);
+  display: block;
+  font-size: 12px;
+  margin-top: -8px;
+}
+
+.lifecycle-banner {
+  background: #f4f0e8;
+  border: 1px solid #ded6c7;
+  color: #665f54;
+  margin: 18px 0;
+  padding: 12px 14px;
+}
+
 .ledger-actions .btn {
   flex: 1;
 }

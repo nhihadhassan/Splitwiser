@@ -29,7 +29,7 @@ import "./ReconciliationPage.css";
 
 type QueueTab = "unmatched" | "suggested" | "exception" | "reconciled" | "excluded";
 
-const tripMeta: Record<ReconciliationTripId, { name: string; dates: string; note: string }> = {
+const tripMeta: Record<string, { name: string; dates: string; note: string }> = {
   portugal: {
     name: "Portugal",
     dates: "Jun 8 – Jun 24, 2026",
@@ -114,6 +114,8 @@ export function ReconciliationPage() {
   const [importReport, setImportReport] = useState("");
   const [notice, setNotice] = useState("");
   const [showActivity, setShowActivity] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [showNewReconciliation, setShowNewReconciliation] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const lastLeftIndex = useRef<number | null>(null);
   const lastRightIndex = useRef<number | null>(null);
@@ -134,15 +136,23 @@ export function ReconciliationPage() {
   }, []);
 
   useEffect(() => {
-    setImportSource(`scotia-${trip}`);
-  }, [trip]);
+    const source = workspace?.sources.find((item) => item.tripId === trip && item.type !== "wanderlog");
+    setImportSource(source?.id ?? `scotia-${trip}`);
+  }, [trip, workspace?.sources]);
 
   if (!workspace) {
     return <main className="pane pane-wide reconciliation-page"><p>Preparing reconciliation workspace…</p></main>;
   }
 
   const period = workspace.periods.find((item) => item.tripId === trip)!;
+  const currentMeta = tripMeta[trip] ?? {
+    name: period.name ?? trip,
+    dates: period.dates ?? "No dates set",
+    note: `${workspace.transactions.filter((item) => item.tripId === trip).length} imported items`,
+  };
   const isClosed = period.status === "closed";
+  const isArchived = Boolean(period.archivedAt);
+  const isLocked = isClosed || isArchived;
   const transactions = workspace.transactions.filter((item) => item.tripId === trip);
   const sources = workspace.sources.filter((item) => item.tripId === trip);
   const suggestions = generateSuggestions(workspace, trip);
@@ -246,7 +256,7 @@ export function ReconciliationPage() {
   }
 
   function confirmGroup(group?: ReconciliationMatchGroup) {
-    if (isClosed) return;
+    if (isLocked) return;
     const leftIds = group?.leftIds ?? selectedLeft;
     const rightIds = group?.rightIds ?? selectedRight;
     const leftTotalCents = leftIds.reduce((sum, id) => sum + (byId.get(id)?.postedCadCents ?? 0), 0);
@@ -304,7 +314,7 @@ export function ReconciliationPage() {
   }
 
   function reopenGroup(group: ReconciliationMatchGroup) {
-    if (isClosed) return;
+    if (isLocked) return;
     const ids = [...group.leftIds, ...group.rightIds];
     const next = {
       ...workspace,
@@ -316,7 +326,7 @@ export function ReconciliationPage() {
   }
 
   function setTransactionStatus(ids: string[], status: ReconciliationQueue) {
-    if (isClosed || ids.length === 0) return;
+    if (isLocked || ids.length === 0) return;
     const next = {
       ...workspace,
       transactions: workspace.transactions.map((item) => ids.includes(item.id) ? { ...item, status } : item),
@@ -328,7 +338,7 @@ export function ReconciliationPage() {
 
   function supportSelected() {
     const ids = [...selectedLeft, ...selectedRight];
-    if (isClosed || ids.length === 0 || !supportNote.trim()) return;
+    if (isLocked || ids.length === 0 || !supportNote.trim()) return;
     const amountCents = ids.reduce((sum, id) => sum + (byId.get(id)?.postedCadCents ?? 0), 0);
     const exception = {
       id: uid("exception"),
@@ -353,7 +363,7 @@ export function ReconciliationPage() {
   }
 
   function resolveException(id: string) {
-    if (isClosed) return;
+    if (isLocked) return;
     const exception = workspace.exceptions.find((item) => item.id === id);
     if (!exception) return;
     const next = {
@@ -365,7 +375,7 @@ export function ReconciliationPage() {
   }
 
   function editTransaction(id: string, patch: Partial<ReconciliationTransaction>) {
-    if (isClosed) return;
+    if (isLocked) return;
     const next = {
       ...workspace,
       transactions: workspace.transactions.map((item) => {
@@ -383,7 +393,7 @@ export function ReconciliationPage() {
   }
 
   function commitImport() {
-    if (isClosed) return;
+    if (isLocked) return;
     const accepted = importPreview.filter((row) => row.valid && !row.duplicate);
     const created = accepted.map((row) => importedTransaction(row, trip, importSource, uid("import")));
     const skipped = importPreview.length - created.length;
@@ -418,7 +428,7 @@ export function ReconciliationPage() {
       ...workspace,
       periods: workspace.periods.map((item) => item.tripId === trip ? { ...item, status: "closed" as const, closedAt: new Date().toISOString(), closeSnapshot: snapshot } : item),
     };
-    updateWorkspace(withAudit(next, "close", `Closed ${tripMeta[trip].name} reconciliation`, []));
+    updateWorkspace(withAudit(next, "close", `Closed ${currentMeta.name} reconciliation`, []));
   }
 
   function reopenPeriod() {
@@ -431,10 +441,49 @@ export function ReconciliationPage() {
     updateWorkspace(withAudit(next, "reopen", `Reopened trip: ${reason}`, []));
   }
 
+  function archivePeriod() {
+    if (!isClosed || isArchived) return;
+    const next = {
+      ...workspace,
+      periods: workspace.periods.map((item) => item.tripId === trip ? { ...item, archivedAt: new Date().toISOString() } : item),
+    };
+    updateWorkspace(withAudit(next, "archive", `Archived ${currentMeta.name} reconciliation for future reference`, []));
+    setShowArchived(true);
+  }
+
+  function revisitPeriod() {
+    if (!isArchived) return;
+    const next = {
+      ...workspace,
+      periods: workspace.periods.map((item) => item.tripId === trip ? { ...item, archivedAt: undefined } : item),
+    };
+    updateWorkspace(withAudit(next, "reopen", `Revisited ${currentMeta.name} reconciliation`, []));
+    setShowArchived(false);
+  }
+
+  function createReconciliation(name: string, dates: string) {
+    const id = `recon-${Date.now().toString(36)}`;
+    const sourceIds = { wanderlog: `wanderlog-${id}`, statement: `statement-${id}` };
+    const next: ReconciliationWorkspace = {
+      ...workspace,
+      sources: [
+        ...workspace.sources,
+        { id: sourceIds.wanderlog, tripId: id, type: "wanderlog", institution: "Wanderlog", account: "Trip expense log", currency: "CAD", importedAt: new Date().toISOString(), fingerprint: id },
+        { id: sourceIds.statement, tripId: id, type: "import", institution: "Imported statement", account: "Add a bank or card export", currency: "CAD", importedAt: new Date().toISOString(), fingerprint: `${id}-statement` },
+      ],
+      periods: [...workspace.periods, { tripId: id, name, dates, status: "open" }],
+      auditEvents: [...workspace.auditEvents, auditEvent(id, "import", `Created ${name} reconciliation`, [])],
+    };
+    updateWorkspace(next);
+    setTrip(id);
+    setImportSource(sourceIds.statement);
+    setShowNewReconciliation(false);
+  }
+
   function exportPackage() {
     const packageData = {
       schemaVersion: workspace.schemaVersion,
-      trip: tripMeta[trip],
+      trip: currentMeta,
       exportedAt: new Date().toISOString(),
       totals,
       cashSummary: trip === "peru" ? cash : undefined,
@@ -487,13 +536,17 @@ export function ReconciliationPage() {
       <header className="recon-titlebar">
         <h1>Reconciliation</h1>
         <div className="recon-title-actions">
-          <span className={`recon-period-status ${isClosed ? "closed" : ""}`}>{isClosed ? "Closed" : "Open"}</span>
+          <span className={`recon-period-status ${isClosed || isArchived ? "closed" : ""}`}>{isArchived ? "Archived" : isClosed ? "Closed" : "Open"}</span>
+          <button type="button" className="btn btn-secondary" onClick={() => setShowNewReconciliation(true)}>New reconciliation</button>
           <button type="button" className="btn btn-secondary" onClick={exportPackage}>Export</button>
         </div>
       </header>
 
       <nav className="reconciliation-tabs" aria-label="Trips">
-        {(Object.keys(tripMeta) as ReconciliationTripId[]).map((key) => (
+        {workspace.periods.filter((item) => showArchived ? Boolean(item.archivedAt) : !item.archivedAt).map((item) => {
+          const key = item.tripId;
+          const meta = tripMeta[key] ?? { name: item.name ?? key, dates: item.dates ?? "No dates set", note: "User-created reconciliation" };
+          return (
           <button
             key={key}
             type="button"
@@ -505,16 +558,20 @@ export function ReconciliationPage() {
               setQueue("unmatched");
             }}
           >
-            <span>{tripMeta[key].name}</span>
-            <small>{tripMeta[key].dates}</small>
+            <span>{meta.name}</span>
+            <small>{meta.dates}</small>
           </button>
-        ))}
+          );
+        })}
+        <button type="button" className="reconciliation-archive-toggle" onClick={() => setShowArchived(!showArchived)}>
+          {showArchived ? "Show active" : `Archived (${workspace.periods.filter((item) => item.archivedAt).length})`}
+        </button>
       </nav>
 
       <section className="recon-overview">
         <div className="recon-trip-context">
-          <span>{tripMeta[trip].dates}</span>
-          <strong>{tripMeta[trip].note}</strong>
+          <span>{currentMeta.dates}</span>
+          <strong>{currentMeta.note}</strong>
         </div>
         <Metric label="Wanderlog" value={money(totals.left)} detail={`${totals.leftCount} items`} />
         <Metric label="Statements" value={money(totals.right)} detail={`${money(Math.abs(totals.difference))} difference`} />
@@ -558,7 +615,7 @@ export function ReconciliationPage() {
           report={importReport}
           onPreview={buildImportPreview}
           onImport={commitImport}
-          disabled={isClosed}
+          disabled={isLocked}
         />
       )}
 
@@ -611,11 +668,11 @@ export function ReconciliationPage() {
       {notice && <button type="button" className="recon-notice" onClick={() => setNotice("")}>{notice}<span>×</span></button>}
 
       {queue === "suggested" && (
-        <SuggestionList suggestions={suggestions} byId={byId} onConfirm={confirmGroup} disabled={isClosed} />
+        <SuggestionList suggestions={suggestions} byId={byId} onConfirm={confirmGroup} disabled={isLocked} />
       )}
 
       {queue === "reconciled" ? (
-        <ReconciledGroups groups={confirmedGroups} byId={byId} onReopen={reopenGroup} disabled={isClosed} query={searchNeedle} />
+        <ReconciledGroups groups={confirmedGroups} byId={byId} onReopen={reopenGroup} disabled={isLocked} query={searchNeedle} />
       ) : (
         <div className="recon-ledgers">
           <Ledger
@@ -627,7 +684,7 @@ export function ReconciliationPage() {
             onToggle={(id, event) => toggleSelection("left", id, event, visibleLeft)}
             onSelectVisible={() => selectVisible("left", visibleLeft)}
             onEdit={editTransaction}
-            disabled={isClosed}
+            disabled={isLocked}
             sourceById={new Map(sources.map((item) => [item.id, item.institution]))}
           />
           <Ledger
@@ -639,7 +696,7 @@ export function ReconciliationPage() {
             onToggle={(id, event) => toggleSelection("right", id, event, visibleRight)}
             onSelectVisible={() => selectVisible("right", visibleRight)}
             onEdit={editTransaction}
-            disabled={isClosed}
+            disabled={isLocked}
             sourceById={new Map(sources.map((item) => [item.id, item.institution]))}
           />
         </div>
@@ -650,7 +707,7 @@ export function ReconciliationPage() {
           items={workspace.exceptions.filter((item) => item.tripId === trip && !item.resolved)}
           byId={byId}
           onResolve={resolveException}
-          disabled={isClosed}
+          disabled={isLocked}
         />
       )}
 
@@ -692,7 +749,7 @@ export function ReconciliationPage() {
               </select>
               <input value={supportNote} onChange={(event) => setSupportNote(event.target.value)} placeholder="Required supporting note" />
               <button type="button" disabled={!supportNote.trim() || isClosed} onClick={supportSelected}>Support exception</button>
-              <button type="button" disabled={isClosed} onClick={() => setTransactionStatus([...selectedLeft, ...selectedRight], "excluded")}>Exclude selected</button>
+              <button type="button" disabled={isLocked} onClick={() => setTransactionStatus([...selectedLeft, ...selectedRight], "excluded")}>Exclude selected</button>
             </div>
           </details>
         </section>
@@ -712,7 +769,7 @@ export function ReconciliationPage() {
             <label><span>Cash left over (optional)</span><div>CA$ <input value={endingCash} onChange={(event) => {
               setEndingCash(event.target.value);
               dispatch({ type: "updateReconciliation", reconciliation: { ...state.reconciliation, cashRemaining: event.target.value } });
-            }} inputMode="decimal" placeholder="0.00" disabled={isClosed} /></div></label>
+            }} inputMode="decimal" placeholder="0.00" disabled={isLocked} /></div></label>
             <span>=</span>
             <Metric label="Cash used" value={money(cash.used)} detail="Match this spending to Wanderlog activities" />
           </div>
@@ -721,7 +778,7 @@ export function ReconciliationPage() {
 
       <section className="recon-close">
         <div>
-          <h2>{isClosed ? `${tripMeta[trip].name} is closed` : `Close ${tripMeta[trip].name}`}</h2>
+          <h2>{isArchived ? `${currentMeta.name} is archived` : isClosed ? `${currentMeta.name} is closed` : `Close ${currentMeta.name}`}</h2>
           <ul>
             <li className={tripUnmatched === 0 ? "done" : ""}>{tripUnmatched === 0 ? "✓" : "○"} Zero unexplained transactions</li>
             <li className={ambiguousCount === 0 ? "done" : ""}>{ambiguousCount === 0 ? "✓" : "○"} No ambiguous suggestions</li>
@@ -729,8 +786,10 @@ export function ReconciliationPage() {
           </ul>
         </div>
         <div className="recon-close-actions">
-          {isClosed
-            ? <button type="button" onClick={reopenPeriod}>Reopen with reason</button>
+          {isArchived
+            ? <button type="button" onClick={revisitPeriod}>Revisit reconciliation</button>
+            : isClosed
+              ? <><button type="button" onClick={reopenPeriod}>Reopen with reason</button><button type="button" onClick={archivePeriod}>Archive for reference</button></>
             : <button type="button" className="recon-confirm" disabled={!canClose} onClick={closePeriod}>Close and snapshot</button>}
           <button type="button" onClick={() => setShowActivity(!showActivity)}>{showActivity ? "Hide" : "View"} activity</button>
         </div>
@@ -744,6 +803,7 @@ export function ReconciliationPage() {
           ))}
         </section>
       )}
+      {showNewReconciliation && <NewReconciliationDialog onClose={() => setShowNewReconciliation(false)} onCreate={createReconciliation} />}
     </main>
   );
 }
@@ -1036,7 +1096,7 @@ function ImportWorkspace({
     <section className="recon-import">
       <header><h2>Import transactions</h2><span>Raw files stay private</span></header>
       <div className="recon-import-controls">
-        <label>Trip<input value={tripMeta[trip].name} disabled /></label>
+        <label>Trip<input value={tripMeta[trip]?.name ?? trip} disabled /></label>
         <label>Mapping
           <select value={sourceId} onChange={(event) => setSourceId(event.target.value)}>
             {sources.map((item) => <option value={item.id} key={item.id}>{item.institution} · {item.account}</option>)}
@@ -1061,5 +1121,38 @@ function ImportWorkspace({
       )}
       {report && <p className="recon-import-report">{report}</p>}
     </section>
+  );
+}
+
+function NewReconciliationDialog({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void;
+  onCreate: (name: string, dates: string) => void;
+}) {
+  const [name, setName] = useState("");
+  const [dates, setDates] = useState("");
+  const [error, setError] = useState("");
+
+  function create() {
+    if (!name.trim()) {
+      setError("Add a name so this workspace is easy to find later.");
+      return;
+    }
+    onCreate(name.trim(), dates.trim() || "Dates to be confirmed");
+  }
+
+  return (
+    <div className="recon-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="recon-dialog" role="dialog" aria-modal="true" aria-labelledby="new-reconciliation-title">
+        <header><div><span className="eyebrow">New workspace</span><h2 id="new-reconciliation-title">Create a reconciliation</h2></div><button type="button" onClick={onClose} aria-label="Close">×</button></header>
+        <p>Start a private workspace for a new trip or statement period. Import the Wanderlog and bank files when you are ready.</p>
+        <label>Name<input value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Mexico 2027" autoFocus /></label>
+        <label>Dates<input value={dates} onChange={(event) => setDates(event.target.value)} placeholder="e.g. Feb 3 – Feb 18, 2027" /></label>
+        {error && <div className="form-error" role="alert">{error}</div>}
+        <footer><button type="button" onClick={onClose}>Cancel</button><button type="button" className="recon-confirm" onClick={create}>Create reconciliation</button></footer>
+      </section>
+    </div>
   );
 }

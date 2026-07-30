@@ -12,10 +12,11 @@ export function GroupsPage() {
   const { state, peopleById } = useStore();
   const [addingGroup, setAddingGroup] = useState(false);
   const [addingExpenseFor, setAddingExpenseFor] = useState<string | null>(null);
+  const [showClosed, setShowClosed] = useState(false);
 
   const groups = useMemo(
     () =>
-      state.groups.map((group) => {
+      state.groups.filter((group) => showClosed ? group.status === "closed" : group.status !== "closed").map((group) => {
         const expenses = state.expenses.filter((expense) => expense.groupId === group.id);
         const ledger = buildLedger(state, { groupId: group.id });
         const net = netBalances(ledger);
@@ -23,7 +24,7 @@ export function GroupsPage() {
         const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
         return { group, expenses, myBalance, total };
       }),
-    [state],
+    [state, showClosed],
   );
 
   return (
@@ -31,9 +32,12 @@ export function GroupsPage() {
       <main className="pane pane-wide">
         <div className="pane-header hero-header">
           <h1>Groups</h1>
-          <button className="btn btn-primary" onClick={() => setAddingGroup(true)}>
-            New group
-          </button>
+          <div className="pane-actions">
+            <button className="btn btn-secondary" onClick={() => setShowClosed(!showClosed)}>
+              {showClosed ? "Show open groups" : `Closed groups (${state.groups.filter((group) => group.status === "closed").length})`}
+            </button>
+            <button className="btn btn-primary" onClick={() => setAddingGroup(true)}>New group</button>
+          </div>
         </div>
 
         {groups.length === 0 ? (
@@ -52,9 +56,8 @@ export function GroupsPage() {
                   </span>
                 </div>
                 <h2>{group.name}</h2>
-                <p>
-                  {group.memberIds.length} members, {expenses.length} entries
-                </p>
+                <p>{group.memberIds.length} members, {expenses.length} entries</p>
+                {group.status === "closed" && <span className="lifecycle-note">Closed {group.closedAt ? new Date(group.closedAt).toLocaleDateString() : ""} · read-only</span>}
                 <div className="ledger-stats">
                   <div>
                     <span>Total</span>
@@ -79,7 +82,7 @@ export function GroupsPage() {
                   <Link className="btn btn-secondary" to={`/groups/${group.id}`}>
                     Open
                   </Link>
-                  <button className="btn btn-primary" onClick={() => setAddingExpenseFor(group.id)}>
+                  <button className="btn btn-primary" disabled={group.status === "closed"} onClick={() => setAddingExpenseFor(group.id)}>
                     Add expense
                   </button>
                 </div>
