@@ -13,7 +13,8 @@ import { Avatar } from "../components/Avatar";
 import { ExpenseList } from "../components/ExpenseList";
 import { AddExpenseModal } from "../components/AddExpenseModal";
 import { SettleUpModal } from "../components/SettleUpModal";
-import { GroupModal, GROUP_ICONS } from "../components/GroupModal";
+import { GroupModal } from "../components/GroupModal";
+import { GroupBadge } from "../components/Icons";
 
 export function GroupPage() {
   const { groupId } = useParams();
@@ -49,32 +50,44 @@ export function GroupPage() {
     }
   }
 
+  function toggleClosed() {
+    dispatch({
+      type: "updateGroup",
+      group: {
+        ...group!,
+        status: group!.status === "closed" ? "open" : "closed",
+        closedAt: group!.status === "closed" ? undefined : Date.now(),
+      },
+    });
+  }
+
   return (
     <>
       <main className="pane">
         <div className="pane-header">
           <h1>
-            {GROUP_ICONS[group.type]} {group.name}
-            <span className="sub">{group.memberIds.length} people</span>
+            <span className="group-page-title"><GroupBadge type={group.type} name={group.name} size={44} /> {group.name}</span>
+            <span className="sub">{group.memberIds.length} members</span>
           </h1>
-          <button className="btn btn-orange" onClick={() => setAddingExpense(true)}>
-            Add an expense
+          <button className="btn btn-primary" disabled={group.status === "closed"} onClick={() => setAddingExpense(true)}>
+            Add expense
           </button>
-          <button className="btn btn-teal" onClick={() => setSettlingBlank(true)}>
-            Settle up
+          <button className="btn btn-primary" disabled={group.status === "closed"} onClick={() => setSettlingBlank(true)}>
+            Settle
           </button>
         </div>
 
         <ExpenseList
           expenses={expenses}
           settlements={settlements}
-          emptyMessage="No expenses in this group yet. Add one to get started!"
+          emptyMessage="No expenses yet."
         />
+        {group.status === "closed" && <div className="lifecycle-banner">This group is closed. Its ledger is preserved for reference; reopen it from Group settings to make changes.</div>}
       </main>
 
       <aside className="rail">
         <div className="rail-card">
-          <h3>Group balances</h3>
+          <h2>Group balances</h2>
           {group.memberIds.map((id) => {
             const person = peopleById.get(id);
             const bal = net.get(id) ?? 0;
@@ -91,8 +104,8 @@ export function GroupPage() {
         </div>
 
         <div className="rail-card">
-          <h3>{group.simplifyDebts ? "Suggested repayments" : "Who owes whom"}</h3>
-          {debts.length === 0 && <div className="all-settled">All settled up! 🎉</div>}
+          <h2>{group.simplifyDebts ? "Suggested repayments" : "Who owes whom"}</h2>
+          {debts.length === 0 && <div className="all-settled">Settled</div>}
           {debts.map((d, i) => {
             const from = peopleById.get(d.fromId);
             const to = peopleById.get(d.toId);
@@ -104,8 +117,7 @@ export function GroupPage() {
                 </span>
                 <span className="neg">{formatMoney(d.amount)}</span>
                 <button
-                  className="btn-danger-link"
-                  style={{ color: "var(--teal-dark)" }}
+                  className="btn-link-success"
                   title="Record this payment"
                   onClick={() => setSettling({ fromId: d.fromId, toId: d.toId, amount: d.amount })}
                 >
@@ -117,12 +129,15 @@ export function GroupPage() {
         </div>
 
         <div className="rail-card">
-          <h3>Group settings</h3>
+          <h2>Group settings</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
-            <button className="btn btn-plain" onClick={() => setEditingGroup(true)}>
+            <button className="btn btn-secondary" disabled={group.status === "closed"} onClick={() => setEditingGroup(true)}>
               Edit group
             </button>
-            <button className="btn-danger-link" onClick={deleteGroup}>
+            <button className="btn btn-secondary" onClick={toggleClosed}>
+              {group.status === "closed" ? "Reopen group" : "Close group"}
+            </button>
+            <button className="btn-link-danger" onClick={deleteGroup}>
               Delete group
             </button>
           </div>

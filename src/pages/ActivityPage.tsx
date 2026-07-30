@@ -40,7 +40,7 @@ export function ActivityPage() {
             {mySplit && myNet !== 0 && (
               <span className={myNet > 0 ? "pos" : "neg"}>
                 {" "}
-                — {myNet > 0 ? "you get back" : "you owe"} {formatMoney(Math.abs(myNet))}
+                , {myNet > 0 ? "you get back" : "you owe"} {formatMoney(Math.abs(myNet))}
               </span>
             )}
           </>
@@ -74,18 +74,25 @@ export function ActivityPage() {
     <>
       <main className="pane pane-wide">
         <div className="pane-header hero-header">
-          <div>
-            <p className="eyebrow">Audit Trail</p>
-            <h1>Detailed Activity</h1>
-          </div>
+          <h1>Activity</h1>
         </div>
         <div className="filter-bar">
-          <select value={kindFilter} onChange={(event) => setKindFilter(event.target.value as typeof kindFilter)}>
+          <label className="sr-only" htmlFor="activity-type-filter">Filter by activity type</label>
+          <select
+            id="activity-type-filter"
+            value={kindFilter}
+            onChange={(event) => setKindFilter(event.target.value as typeof kindFilter)}
+          >
             <option value="all">All Activity</option>
             <option value="expenses">Expenses</option>
             <option value="payments">Payments</option>
           </select>
-          <select value={groupFilter} onChange={(event) => setGroupFilter(event.target.value)}>
+          <label className="sr-only" htmlFor="activity-group-filter">Filter by group</label>
+          <select
+            id="activity-group-filter"
+            value={groupFilter}
+            onChange={(event) => setGroupFilter(event.target.value)}
+          >
             <option value="all">All Groups</option>
             <option value="none">Non-group</option>
             {state.groups.map((group) => (
@@ -113,13 +120,6 @@ export function ActivityPage() {
           ))}
         </div>
       </main>
-      <aside className="rail">
-        <div className="rail-card">
-          <h3>Visible Records</h3>
-          <strong className="rail-number">{items.length}</strong>
-          <p className="muted-copy">Expenses and settlements shown in reverse chronological order.</p>
-        </div>
-      </aside>
     </>
   );
 }

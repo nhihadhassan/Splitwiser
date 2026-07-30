@@ -5,44 +5,39 @@ import { buildLedger, netBalances } from "../utils/balances";
 import { formatMoney } from "../utils/money";
 import { Avatar } from "../components/Avatar";
 import { AddExpenseModal } from "../components/AddExpenseModal";
-import { GroupModal, GROUP_ICONS } from "../components/GroupModal";
+import { GroupModal } from "../components/GroupModal";
+import { GroupBadge } from "../components/Icons";
 
 export function GroupsPage() {
   const { state, peopleById } = useStore();
   const [addingGroup, setAddingGroup] = useState(false);
   const [addingExpenseFor, setAddingExpenseFor] = useState<string | null>(null);
+  const [showClosed, setShowClosed] = useState(false);
 
   const groups = useMemo(
     () =>
-      state.groups.map((group) => {
+      state.groups.filter((group) => showClosed ? group.status === "closed" : group.status !== "closed").map((group) => {
         const expenses = state.expenses.filter((expense) => expense.groupId === group.id);
         const ledger = buildLedger(state, { groupId: group.id });
         const net = netBalances(ledger);
         const myBalance = net.get(ME) ?? 0;
         const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-        const lastActivity = Math.max(
-          group.createdAt,
-          ...expenses.map((expense) => expense.createdAt),
-          ...state.settlements
-            .filter((settlement) => settlement.groupId === group.id)
-            .map((settlement) => settlement.createdAt),
-        );
-        return { group, expenses, myBalance, total, lastActivity };
+        return { group, expenses, myBalance, total };
       }),
-    [state],
+    [state, showClosed],
   );
 
   return (
     <>
       <main className="pane pane-wide">
         <div className="pane-header hero-header">
-          <div>
-            <p className="eyebrow">Splitwiser Groups</p>
-            <h1>Active Groups</h1>
+          <h1>Groups</h1>
+          <div className="pane-actions">
+            <button className="btn btn-secondary" onClick={() => setShowClosed(!showClosed)}>
+              {showClosed ? "Show open groups" : `Closed groups (${state.groups.filter((group) => group.status === "closed").length})`}
+            </button>
+            <button className="btn btn-primary" onClick={() => setAddingGroup(true)}>New group</button>
           </div>
-          <button className="btn btn-gold" onClick={() => setAddingGroup(true)}>
-            New Group
-          </button>
         </div>
 
         {groups.length === 0 ? (
@@ -52,21 +47,20 @@ export function GroupsPage() {
           </div>
         ) : (
           <div className="group-grid">
-            {groups.map(({ group, expenses, myBalance, total, lastActivity }) => (
+            {groups.map(({ group, expenses, myBalance, total }) => (
               <article key={group.id} className="ledger-card">
                 <div className="ledger-card-top">
-                  <span className="ledger-icon">{GROUP_ICONS[group.type]}</span>
+                  <span className="ledger-icon"><GroupBadge type={group.type} name={group.name} /></span>
                   <span className={`status-chip ${myBalance === 0 ? "settled" : "owed"}`}>
                     {myBalance === 0 ? "Settled" : myBalance > 0 ? "Owed" : "Payable"}
                   </span>
                 </div>
                 <h2>{group.name}</h2>
-                <p>
-                  {group.memberIds.length} members, {expenses.length} entries
-                </p>
+                <p>{group.memberIds.length} members, {expenses.length} entries</p>
+                {group.status === "closed" && <span className="lifecycle-note">Closed {group.closedAt ? new Date(group.closedAt).toLocaleDateString() : ""} · read-only</span>}
                 <div className="ledger-stats">
                   <div>
-                    <span>Total volume</span>
+                    <span>Total</span>
                     <strong>{formatMoney(total)}</strong>
                   </div>
                   <div>
@@ -85,31 +79,18 @@ export function GroupsPage() {
                   {group.memberIds.length > 5 && <span>+{group.memberIds.length - 5}</span>}
                 </div>
                 <div className="ledger-actions">
-                  <Link className="btn btn-plain" to={`/groups/${group.id}`}>
-                    Open Ledger
+                  <Link className="btn btn-secondary" to={`/groups/${group.id}`}>
+                    Open
                   </Link>
-                  <button className="btn btn-gold" onClick={() => setAddingExpenseFor(group.id)}>
-                    Add Expense
+                  <button className="btn btn-primary" disabled={group.status === "closed"} onClick={() => setAddingExpenseFor(group.id)}>
+                    Add expense
                   </button>
                 </div>
-                <p className="card-footnote">
-                  Last updated {new Date(lastActivity).toLocaleDateString()}
-                </p>
               </article>
             ))}
           </div>
         )}
       </main>
-      <aside className="rail">
-        <div className="rail-card">
-          <h3>Group Command</h3>
-          <p className="muted-copy">
-            Groups gather expenses, member balances, repayment suggestions, and settlement history
-            into one ledger.
-          </p>
-        </div>
-      </aside>
-
       {addingGroup && <GroupModal onClose={() => setAddingGroup(false)} />}
       {addingExpenseFor && (
         <AddExpenseModal groupId={addingExpenseFor} onClose={() => setAddingExpenseFor(null)} />

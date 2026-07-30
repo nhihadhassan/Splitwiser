@@ -1,16 +1,18 @@
 import { useMemo, useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { ME, useStore } from "../store";
 import { balancesWith, buildLedger } from "../utils/balances";
 import { formatMoney } from "../utils/money";
 import { Avatar } from "./Avatar";
 import { AddExpenseModal } from "./AddExpenseModal";
 import { AddFriendModal } from "./AddFriendModal";
-import { GroupModal, GROUP_ICONS } from "./GroupModal";
-import { BrandMark, NavIcon } from "./Icons";
+import { CloudStatusBadge } from "./CloudStatusBadge";
+import { GroupModal } from "./GroupModal";
+import { BrandMark, GroupBadge, NavIcon } from "./Icons";
 
 export function Layout() {
   const { state, peopleById } = useStore();
+  const { pathname } = useLocation();
   const [addingFriend, setAddingFriend] = useState(false);
   const [addingGroup, setAddingGroup] = useState(false);
   const [addingExpense, setAddingExpense] = useState(false);
@@ -21,20 +23,29 @@ export function Layout() {
   }, [state]);
 
   const me = peopleById.get(ME);
+  const showGlobalAddExpense = ["/", "/activity", "/groups", "/reconciliation"].includes(pathname);
 
   return (
     <>
       <header className="topbar">
         <NavLink to="/" className="brand">
-          <BrandMark /> SPLITWISER
+          <BrandMark /> <span className="brand-name">SPLITWISER</span>
         </NavLink>
         <div className="spacer" />
-        <button className="btn btn-plain top-action" onClick={() => setAddingExpense(true)}>
-          Add Expense
-        </button>
+        {showGlobalAddExpense && (
+          <button
+            className="btn btn-secondary top-action"
+            onClick={() => setAddingExpense(true)}
+            aria-label="Add expense"
+          >
+            <span className="top-action-icon" aria-hidden="true">+</span>
+            <span className="top-action-label">Add expense</span>
+          </button>
+        )}
+        <CloudStatusBadge />
         <div className="user">
           <Avatar person={me} size={26} />
-          <span>{me?.name}</span>
+          <span className="user-name">{me?.name}</span>
         </div>
       </header>
 
@@ -50,13 +61,16 @@ export function Layout() {
             <NavIcon type="groups" /> Groups
           </NavLink>
           <NavLink to="/activity" className="nav-link">
-            <NavIcon type="activity" /> Recent Activity
+            <NavIcon type="activity" /> Activity
           </NavLink>
           <NavLink to="/all" className="nav-link">
-            <NavIcon type="expenses" /> All Expenses
+            <NavIcon type="expenses" /> Expenses
           </NavLink>
           <NavLink to="/settlements" className="nav-link">
             <NavIcon type="settlements" /> Settlements
+          </NavLink>
+          <NavLink to="/reconciliation" className="nav-link">
+            <NavIcon type="reconciliation" /> Reconcile
           </NavLink>
 
           <div className="nav-section">
@@ -66,7 +80,7 @@ export function Layout() {
           {state.groups.length === 0 && <div className="nav-empty">No groups yet</div>}
           {state.groups.map((g) => (
             <NavLink key={g.id} to={`/groups/${g.id}`} className="nav-sub">
-              {GROUP_ICONS[g.type]} {g.name}
+              <GroupBadge type={g.type} name={g.name} size={28} /> {g.name}
             </NavLink>
           ))}
 
@@ -97,25 +111,30 @@ export function Layout() {
         <Outlet />
       </div>
 
-      <nav className="mobile-nav">
+      <nav className="mobile-nav" aria-label="Primary navigation">
         <NavLink to="/" end>
           <span><NavIcon type="overview" /></span>
           Overview
+        </NavLink>
+        <NavLink to="/groups">
+          <span><NavIcon type="groups" /></span>
+          Groups
         </NavLink>
         <NavLink to="/activity">
           <span><NavIcon type="activity" /></span>
           Activity
         </NavLink>
-        <button type="button" onClick={() => setAddingExpense(true)} aria-label="Add expense">
-          +
-        </button>
-        <NavLink to="/groups">
-          <span><NavIcon type="groups" /></span>
-          Groups
+        <NavLink to="/all">
+          <span><NavIcon type="expenses" /></span>
+          Expenses
         </NavLink>
         <NavLink to="/settlements">
           <span><NavIcon type="settlements" /></span>
           Settle
+        </NavLink>
+        <NavLink to="/reconciliation">
+          <span><NavIcon type="reconciliation" /></span>
+          Trips
         </NavLink>
       </nav>
 

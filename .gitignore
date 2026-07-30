@@ -5,3 +5,5 @@ dist
 .env*
 .vercel
 .claude
+# Private account export; keep it local and out of deployments.
+EXPENSES_EXPORT.md

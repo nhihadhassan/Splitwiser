@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { uid, useStore } from "../store";
 import { AVATAR_COLORS } from "../seed";
 import { Modal } from "./Modal";
 
 export function AddFriendModal({ onClose }: { onClose: () => void }) {
   const { state, dispatch } = useStore();
+  const fieldId = useId();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
@@ -33,19 +34,20 @@ export function AddFriendModal({ onClose }: { onClose: () => void }) {
       onClose={onClose}
       footer={
         <>
-          <button className="btn btn-plain" onClick={onClose}>
+          <button className="btn btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn btn-teal" onClick={save}>
+          <button className="btn btn-primary" onClick={save}>
             Add friend
           </button>
         </>
       }
     >
-      {error && <div className="form-error">{error}</div>}
+      {error && <div className="form-error" role="alert">{error}</div>}
       <div className="field">
-        <label>Name</label>
+        <label htmlFor={`${fieldId}-name`}>Name</label>
         <input
+          id={`${fieldId}-name`}
           type="text"
           value={name}
           placeholder="e.g. Alex Kim"
@@ -54,8 +56,9 @@ export function AddFriendModal({ onClose }: { onClose: () => void }) {
         />
       </div>
       <div className="field">
-        <label>Email (optional)</label>
+        <label htmlFor={`${fieldId}-email`}>Email (optional)</label>
         <input
+          id={`${fieldId}-email`}
           type="email"
           value={email}
           placeholder="alex@example.com"

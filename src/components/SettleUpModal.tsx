@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { ME, uid, useStore } from "../store";
-import { centsToInput, parseMoney } from "../utils/money";
+import { buildLedger, rawDebts, simplifyDebts } from "../utils/balances";
+import { centsToInput, formatMoney, parseMoney } from "../utils/money";
 import { today } from "../utils/dates";
 import { Modal } from "./Modal";
 
@@ -13,18 +14,37 @@ interface Props {
 
 export function SettleUpModal({ onClose, groupId, prefill }: Props) {
   const { state, dispatch } = useStore();
+  const fieldId = useId();
   const group = state.groups.find((g) => g.id === groupId) ?? null;
   const people = (group ? group.memberIds : state.people.map((p) => p.id)).map(
     (id) => state.people.find((p) => p.id === id)!,
   );
+  const remainingDebts = useMemo(() => {
+    if (!group) return [];
+    const ledger = buildLedger(state, { groupId: group.id });
+    return group.simplifyDebts ? simplifyDebts(ledger) : rawDebts(ledger);
+  }, [group, state]);
+  const defaultPayment =
+    prefill ?? (remainingDebts.length === 1 ? remainingDebts[0] : undefined);
 
-  const [fromId, setFromId] = useState(prefill?.fromId ?? ME);
+  const [fromId, setFromId] = useState(defaultPayment?.fromId ?? ME);
   const [toId, setToId] = useState(
-    prefill?.toId ?? people.find((p) => p.id !== (prefill?.fromId ?? ME))?.id ?? "",
+    defaultPayment?.toId ??
+      people.find((p) => p.id !== (defaultPayment?.fromId ?? ME))?.id ??
+      "",
   );
-  const [amountText, setAmountText] = useState(prefill ? centsToInput(prefill.amount) : "");
+  const [amountText, setAmountText] = useState(
+    defaultPayment ? centsToInput(defaultPayment.amount) : "",
+  );
   const [date, setDate] = useState(today());
   const [error, setError] = useState("");
+
+  function useRemainingBalance(debt: (typeof remainingDebts)[number]) {
+    setFromId(debt.fromId);
+    setToId(debt.toId);
+    setAmountText(centsToInput(debt.amount));
+    setError("");
+  }
 
   function save() {
     const amount = parseMoney(amountText);
@@ -52,19 +72,56 @@ export function SettleUpModal({ onClose, groupId, prefill }: Props) {
       onClose={onClose}
       footer={
         <>
-          <button className="btn btn-plain" onClick={onClose}>
+          <button className="btn btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn btn-teal" onClick={save}>
+          <button className="btn btn-primary" onClick={save}>
             Record payment
           </button>
         </>
       }
     >
-      {error && <div className="form-error">{error}</div>}
+      {error && <div className="form-error" role="alert">{error}</div>}
+      {group && (
+        <div className="settle-remaining-panel">
+          <div className="settle-remaining-heading">
+            <strong>Remaining group balance</strong>
+            <span>
+              {remainingDebts.length === 0
+                ? "This group is fully settled."
+                : remainingDebts.length === 1
+                  ? "Use the full outstanding amount."
+                  : "Choose an outstanding repayment."}
+            </span>
+          </div>
+          {remainingDebts.map((debt) => {
+            const from = state.people.find((person) => person.id === debt.fromId);
+            const to = state.people.find((person) => person.id === debt.toId);
+            const isSelected =
+              fromId === debt.fromId &&
+              toId === debt.toId &&
+              parseMoney(amountText) === debt.amount;
+            return (
+              <button
+                key={`${debt.fromId}-${debt.toId}`}
+                type="button"
+                className={`settle-remaining-option${isSelected ? " selected" : ""}`}
+                aria-pressed={isSelected}
+                onClick={() => useRemainingBalance(debt)}
+              >
+                <span>
+                  {from?.id === ME ? "You" : from?.name} →{" "}
+                  {to?.id === ME ? "you" : to?.name}
+                </span>
+                <strong>Settle remaining {formatMoney(debt.amount)}</strong>
+              </button>
+            );
+          })}
+        </div>
+      )}
       <div className="field">
-        <label>Who paid</label>
-        <select value={fromId} onChange={(e) => setFromId(e.target.value)}>
+        <label htmlFor={`${fieldId}-from`}>Who paid</label>
+        <select id={`${fieldId}-from`} value={fromId} onChange={(e) => setFromId(e.target.value)}>
           {people.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -73,8 +130,8 @@ export function SettleUpModal({ onClose, groupId, prefill }: Props) {
         </select>
       </div>
       <div className="field">
-        <label>Who received</label>
-        <select value={toId} onChange={(e) => setToId(e.target.value)}>
+        <label htmlFor={`${fieldId}-to`}>Who received</label>
+        <select id={`${fieldId}-to`} value={toId} onChange={(e) => setToId(e.target.value)}>
           {people.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -83,22 +140,23 @@ export function SettleUpModal({ onClose, groupId, prefill }: Props) {
         </select>
       </div>
       <div className="field">
-        <label>Amount</label>
+        <label htmlFor={`${fieldId}-amount`}>Amount</label>
         <div className="amount-input">
           <span className="currency">$</span>
           <input
+            id={`${fieldId}-amount`}
             type="text"
             inputMode="decimal"
             value={amountText}
             placeholder="0.00"
             onChange={(e) => setAmountText(e.target.value)}
-            autoFocus={!prefill}
+            autoFocus={!defaultPayment}
           />
         </div>
       </div>
       <div className="field">
-        <label>Date</label>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <label htmlFor={`${fieldId}-date`}>Date</label>
+        <input id={`${fieldId}-date`} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       </div>
     </Modal>
   );

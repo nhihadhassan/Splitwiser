@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import type { Expense, Settlement } from "../types";
 import { ME, useStore } from "../store";
-import { formatMoney } from "../utils/money";
+import { formatMoney, splitEqually } from "../utils/money";
 import { monthDay, monthLabel } from "../utils/dates";
+import { CATEGORY_META } from "../utils/categories";
 import { Avatar } from "./Avatar";
 import { AddExpenseModal } from "./AddExpenseModal";
-import { CategoryIcon } from "./Icons";
+import { CategoryIcon, PaymentIcon } from "./Icons";
 
 type FeedItem =
   | { kind: "expense"; date: string; createdAt: number; expense: Expense }
@@ -15,14 +16,35 @@ export function ExpenseList({
   expenses,
   settlements,
   emptyMessage,
+  showCategory = false,
+  showNotes = false,
 }: {
   expenses: Expense[];
   settlements: Settlement[];
   emptyMessage: string;
+  showCategory?: boolean;
+  showNotes?: boolean;
 }) {
   const { state, dispatch, peopleById } = useStore();
   const [openId, setOpenId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Expense | null>(null);
+
+  function applyQuickSplit(expense: Expense, personId?: string) {
+    const equalShares = personId ? null : splitEqually(expense.amount, expense.splits.length);
+    dispatch({
+      type: "updateExpense",
+      expense: {
+        ...expense,
+        splitMethod: personId ? "percentage" : "equally",
+        splits: expense.splits.map((split, index) => ({
+          ...split,
+          owes: personId
+            ? split.personId === personId ? expense.amount : 0
+            : equalShares?.[index] ?? 0,
+        })),
+      },
+    });
+  }
 
   const items = useMemo(() => {
     const feed: FeedItem[] = [
@@ -74,13 +96,13 @@ export function ExpenseList({
                   <div className="month">{m}</div>
                   <div className="day">{day}</div>
                 </div>
-                <div className="cash">💵</div>
+                <div className="cash payment-icon"><PaymentIcon size={20} /></div>
                 <div style={{ flex: 1 }}>
                   <strong>{from?.id === ME ? "You" : from?.name}</strong> paid{" "}
                   <strong>{to?.id === ME ? "you" : to?.name}</strong> {formatMoney(s.amount)}
                 </div>
                 <button
-                  className="btn-danger-link"
+                  className="btn-link-danger"
                   title="Delete payment"
                   onClick={() => dispatch({ type: "deleteSettlement", settlementId: s.id })}
                 >
@@ -102,20 +124,53 @@ export function ExpenseList({
           ? state.groups.find((g) => g.id === e.groupId)?.name
           : undefined;
         const isOpen = openId === e.id;
+        const notePreview = e.notes?.replace(/^Imported from Wanderlog:\s*/i, "") ?? "No note";
+        const fullSplitId = e.splits.find(
+          (split) =>
+            split.owes === e.amount &&
+            e.splits.every((candidate) => candidate.personId === split.personId || candidate.owes === 0),
+        )?.personId;
 
         return (
           <div key={e.id}>
             {header}
-            <div className="expense-row" onClick={() => setOpenId(isOpen ? null : e.id)}>
+            <div
+              className="expense-row"
+              role="button"
+              tabIndex={0}
+              aria-expanded={isOpen}
+              aria-controls={`expense-detail-${e.id}`}
+              onClick={() => setOpenId(isOpen ? null : e.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setOpenId(isOpen ? null : e.id);
+                }
+              }}
+            >
               <div className="date">
                 <div className="month">{m}</div>
                 <div className="day">{day}</div>
               </div>
-              <div className="cat"><CategoryIcon category={e.category} size={20} /></div>
+              <div className={`cat activity-icon-${e.category}`}>
+                <CategoryIcon category={e.category} size={20} />
+              </div>
               <div className="desc">
                 <div className="title">{e.description}</div>
-                {groupName && <div className="where">{groupName}</div>}
+                {(showCategory || groupName) && (
+                  <div className="where">
+                    {showCategory && <span className="category-copy">{CATEGORY_META[e.category].label}</span>}
+                    {showCategory && groupName && <span aria-hidden="true"> · </span>}
+                    {groupName && <span>{groupName}</span>}
+                  </div>
+                )}
               </div>
+              {showNotes && (
+                <div className="row-note" title={e.notes ?? "No note"} aria-label={`Note: ${e.notes ?? "No note"}`}>
+                  <span>note</span>
+                  <strong className={e.notes ? "" : "empty"}>{notePreview}</strong>
+                </div>
+              )}
               <div className="fig">
                 <div className="fig-label">
                   {payer?.personId === ME ? "you paid" : `${payerPerson?.name ?? "?"} paid`}
@@ -138,11 +193,11 @@ export function ExpenseList({
               </div>
             </div>
             {isOpen && (
-              <div className="expense-detail">
+              <div className="expense-detail" id={`expense-detail-${e.id}`}>
                 <div>
                   <strong>{payerPerson?.id === ME ? "You" : payerPerson?.name}</strong> paid{" "}
                   {formatMoney(e.amount)}
-                  {e.notes && <span style={{ color: "#888" }}> — “{e.notes}”</span>}
+                  {e.notes && <span className="detail-note"> — “{e.notes}”</span>}
                 </div>
                 <ul className="breakdown">
                   {e.splits.map((s) => {
@@ -156,9 +211,39 @@ export function ExpenseList({
                     );
                   })}
                 </ul>
+                {e.groupId && e.splits.length >= 2 && (
+                  <div className="inline-quick-split">
+                    <span className="field-label" id={`quick-split-${e.id}`}>Quick split</span>
+                    <div className="quick-action-row" role="group" aria-labelledby={`quick-split-${e.id}`}>
+                      <button
+                        type="button"
+                        className={`chip quick-action ${e.splitMethod === "equally" ? "on" : ""}`}
+                        aria-pressed={e.splitMethod === "equally"}
+                        onClick={() => applyQuickSplit(e)}
+                      >
+                        {e.splits.length === 2 ? "50/50" : "Split evenly"}
+                      </button>
+                      {e.splits.map((split) => {
+                        const person = peopleById.get(split.personId);
+                        const name = split.personId === ME ? "you" : person?.name ?? "member";
+                        return (
+                          <button
+                            key={split.personId}
+                            type="button"
+                            className={`chip quick-action ${fullSplitId === split.personId ? "on" : ""}`}
+                            aria-pressed={fullSplitId === split.personId}
+                            onClick={() => applyQuickSplit(e, split.personId)}
+                          >
+                            <Avatar person={person} size={18} /> 100% {name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <div className="actions">
                   <button
-                    className="btn btn-plain"
+                    className="btn btn-secondary"
                     onClick={(ev) => {
                       ev.stopPropagation();
                       setEditing(e);
@@ -167,7 +252,7 @@ export function ExpenseList({
                     Edit
                   </button>
                   <button
-                    className="btn-danger-link"
+                    className="btn-link-danger"
                     onClick={(ev) => {
                       ev.stopPropagation();
                       if (confirm(`Delete "${e.description}"?`)) {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Group, GroupType } from "../types";
 import { ME, uid, useStore } from "../store";
@@ -23,6 +23,7 @@ export const GROUP_ICONS: Record<GroupType, JSX.Element> = {
 /** Create a new group, or edit an existing one when `group` is provided. */
 export function GroupModal({ onClose, group }: { onClose: () => void; group?: Group }) {
   const { state, dispatch } = useStore();
+  const fieldId = useId();
   const navigate = useNavigate();
   const [name, setName] = useState(group?.name ?? "");
   const [type, setType] = useState<GroupType>(group?.type ?? "trip");
@@ -63,19 +64,20 @@ export function GroupModal({ onClose, group }: { onClose: () => void; group?: Gr
       onClose={onClose}
       footer={
         <>
-          <button className="btn btn-plain" onClick={onClose}>
+          <button className="btn btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn btn-teal" onClick={save}>
+          <button className="btn btn-primary" onClick={save}>
             {group ? "Save" : "Create group"}
           </button>
         </>
       }
     >
-      {error && <div className="form-error">{error}</div>}
+      {error && <div className="form-error" role="alert">{error}</div>}
       <div className="field">
-        <label>Group name</label>
+        <label htmlFor={`${fieldId}-name`}>Group name</label>
         <input
+          id={`${fieldId}-name`}
           type="text"
           value={name}
           placeholder="e.g. Summer road trip"
@@ -84,13 +86,14 @@ export function GroupModal({ onClose, group }: { onClose: () => void; group?: Gr
         />
       </div>
       <div className="field">
-        <label>Type</label>
-        <div className="group-type-row">
+        <span className="field-label" id={`${fieldId}-type`}>Type</span>
+        <div className="group-type-row" role="group" aria-labelledby={`${fieldId}-type`}>
           {GROUP_TYPES.map((t) => (
             <button
               key={t.id}
               type="button"
               className={type === t.id ? "on" : ""}
+              aria-pressed={type === t.id}
               onClick={() => setType(t.id)}
             >
               <GroupIcon type={t.id} size={17} /> {t.label}
@@ -99,13 +102,15 @@ export function GroupModal({ onClose, group }: { onClose: () => void; group?: Gr
         </div>
       </div>
       <div className="field">
-        <label>Members</label>
-        <div className="chip-row">
+        <span className="field-label" id={`${fieldId}-members`}>Members</span>
+        <div className="chip-row" role="group" aria-labelledby={`${fieldId}-members`}>
           {state.people.map((p) => (
             <button
               key={p.id}
               type="button"
               className={`chip ${memberIds.has(p.id) ? "on" : ""}`}
+              aria-pressed={memberIds.has(p.id)}
+              aria-disabled={p.id === ME}
               onClick={() => p.id !== ME && toggleMember(p.id)}
             >
               <Avatar person={p} size={18} /> {p.name}

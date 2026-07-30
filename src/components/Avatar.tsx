@@ -14,7 +14,7 @@ export function Avatar({ person, size = 28 }: { person: Person | undefined; size
         width: size,
         height: size,
         fontSize: size * 0.42,
-        background: person?.color ?? "#999",
+        background: person?.color ?? "var(--color-bg-interactive)",
       }}
       title={name}
     >

@@ -1,0 +1,2139 @@
+.reconciliation-page {
+  --recon-ink: #27241f;
+  --recon-muted: #746f67;
+  --recon-line: #dedbd4;
+  --recon-soft: #f7f5f0;
+  --recon-green: #168365;
+  --recon-green-soft: #e8f3ef;
+  --recon-amber: #b87519;
+  --recon-red: #b64d43;
+  color: var(--recon-ink);
+  padding-bottom: 170px;
+}
+
+.reconciliation-page button,
+.reconciliation-page input,
+.reconciliation-page select,
+.reconciliation-page textarea {
+  font: inherit;
+}
+
+.recon-titlebar {
+  align-items: flex-end;
+  border-bottom: 1px solid var(--recon-line);
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 30px 32px 22px;
+}
+
+.recon-titlebar h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(31px, 4vw, 46px);
+  letter-spacing: -.035em;
+  line-height: 1;
+  margin: 6px 0 10px;
+}
+
+.recon-titlebar p:last-child {
+  color: var(--recon-muted);
+  margin: 0;
+}
+
+.recon-title-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.recon-period-status {
+  background: var(--recon-green-soft);
+  border-radius: 999px;
+  color: var(--recon-green);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px 11px;
+  text-transform: uppercase;
+}
+
+.recon-period-status.closed {
+  background: #ece9e2;
+  color: #5f5a52;
+}
+
+.reconciliation-tabs {
+  border-bottom: 1px solid var(--recon-line);
+  display: flex;
+  padding: 0 32px;
+}
+
+.reconciliation-tabs button {
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  color: var(--recon-muted);
+  cursor: pointer;
+  display: grid;
+  gap: 2px;
+  min-width: 170px;
+  padding: 17px 10px 14px;
+  text-align: left;
+}
+
+.reconciliation-tabs button.active {
+  border-bottom-color: var(--recon-green);
+  color: var(--recon-ink);
+}
+
+.reconciliation-archive-toggle {
+  align-self: center;
+  border: 1px solid var(--recon-line) !important;
+  border-bottom-width: 1px !important;
+  border-radius: 999px;
+  margin: 0 0 0 12px;
+  min-width: auto !important;
+  padding: 8px 12px !important;
+  text-align: center !important;
+}
+
+.recon-dialog-backdrop {
+  align-items: center;
+  background: rgba(35, 31, 26, .38);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 20px;
+  position: fixed;
+  z-index: 30;
+}
+
+.recon-dialog {
+  background: #fff;
+  border: 1px solid var(--recon-line);
+  box-shadow: 0 20px 60px rgba(32, 28, 23, .2);
+  max-width: 480px;
+  padding: 26px;
+  width: 100%;
+}
+
+.recon-dialog header,
+.recon-dialog footer {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.recon-dialog header button {
+  background: transparent;
+  border: 0;
+  color: var(--recon-muted);
+  cursor: pointer;
+  font-size: 24px;
+}
+
+.recon-dialog h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 28px;
+  margin: 4px 0 0;
+}
+
+.recon-dialog p {
+  color: var(--recon-muted);
+  line-height: 1.5;
+  margin: 20px 0;
+}
+
+.recon-dialog label {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.recon-dialog input {
+  border: 1px solid var(--recon-line);
+  padding: 11px 12px;
+}
+
+.recon-dialog footer {
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.recon-dialog footer button {
+  background: #fff;
+  border: 1px solid var(--recon-line);
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 750;
+  padding: 10px 13px;
+}
+
+.reconciliation-tabs span {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.reconciliation-tabs small {
+  font-size: 12px;
+}
+
+.recon-overview {
+  border-bottom: 1px solid var(--recon-line);
+  display: grid;
+  grid-template-columns: minmax(260px, 1.35fr) repeat(4, minmax(130px, .65fr));
+  padding: 22px 32px;
+}
+
+.recon-trip-context {
+  padding-right: 28px;
+}
+
+.recon-trip-context > span,
+.recon-metric > span {
+  color: var(--recon-muted);
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.recon-trip-context > strong {
+  display: block;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 24px;
+  margin: 4px 0;
+}
+
+.recon-trip-context p {
+  color: var(--recon-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0;
+  max-width: 540px;
+}
+
+.recon-metric {
+  border-left: 1px solid var(--recon-line);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: 6px 18px;
+}
+
+.recon-metric strong {
+  font-size: 21px;
+  letter-spacing: -.03em;
+  margin: 5px 0 2px;
+}
+
+.recon-metric small {
+  color: var(--recon-muted);
+  font-size: 11px;
+}
+
+.recon-commandbar {
+  align-items: center;
+  background: #fff;
+  border-bottom: 1px solid var(--recon-line);
+  display: flex;
+  gap: 8px;
+  padding: 13px 32px;
+  position: sticky;
+  top: 64px;
+  z-index: 18;
+}
+
+.recon-search {
+  align-items: center;
+  background: var(--recon-soft);
+  border: 1px solid transparent;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  padding: 0 12px;
+}
+
+.recon-search:focus-within {
+  background: #fff;
+  border-color: var(--recon-green);
+  box-shadow: 0 0 0 3px rgba(22, 131, 101, .1);
+}
+
+.recon-search > span {
+  color: var(--recon-muted);
+  font-size: 23px;
+}
+
+.recon-search input {
+  background: transparent;
+  border: 0;
+  color: var(--recon-ink);
+  height: 44px;
+  min-width: 0;
+  outline: 0;
+  padding: 0 10px;
+  width: 100%;
+}
+
+.recon-search kbd {
+  background: #fff;
+  border: 1px solid var(--recon-line);
+  border-radius: 4px;
+  color: var(--recon-muted);
+  font-size: 11px;
+  padding: 2px 6px;
+}
+
+.recon-tool-button,
+.recon-more summary,
+.recon-filters button,
+.recon-close button,
+.recon-group-body > button,
+.exception-register button {
+  background: #fff;
+  border: 1px solid var(--recon-line);
+  border-radius: 5px;
+  color: var(--recon-ink);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 750;
+  padding: 10px 13px;
+}
+
+.recon-more {
+  position: relative;
+}
+
+.recon-more summary {
+  list-style: none;
+}
+
+.recon-more > div {
+  background: #fff;
+  border: 1px solid var(--recon-line);
+  box-shadow: 0 12px 32px rgba(32, 28, 23, .14);
+  display: grid;
+  min-width: 220px;
+  padding: 7px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 7px);
+  z-index: 20;
+}
+
+.recon-more button,
+.recon-more label {
+  background: transparent;
+  border: 0;
+  color: var(--recon-ink);
+  cursor: pointer;
+  padding: 10px;
+  text-align: left;
+}
+
+.recon-more input {
+  display: none;
+}
+
+.recon-queues {
+  align-items: end;
+  border-bottom: 1px solid var(--recon-line);
+  display: flex;
+  gap: 22px;
+  padding: 0 32px;
+}
+
+.recon-queues button {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--recon-muted);
+  cursor: pointer;
+  font-weight: 750;
+  padding: 16px 0 13px;
+}
+
+.recon-queues button.active {
+  border-color: var(--recon-ink);
+  color: var(--recon-ink);
+}
+
+.recon-queues span {
+  background: #ece9e2;
+  border-radius: 999px;
+  font-size: 11px;
+  margin-left: 4px;
+  padding: 2px 6px;
+}
+
+.recon-filters {
+  align-items: end;
+  background: var(--recon-soft);
+  border-bottom: 1px solid var(--recon-line);
+  display: flex;
+  gap: 10px;
+  padding: 10px 32px;
+}
+
+.recon-filters label {
+  color: var(--recon-muted);
+  display: grid;
+  font-size: 10px;
+  font-weight: 800;
+  gap: 3px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.recon-filters select,
+.recon-filters input {
+  background: #fff;
+  border: 1px solid var(--recon-line);
+  border-radius: 4px;
+  color: var(--recon-ink);
+  font-size: 12px;
+  height: 34px;
+  max-width: 220px;
+  min-width: 100px;
+  padding: 0 8px;
+}
+
+.recon-filters > span {
+  color: var(--recon-muted);
+  font-size: 12px;
+  margin-left: auto;
+  padding-bottom: 8px;
+}
+
+.recon-notice {
+  align-items: center;
+  background: #f0f7f4;
+  border: 0;
+  border-bottom: 1px solid #cde4dc;
+  color: #17654f;
+  cursor: pointer;
+  display: flex;
+  font-weight: 700;
+  justify-content: space-between;
+  padding: 11px 32px;
+  text-align: left;
+  width: 100%;
+}
+
+.recon-ledgers {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.recon-ledger {
+  min-width: 0;
+}
+
+.recon-ledger + .recon-ledger {
+  border-left: 1px solid var(--recon-line);
+}
+
+.recon-ledger > header {
+  align-items: center;
+  border-bottom: 1px solid var(--recon-line);
+  display: flex;
+  justify-content: space-between;
+  padding: 18px 20px;
+}
+
+.recon-ledger > header label {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+}
+
+.recon-ledger > header label > span {
+  display: grid;
+  gap: 2px;
+}
+
+.recon-ledger > header strong {
+  font-size: 16px;
+}
+
+.recon-ledger > header small {
+  color: var(--recon-muted);
+  font-size: 11px;
+}
+
+.recon-ledger-labels {
+  background: var(--recon-soft);
+  border-bottom: 1px solid var(--recon-line);
+  color: var(--recon-muted);
+  display: grid;
+  font-size: 9px;
+  font-weight: 800;
+  grid-template-columns: 102px minmax(0, 1fr) 88px 92px;
+  letter-spacing: .08em;
+  padding: 8px 15px 8px 44px;
+  text-transform: uppercase;
+}
+
+.recon-ledger-labels span:last-child {
+  text-align: right;
+}
+
+.recon-line {
+  align-items: center;
+  border-bottom: 1px solid #ebe8e2;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 20px 94px minmax(0, 1fr) 88px 92px;
+  min-height: 66px;
+  padding: 7px 15px;
+  transition: background .12s ease, box-shadow .12s ease;
+}
+
+.recon-line:hover {
+  background: #fbfaf7;
+}
+
+.recon-line.selected {
+  background: var(--recon-green-soft);
+  box-shadow: inset 3px 0 var(--recon-green);
+}
+
+.recon-line input[type="checkbox"],
+.recon-ledger input[type="checkbox"] {
+  accent-color: var(--recon-green);
+  height: 16px;
+  width: 16px;
+}
+
+.recon-date-input,
+.recon-description input,
+.recon-amount-input input {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--recon-ink);
+  min-width: 0;
+  outline: 0;
+}
+
+.recon-date-input {
+  color: var(--recon-muted);
+  font-size: 11px;
+  width: 100%;
+}
+
+.recon-description {
+  display: grid;
+  min-width: 0;
+}
+
+.recon-description input {
+  font-size: 13px;
+  font-weight: 750;
+  padding: 4px;
+  width: 100%;
+}
+
+.recon-description small {
+  color: var(--recon-muted);
+  font-size: 10px;
+  overflow: hidden;
+  padding: 0 4px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recon-description em {
+  color: var(--recon-amber);
+  font-size: 9px;
+  font-style: normal;
+  padding: 2px 4px 0;
+}
+
+.recon-date-input:hover,
+.recon-description input:hover,
+.recon-amount-input input:hover,
+.recon-date-input:focus,
+.recon-description input:focus,
+.recon-amount-input input:focus {
+  background: #fff;
+  border-color: #c9c5bd;
+}
+
+.recon-source {
+  color: var(--recon-muted);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recon-amount-input {
+  align-items: center;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.recon-amount-input span {
+  color: var(--recon-muted);
+  font-size: 10px;
+}
+
+.recon-amount-input input {
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 2px;
+  text-align: right;
+  width: 66px;
+}
+
+.recon-empty {
+  color: var(--recon-muted);
+  margin: 0;
+  padding: 32px;
+  text-align: center;
+}
+
+.recon-matchbar {
+  align-items: center;
+  background: #24221f;
+  bottom: 0;
+  box-shadow: 0 -12px 38px rgba(20, 18, 15, .2);
+  color: #fff;
+  display: grid;
+  gap: 15px;
+  grid-template-columns: minmax(180px, 1fr) auto 22px auto minmax(118px, .6fr) auto auto;
+  left: 240px;
+  padding: 14px 30px;
+  position: fixed;
+  right: 0;
+  z-index: 30;
+}
+
+.recon-match-summary {
+  display: grid;
+}
+
+.recon-match-summary > span,
+.recon-match-metric span,
+.recon-adjustment > span,
+.recon-difference > span {
+  color: #aaa49b;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.recon-match-summary strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 18px;
+}
+
+.recon-match-summary small {
+  color: #e9bd70;
+  font-size: 10px;
+}
+
+.recon-match-metric,
+.recon-difference {
+  display: grid;
+  text-align: right;
+}
+
+.recon-match-metric strong,
+.recon-difference strong {
+  font-size: 17px;
+}
+
+.recon-difference strong {
+  color: #f0a397;
+}
+
+.recon-difference.balanced strong {
+  color: #67d4af;
+}
+
+.recon-match-symbol {
+  color: #817b72;
+  font-size: 18px;
+}
+
+.recon-adjustment {
+  display: grid;
+  gap: 3px;
+}
+
+.recon-adjustment > div {
+  align-items: center;
+  border-bottom: 1px solid #605b54;
+  display: flex;
+}
+
+.recon-adjustment > div > span {
+  color: #aaa49b;
+  font-size: 11px;
+}
+
+.recon-adjustment input {
+  background: transparent;
+  border: 0;
+  color: #fff;
+  max-width: 75px;
+  outline: 0;
+  padding: 4px;
+}
+
+.recon-match-actions {
+  display: flex;
+  gap: 7px;
+}
+
+.recon-match-actions button,
+.recon-support button {
+  background: transparent;
+  border: 1px solid #5d5850;
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 750;
+  padding: 9px 12px;
+}
+
+.reconciliation-page .recon-confirm {
+  background: var(--recon-green);
+  border: 1px solid var(--recon-green);
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 800;
+  padding: 10px 14px;
+}
+
+.reconciliation-page button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+.recon-adjustment-detail,
+.recon-support {
+  grid-column: 1 / -1;
+}
+
+.recon-adjustment-detail {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 220px 1fr;
+}
+
+.recon-adjustment-detail select,
+.recon-adjustment-detail input,
+.recon-support select,
+.recon-support input {
+  background: #383530;
+  border: 1px solid #5d5850;
+  border-radius: 4px;
+  color: #fff;
+  height: 34px;
+  padding: 0 9px;
+}
+
+.recon-support summary {
+  color: #c8c2b9;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.recon-support > div {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 220px minmax(220px, 1fr) auto auto;
+  margin-top: 8px;
+}
+
+.recon-import,
+.recon-suggestions,
+.recon-groups,
+.exception-register,
+.cash-control,
+.recon-close,
+.recon-activity {
+  border-bottom: 1px solid var(--recon-line);
+  padding: 24px 32px;
+}
+
+.recon-import {
+  background: #fbfaf7;
+}
+
+.recon-import > header,
+.recon-suggestions > header,
+.cash-control > header,
+.recon-close {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.recon-import h2,
+.recon-suggestions h2,
+.cash-control h2,
+.recon-close h2,
+.recon-activity h2,
+.exception-register h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  margin: 3px 0;
+}
+
+.recon-import > header > span,
+.recon-suggestions > header > span {
+  color: var(--recon-muted);
+  font-size: 12px;
+}
+
+.recon-import-controls {
+  align-items: end;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 160px 280px minmax(300px, 1fr) auto;
+  margin-top: 18px;
+}
+
+.recon-import-controls label {
+  color: var(--recon-muted);
+  display: grid;
+  font-size: 11px;
+  font-weight: 750;
+  gap: 5px;
+}
+
+.recon-import-controls input,
+.recon-import-controls select,
+.recon-import-controls textarea {
+  background: #fff;
+  border: 1px solid var(--recon-line);
+  border-radius: 4px;
+  padding: 9px;
+}
+
+.recon-import-controls textarea {
+  height: 72px;
+  resize: vertical;
+}
+
+.recon-import-controls button {
+  background: var(--recon-ink);
+  border: 0;
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+  padding: 11px 14px;
+}
+
+.recon-import-summary {
+  background: #eeece6;
+  display: flex;
+  gap: 18px;
+  margin-top: 16px;
+  padding: 10px 12px;
+}
+
+.recon-import-summary strong {
+  margin-left: auto;
+}
+
+.recon-import-preview > div {
+  align-items: center;
+  border-bottom: 1px solid var(--recon-line);
+  display: grid;
+  font-size: 12px;
+  gap: 10px;
+  grid-template-columns: 60px 100px minmax(0, 1fr) 90px 75px;
+  padding: 8px 4px;
+}
+
+.recon-import-preview .flagged {
+  color: var(--recon-red);
+}
+
+.recon-import-preview b,
+.recon-import-preview em {
+  text-align: right;
+}
+
+.recon-import-preview em {
+  font-size: 10px;
+}
+
+.recon-import > .recon-confirm {
+  margin-top: 14px;
+}
+
+.recon-import-report {
+  color: var(--recon-green);
+  font-weight: 750;
+}
+
+.recon-suggestions article {
+  align-items: center;
+  border-bottom: 1px solid var(--recon-line);
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 90px minmax(180px, 1fr) 20px minmax(180px, 1fr) minmax(180px, 1.2fr) auto;
+  padding: 15px 0;
+}
+
+.recon-suggestions article > div {
+  display: grid;
+  gap: 2px;
+}
+
+.recon-suggestions article small,
+.recon-suggestions article span {
+  color: var(--recon-muted);
+  font-size: 10px;
+}
+
+.recon-suggestions ul {
+  color: var(--recon-muted);
+  font-size: 10px;
+  margin: 0;
+  padding-left: 16px;
+}
+
+.suggestion-confidence {
+  background: var(--recon-green-soft);
+  border-radius: 999px;
+  color: var(--recon-green) !important;
+  font-weight: 800;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.suggestion-confidence.ambiguous,
+.suggestion-confidence.medium {
+  background: #f7ead7;
+  color: var(--recon-amber) !important;
+}
+
+.recon-suggestions article button {
+  background: #fff;
+  border: 1px solid var(--recon-line);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 750;
+  padding: 9px 11px;
+}
+
+.recon-groups details {
+  border-bottom: 1px solid var(--recon-line);
+}
+
+.recon-groups summary {
+  align-items: center;
+  cursor: pointer;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  list-style: none;
+  padding: 15px 0;
+}
+
+.recon-groups summary > div {
+  display: grid;
+}
+
+.recon-groups summary small {
+  color: var(--recon-muted);
+}
+
+.recon-group-check {
+  align-items: center;
+  background: var(--recon-green);
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+
+.recon-group-body {
+  background: var(--recon-soft);
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 1fr 1fr auto;
+  padding: 16px;
+}
+
+.recon-group-column > strong {
+  color: var(--recon-muted);
+  display: block;
+  font-size: 10px;
+  letter-spacing: .08em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.recon-group-column > div {
+  align-items: center;
+  border-top: 1px solid #e1ded7;
+  display: grid;
+  font-size: 12px;
+  gap: 10px;
+  grid-template-columns: 90px minmax(0, 1fr) auto;
+  padding: 8px 0;
+}
+
+.recon-group-adjustment {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.exception-register article {
+  align-items: center;
+  border-bottom: 1px solid var(--recon-line);
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 180px minmax(0, 1fr) 100px auto;
+  padding: 14px 0;
+}
+
+.exception-register article > span {
+  color: var(--recon-amber);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.exception-register article > div {
+  display: grid;
+}
+
+.exception-register article small {
+  color: var(--recon-muted);
+}
+
+.cash-control {
+  background: #fbfaf7;
+}
+
+.cash-control > header > strong {
+  color: var(--recon-green);
+  font-size: 20px;
+}
+
+.cash-equation {
+  align-items: center;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+  margin-top: 16px;
+}
+
+.cash-equation .recon-metric,
+.cash-equation > label {
+  border-left: 1px solid var(--recon-line);
+  min-height: 70px;
+  padding: 6px 18px;
+}
+
+.cash-equation > label {
+  display: grid;
+}
+
+.cash-equation > label > span,
+.cash-equation > label small {
+  color: var(--recon-muted);
+  font-size: 10px;
+}
+
+.cash-equation > label > div {
+  font-weight: 800;
+}
+
+.cash-equation input {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--recon-line);
+  font-weight: 800;
+  max-width: 90px;
+  outline: 0;
+}
+
+.recon-close ul {
+  display: flex;
+  gap: 20px;
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.recon-close li {
+  color: var(--recon-muted);
+  font-size: 12px;
+}
+
+.recon-close li.done {
+  color: var(--recon-green);
+}
+
+.recon-close-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.recon-activity > div {
+  align-items: center;
+  border-bottom: 1px solid var(--recon-line);
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 190px minmax(0, 1fr) 80px;
+  padding: 10px 0;
+}
+
+.recon-activity span,
+.recon-activity small {
+  color: var(--recon-muted);
+  font-size: 11px;
+}
+
+@media (max-width: 1180px) {
+  .recon-overview {
+    grid-template-columns: 1.5fr repeat(2, 1fr);
+  }
+
+  .recon-overview .recon-metric:nth-last-child(-n + 2) {
+    margin-top: 14px;
+  }
+
+  .recon-line {
+    grid-template-columns: 20px 80px minmax(0, 1fr) 76px;
+  }
+
+  .recon-ledger-labels {
+    grid-template-columns: 88px minmax(0, 1fr) 76px;
+  }
+
+  .recon-source,
+  .recon-ledger-labels span:nth-child(3) {
+    display: none;
+  }
+
+  .recon-matchbar {
+    grid-template-columns: 1fr auto 18px auto auto auto;
+  }
+
+  .recon-adjustment {
+    display: none;
+  }
+
+  .recon-suggestions article {
+    grid-template-columns: 85px 1fr 20px 1fr auto;
+  }
+
+  .recon-suggestions ul {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .reconciliation-page {
+    padding-bottom: 190px;
+  }
+
+  .recon-titlebar {
+    align-items: flex-start;
+    padding: 22px 16px 16px;
+  }
+
+  .recon-titlebar p:last-child,
+  .recon-title-actions .btn {
+    display: none;
+  }
+
+  .reconciliation-tabs,
+  .recon-queues {
+    overflow-x: auto;
+    padding: 0 16px;
+  }
+
+  .reconciliation-tabs button {
+    min-width: 145px;
+  }
+
+  .recon-overview {
+    grid-template-columns: 1fr 1fr;
+    padding: 16px;
+  }
+
+  .recon-trip-context {
+    grid-column: 1 / -1;
+    margin-bottom: 14px;
+    padding: 0;
+  }
+
+  .recon-metric {
+    border-top: 1px solid var(--recon-line);
+    padding: 12px 8px;
+  }
+
+  .recon-commandbar {
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    top: 58px;
+  }
+
+  .recon-search {
+    flex-basis: 100%;
+  }
+
+  .recon-queues {
+    gap: 20px;
+  }
+
+  .recon-queues button {
+    white-space: nowrap;
+  }
+
+  .recon-filters {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 10px 16px;
+  }
+
+  .recon-filters select,
+  .recon-filters input {
+    max-width: none;
+    width: 100%;
+  }
+
+  .recon-filters > span {
+    margin-left: 0;
+  }
+
+  .recon-ledgers {
+    display: block;
+  }
+
+  .recon-ledger + .recon-ledger {
+    border-left: 0;
+    border-top: 8px solid #e9e6df;
+  }
+
+  .recon-line {
+    grid-template-columns: 18px 67px minmax(0, 1fr) 78px;
+    min-height: 60px;
+    padding: 7px 10px;
+  }
+
+  .recon-ledger-labels {
+    grid-template-columns: 74px minmax(0, 1fr) 78px;
+    padding-left: 36px;
+  }
+
+  .recon-description input {
+    font-size: 12px;
+  }
+
+  .recon-description small {
+    max-width: 150px;
+  }
+
+  .recon-matchbar {
+    bottom: 70px;
+    gap: 8px;
+    grid-template-columns: 1fr auto auto;
+    left: 0;
+    padding: 10px 14px;
+  }
+
+  .recon-match-summary {
+    grid-column: 1 / -1;
+  }
+
+  .recon-match-symbol,
+  .recon-adjustment,
+  .recon-match-actions button:first-child {
+    display: none;
+  }
+
+  .recon-match-actions {
+    justify-content: flex-end;
+  }
+
+  .recon-adjustment-detail,
+  .recon-support {
+    display: none;
+  }
+
+  .recon-import,
+  .recon-suggestions,
+  .recon-groups,
+  .exception-register,
+  .cash-control,
+  .recon-close,
+  .recon-activity {
+    padding: 20px 16px;
+  }
+
+  .recon-import-controls {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .recon-import-preview {
+    overflow-x: auto;
+  }
+
+  .recon-import-preview > div {
+    min-width: 560px;
+  }
+
+  .recon-suggestions article {
+    align-items: start;
+    grid-template-columns: 1fr 20px 1fr;
+  }
+
+  .suggestion-confidence,
+  .recon-suggestions article > button {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .recon-group-body {
+    grid-template-columns: 1fr;
+  }
+
+  .recon-group-body > button {
+    justify-self: start;
+  }
+
+  .exception-register article {
+    grid-template-columns: 1fr auto;
+  }
+
+  .exception-register article > div {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .cash-control > header {
+    align-items: flex-start;
+    display: grid;
+  }
+
+  .cash-equation {
+    grid-template-columns: 1fr;
+  }
+
+  .cash-equation > span {
+    display: none;
+  }
+
+  .cash-equation .recon-metric,
+  .cash-equation > label {
+    border-bottom: 1px solid var(--recon-line);
+    border-left: 0;
+    min-height: 0;
+  }
+
+  .recon-close {
+    align-items: flex-start;
+    display: grid;
+    gap: 16px;
+  }
+
+  .recon-close ul {
+    display: grid;
+    gap: 6px;
+  }
+
+  .recon-activity > div {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+}
+
+/* Warm Ledger reconciliation skin
+   Keeps the professional workflow while returning the page to Splitwiser's
+   established charcoal, parchment, gold, and mint visual language. */
+
+.reconciliation-page {
+  --recon-ink: var(--color-text-primary);
+  --recon-muted: var(--color-text-tertiary);
+  --recon-line: var(--color-border-default);
+  --recon-soft: var(--color-bg-inset);
+  --recon-green: var(--color-positive);
+  --recon-green-soft: var(--color-positive-subtle);
+  --recon-amber: var(--color-accent);
+  --recon-red: var(--color-negative);
+  grid-column: 1 / -1;
+  min-width: 0;
+  color: var(--color-text-primary);
+}
+
+.recon-titlebar {
+  align-items: flex-end;
+  border: 0;
+  padding: 0 0 26px;
+}
+
+.recon-titlebar h1 {
+  color: var(--color-text-primary);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 42px;
+  letter-spacing: 0;
+}
+
+.recon-titlebar p:last-child {
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.recon-period-status {
+  border: 1px solid var(--color-positive-border);
+  color: var(--color-positive);
+  background: var(--color-positive-subtle);
+}
+
+.recon-period-status.closed {
+  border-color: var(--color-border-default);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-subtle);
+}
+
+.reconciliation-tabs {
+  overflow: hidden;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: var(--color-bg-panel);
+  padding: 0 20px;
+}
+
+.reconciliation-tabs button {
+  min-width: 190px;
+  color: var(--color-text-tertiary);
+  padding: 18px 14px 15px;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.reconciliation-tabs button:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-subtle);
+}
+
+.reconciliation-tabs button.active {
+  border-bottom-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-bg-accent-faint);
+}
+
+.reconciliation-tabs span {
+  font-size: 15px;
+}
+
+.reconciliation-tabs small {
+  color: var(--color-text-tertiary);
+}
+
+.recon-overview {
+  border: 1px solid var(--color-border-default);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  background: var(--color-bg-panel);
+  padding: 22px;
+}
+
+.recon-trip-context {
+  padding-right: 30px;
+}
+
+.recon-trip-context > strong {
+  color: var(--color-text-primary);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 25px;
+}
+
+.recon-trip-context p,
+.recon-metric small {
+  color: var(--color-text-tertiary);
+}
+
+.recon-trip-context > span,
+.recon-metric > span {
+  color: var(--color-text-tertiary);
+}
+
+.recon-metric {
+  border-left-color: var(--color-border-default);
+  padding: 8px 20px;
+}
+
+.recon-metric strong {
+  color: var(--color-text-primary);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.recon-commandbar {
+  top: 88px;
+  z-index: 22;
+  gap: 10px;
+  margin: 16px 0 0;
+  border: 1px solid var(--color-border-emphasis);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-raised);
+  padding: 12px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .18);
+}
+
+.recon-search {
+  min-height: 42px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  background: var(--color-bg-control);
+}
+
+.recon-search:focus-within {
+  border-color: var(--color-accent);
+  background: var(--color-bg-control);
+  box-shadow: 0 0 0 3px var(--color-bg-accent-subtle);
+}
+
+.recon-search > span,
+.recon-search kbd {
+  color: var(--color-text-tertiary);
+}
+
+.recon-search input {
+  color: var(--color-text-primary);
+}
+
+.recon-search input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.recon-search kbd {
+  border-color: var(--color-border-default);
+  background: var(--color-bg-raised);
+}
+
+.recon-tool-button,
+.recon-more summary,
+.recon-filters button,
+.recon-close button,
+.recon-group-body > button,
+.exception-register button {
+  min-height: 38px;
+  border-color: var(--color-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-subtle);
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.recon-tool-button:hover,
+.recon-more summary:hover,
+.recon-filters button:hover,
+.recon-close button:hover,
+.recon-group-body > button:hover,
+.exception-register button:hover {
+  border-color: var(--color-border-emphasis);
+  color: var(--color-accent);
+  background: var(--color-bg-accent-subtle);
+}
+
+.recon-more > div {
+  border-color: var(--color-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  background: var(--color-bg-raised);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .34);
+}
+
+.recon-more button,
+.recon-more label {
+  color: var(--color-text-secondary);
+}
+
+.recon-more button:hover,
+.recon-more label:hover {
+  color: var(--color-accent);
+  background: var(--color-bg-accent-subtle);
+}
+
+.recon-queues {
+  gap: 26px;
+  margin-top: 14px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  background: var(--color-bg-panel);
+  padding: 0 20px;
+}
+
+.recon-queues button {
+  color: var(--color-text-tertiary);
+  padding: 17px 0 14px;
+}
+
+.recon-queues button:hover {
+  color: var(--color-text-primary);
+}
+
+.recon-queues button.active {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.recon-queues span {
+  color: var(--color-text-secondary);
+  background: var(--color-bg-raised);
+}
+
+.recon-queues button.active span {
+  color: var(--color-on-accent);
+  background: var(--color-accent);
+}
+
+.recon-filters {
+  align-items: end;
+  border: 1px solid var(--color-border-default);
+  border-top: 0;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  background: var(--color-bg-inset);
+  padding: 12px 20px;
+}
+
+.recon-filters label {
+  color: var(--color-text-tertiary);
+}
+
+.recon-filters select,
+.recon-filters input,
+.recon-import-controls input,
+.recon-import-controls select,
+.recon-import-controls textarea {
+  min-height: 38px;
+  border-color: var(--color-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  background: var(--color-bg-control);
+}
+
+.recon-filters select:focus,
+.recon-filters input:focus,
+.recon-import-controls input:focus,
+.recon-import-controls select:focus,
+.recon-import-controls textarea:focus {
+  outline: 2px solid var(--color-focus-ring-soft);
+  outline-offset: 1px;
+}
+
+.recon-filters > span {
+  color: var(--color-text-tertiary);
+}
+
+.recon-notice {
+  margin-top: 12px;
+  border: 1px solid var(--color-positive-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-positive);
+  background: var(--color-positive-subtle);
+}
+
+.recon-ledgers {
+  align-items: start;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.recon-ledger {
+  overflow: hidden;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-panel);
+}
+
+.recon-ledger + .recon-ledger {
+  border-left: 1px solid var(--color-border-default);
+}
+
+.recon-ledger > header {
+  min-height: 82px;
+  border-bottom-color: var(--color-border-default);
+  background: var(--color-bg-header);
+  padding: 18px 20px;
+}
+
+.recon-ledger > header strong {
+  color: var(--color-text-primary);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 20px;
+}
+
+.recon-ledger > header > strong {
+  color: var(--color-accent);
+  font-family: Geist, sans-serif;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+.recon-ledger > header small {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+}
+
+.recon-ledger-labels {
+  min-height: 34px;
+  align-items: center;
+  border-bottom-color: var(--color-border-default);
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-inset);
+}
+
+.recon-line {
+  min-height: 72px;
+  border-bottom-color: var(--color-border-default);
+  background: var(--color-bg-row);
+  padding: 9px 15px;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.recon-line:hover {
+  background: var(--color-bg-raised);
+}
+
+.recon-line.selected {
+  border-color: var(--color-border-emphasis);
+  background: var(--color-bg-accent-selected);
+  box-shadow: none;
+}
+
+.recon-line.cash-line {
+  background: color-mix(in oklab, var(--color-bg-row) 88%, var(--color-bg-accent-subtle));
+}
+
+.recon-line.cash-line:hover {
+  background: color-mix(in oklab, var(--color-bg-raised) 88%, var(--color-bg-accent-subtle));
+}
+
+.recon-line.cash-line.selected {
+  background: var(--color-bg-accent-selected);
+}
+
+.recon-description .cash-control-note {
+  color: var(--color-accent);
+}
+
+.recon-line input[type="checkbox"],
+.recon-ledger input[type="checkbox"] {
+  appearance: none;
+  background: color-mix(in oklab, var(--color-bg-inset) 82%, transparent);
+  border: 1px solid var(--color-border-default);
+  border-radius: 4px;
+  cursor: pointer;
+  height: 16px;
+  margin: 0;
+  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  width: 16px;
+}
+
+.recon-line input[type="checkbox"]:hover:not(:disabled),
+.recon-ledger input[type="checkbox"]:hover:not(:disabled) {
+  border-color: var(--color-border-emphasis);
+  background: var(--color-bg-accent-subtle);
+}
+
+.recon-line input[type="checkbox"]:checked,
+.recon-ledger input[type="checkbox"]:checked {
+  border-color: var(--color-accent);
+  background: radial-gradient(circle, var(--color-accent) 0 3px, transparent 3.5px);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-accent) 18%, transparent);
+}
+
+.recon-line input[type="checkbox"]:focus-visible,
+.recon-ledger input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.recon-line input[type="checkbox"]:disabled,
+.recon-ledger input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
+.recon-date-input,
+.recon-description input,
+.recon-amount-input input {
+  color: var(--color-text-primary);
+}
+
+.recon-date-input {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+}
+
+.recon-description input {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.recon-description small,
+.recon-source {
+  color: var(--color-text-tertiary);
+}
+
+.recon-description em {
+  color: var(--color-accent);
+}
+
+.recon-date-input:hover,
+.recon-description input:hover,
+.recon-amount-input input:hover,
+.recon-date-input:focus,
+.recon-description input:focus,
+.recon-amount-input input:focus {
+  border-color: var(--color-border-emphasis);
+  color: var(--color-text-primary);
+  background: var(--color-bg-control);
+}
+
+.recon-amount-input span {
+  color: var(--color-text-tertiary);
+}
+
+.recon-amount-input input {
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.recon-empty {
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-inset);
+}
+
+.recon-matchbar {
+  left: 288px;
+  border-top: 1px solid var(--color-border-emphasis);
+  color: var(--color-text-primary);
+  background: var(--color-bg-raised);
+  box-shadow: 0 -16px 40px rgba(0, 0, 0, .34);
+}
+
+.recon-match-summary > span,
+.recon-match-metric span,
+.recon-adjustment > span,
+.recon-difference > span {
+  color: var(--color-text-tertiary);
+}
+
+.recon-match-summary strong,
+.recon-match-metric strong {
+  color: var(--color-text-primary);
+}
+
+.recon-match-summary small {
+  color: var(--color-accent);
+}
+
+.recon-difference strong {
+  color: var(--color-negative);
+}
+
+.recon-difference.balanced strong {
+  color: var(--color-positive);
+}
+
+.recon-adjustment > div {
+  border-bottom-color: var(--color-border-default);
+}
+
+.recon-adjustment input,
+.recon-adjustment-detail select,
+.recon-adjustment-detail input,
+.recon-support select,
+.recon-support input {
+  color: var(--color-text-primary);
+  background: var(--color-bg-control);
+  border-color: var(--color-border-default);
+}
+
+.recon-match-actions button,
+.recon-support button {
+  min-height: 38px;
+  border-color: var(--color-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-subtle);
+}
+
+.reconciliation-page .recon-confirm {
+  min-height: 38px;
+  border-color: var(--color-accent);
+  border-radius: var(--radius-sm);
+  color: var(--color-on-accent);
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-strong));
+}
+
+.reconciliation-page .recon-confirm:hover:not(:disabled) {
+  color: var(--color-on-accent);
+  background: linear-gradient(135deg, oklch(89% 0.09 78), var(--color-accent));
+}
+
+.recon-support summary {
+  color: var(--color-text-secondary);
+}
+
+.recon-import,
+.recon-suggestions,
+.recon-groups,
+.exception-register,
+.cash-control,
+.recon-close,
+.recon-activity {
+  margin-top: 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  background: var(--color-bg-panel);
+  padding: 22px;
+}
+
+.recon-import {
+  background: var(--color-bg-panel);
+}
+
+.recon-import h2,
+.recon-suggestions h2,
+.cash-control h2,
+.recon-close h2,
+.recon-activity h2,
+.exception-register h2 {
+  color: var(--color-text-primary);
+  font-family: "Source Serif 4", Georgia, serif;
+}
+
+.recon-import > header > span,
+.recon-suggestions > header > span,
+.recon-import-controls label {
+  color: var(--color-text-tertiary);
+}
+
+.recon-import-controls button {
+  min-height: 38px;
+  border: 1px solid var(--color-border-emphasis);
+  border-radius: var(--radius-sm);
+  color: var(--color-accent);
+  background: var(--color-bg-accent-subtle);
+}
+
+.recon-import-summary {
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-inset);
+}
+
+.recon-import-preview > div,
+.recon-suggestions article,
+.recon-groups details,
+.exception-register article,
+.recon-activity > div {
+  border-bottom-color: var(--color-border-default);
+}
+
+.recon-import-preview .flagged {
+  color: var(--color-negative);
+}
+
+.recon-import-report {
+  color: var(--color-positive);
+}
+
+.recon-suggestions article small,
+.recon-suggestions article span,
+.recon-suggestions ul {
+  color: var(--color-text-tertiary);
+}
+
+.recon-suggestions article strong {
+  color: var(--color-text-primary);
+}
+
+.suggestion-confidence {
+  border: 1px solid var(--color-positive-border);
+  color: var(--color-positive) !important;
+  background: var(--color-positive-subtle);
+}
+
+.suggestion-confidence.ambiguous,
+.suggestion-confidence.medium {
+  border-color: var(--color-border-emphasis);
+  color: var(--color-accent) !important;
+  background: var(--color-bg-accent-subtle);
+}
+
+.recon-suggestions article button {
+  min-height: 38px;
+  border-color: var(--color-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-subtle);
+}
+
+.recon-suggestions article button:hover:not(:disabled) {
+  border-color: var(--color-border-emphasis);
+  color: var(--color-accent);
+  background: var(--color-bg-accent-subtle);
+}
+
+.recon-groups summary small,
+.recon-group-column > strong,
+.recon-group-column > div span,
+.exception-register article small,
+.recon-activity span,
+.recon-activity small {
+  color: var(--color-text-tertiary);
+}
+
+.recon-group-check {
+  color: var(--color-on-accent);
+  background: var(--color-positive);
+}
+
+.recon-group-body {
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-inset);
+}
+
+.recon-group-column > div {
+  border-top-color: var(--color-border-default);
+}
+
+.exception-register article > span {
+  color: var(--color-accent);
+}
+
+.cash-control {
+  background: var(--color-bg-panel);
+}
+
+.cash-control > header > strong {
+  color: var(--color-positive);
+}
+
+.cash-summary-copy {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 8px 0 0;
+  max-width: 70ch;
+}
+
+.cash-equation .recon-metric,
+.cash-equation > label {
+  border-left-color: var(--color-border-default);
+}
+
+.cash-equation > label > span,
+.cash-equation > label small {
+  color: var(--color-text-tertiary);
+}
+
+.cash-equation input {
+  border-bottom-color: var(--color-border-default);
+  color: var(--color-text-primary);
+}
+
+.recon-close li {
+  color: var(--color-text-tertiary);
+}
+
+.recon-close li.done {
+  color: var(--color-positive);
+}
+
+@media (max-width: 1119px) {
+  .recon-matchbar {
+    left: 0;
+  }
+
+  .recon-commandbar {
+    top: 74px;
+  }
+}
+
+@media (max-width: 760px) {
+  .recon-titlebar {
+    padding: 0 0 18px;
+  }
+
+  .recon-titlebar h1 {
+    font-size: 32px;
+  }
+
+  .reconciliation-tabs,
+  .recon-queues {
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    padding: 0 14px;
+  }
+
+  .recon-overview,
+  .recon-filters {
+    padding: 14px;
+  }
+
+  .recon-commandbar {
+    margin-top: 12px;
+    border-radius: var(--radius-md);
+    padding: 10px;
+    top: 68px;
+  }
+
+  .recon-tool-button,
+  .recon-more summary {
+    min-height: 44px;
+  }
+
+  .recon-ledgers {
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .recon-ledger + .recon-ledger {
+    border-top: 1px solid var(--color-border-default);
+  }
+
+  .recon-ledger > header {
+    min-height: 74px;
+  }
+
+  .recon-line {
+    min-height: 68px;
+  }
+
+  .recon-matchbar {
+    bottom: 70px;
+  }
+
+  .recon-import,
+  .recon-suggestions,
+  .recon-groups,
+  .exception-register,
+  .cash-control,
+  .recon-close,
+  .recon-activity {
+    margin-top: 12px;
+    padding: 18px 14px;
+  }
+}

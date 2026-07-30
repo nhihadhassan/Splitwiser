@@ -1,0 +1,275 @@
+.cloud-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 11px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-pill, 999px);
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-subtle);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: color 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.cloud-status-badge:hover {
+  color: var(--color-text-secondary);
+  border-color: var(--color-border-emphasis);
+  background: var(--color-bg-accent-subtle);
+}
+
+.cloud-status-synced {
+  color: var(--color-positive);
+  border-color: var(--color-positive-border);
+  background: var(--color-positive-subtle);
+}
+
+.cloud-status-saving,
+.cloud-status-connecting {
+  color: var(--color-accent);
+  border-color: var(--color-border-emphasis);
+}
+
+.cloud-status-error,
+.cloud-status-conflict {
+  color: var(--color-negative);
+  border-color: var(--color-negative-border);
+  background: var(--color-negative-subtle);
+}
+
+.cloud-sync-panel {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-row);
+}
+
+.cloud-sync-summary {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  flex: 1 1 330px;
+  min-width: 0;
+}
+
+.cloud-sync-summary > div {
+  min-width: 0;
+}
+
+.cloud-sync-summary strong,
+.cloud-sync-summary span {
+  display: block;
+}
+
+.cloud-sync-summary strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.cloud-sync-summary span {
+  margin-top: 2px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.cloud-sync-indicator {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--color-text-tertiary);
+}
+
+.cloud-sync-synced .cloud-sync-indicator {
+  background: var(--color-positive);
+  box-shadow: 0 0 0 4px var(--color-positive-subtle);
+}
+
+.cloud-sync-saving .cloud-sync-indicator,
+.cloud-sync-connecting .cloud-sync-indicator {
+  background: var(--color-accent);
+}
+
+.cloud-sync-error .cloud-sync-indicator,
+.cloud-sync-conflict .cloud-sync-indicator {
+  background: var(--color-negative);
+  box-shadow: 0 0 0 4px var(--color-negative-subtle);
+}
+
+.cloud-sync-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cloud-sync-panel details {
+  position: relative;
+}
+
+.cloud-sync-panel summary {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cloud-sync-connect,
+.cloud-sync-settings {
+  width: min(440px, calc(100vw - 48px));
+  margin-top: 12px;
+}
+
+.cloud-sync-connect label,
+.cloud-sync-key-row label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.cloud-sync-connect > div,
+.cloud-sync-key-row > div {
+  display: flex;
+  gap: 8px;
+}
+
+.cloud-sync-connect input,
+.cloud-sync-key-row input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-control);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.cloud-sync-settings {
+  flex: 1 1 100%;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-default);
+}
+
+.cloud-sync-settings > summary {
+  margin-bottom: 12px;
+}
+
+.cloud-sync-key-row {
+  max-width: 620px;
+}
+
+.cloud-sync-key-row p {
+  margin: 7px 0 12px;
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+}
+
+.cloud-sync-key-callout,
+.cloud-sync-error,
+.cloud-sync-conflict {
+  flex: 1 1 100%;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border-default);
+}
+
+.cloud-sync-key-callout {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.4fr) auto auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.cloud-sync-key-callout p {
+  margin: 3px 0 0;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+.cloud-sync-key-callout code {
+  overflow: hidden;
+  padding: 9px 11px;
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-control);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cloud-sync-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--color-negative);
+  font-size: 12px;
+}
+
+.cloud-sync-conflict {
+  align-items: center;
+  color: var(--color-negative);
+  display: grid;
+  flex: 1 1 100%;
+  gap: 10px;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+}
+
+.cloud-sync-conflict > div {
+  display: grid;
+  gap: 3px;
+}
+
+.cloud-sync-conflict span {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+}
+
+@media (max-width: 680px) {
+  .cloud-status-badge {
+    min-height: 36px;
+    padding: 0 9px;
+  }
+
+  .cloud-sync-panel {
+    align-items: stretch;
+    padding: 14px;
+  }
+
+  .cloud-sync-actions {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cloud-sync-actions > .btn {
+    width: 100%;
+  }
+
+  .cloud-sync-key-callout {
+    grid-template-columns: 1fr;
+  }
+
+  .cloud-sync-conflict {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .brand-name {
+    display: none;
+  }
+}

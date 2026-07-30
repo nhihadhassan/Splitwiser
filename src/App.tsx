@@ -8,11 +8,12 @@ import { FriendPage } from "./pages/FriendPage";
 import { ActivityPage } from "./pages/ActivityPage";
 import { AllExpensesPage } from "./pages/AllExpensesPage";
 import { SettlementsPage } from "./pages/SettlementsPage";
+import { ReconciliationPage } from "./pages/ReconciliationPage";
 
 export default function App() {
   return (
     <StoreProvider>
-      <HashRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+      <HashRouter>
         <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
@@ -22,6 +23,7 @@ export default function App() {
             <Route path="/groups/:groupId" element={<GroupPage />} />
             <Route path="/friends/:friendId" element={<FriendPage />} />
             <Route path="/settlements" element={<SettlementsPage />} />
+            <Route path="/reconciliation" element={<ReconciliationPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
