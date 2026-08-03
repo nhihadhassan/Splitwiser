@@ -46,6 +46,16 @@ export function CloudSyncPanel() {
       <div className="cloud-sync-summary">
         <span className="cloud-sync-indicator" aria-hidden="true" />
         <strong>{statusCopy(cloud.status)}</strong>
+        {cloud.hasKey && cloud.status !== "conflict" && (
+          <button
+            className="btn-link"
+            type="button"
+            onClick={() => void cloud.refresh()}
+            disabled={cloud.status === "connecting" || cloud.status === "saving"}
+          >
+            Sync now
+          </button>
+        )}
       </div>
 
       {!cloud.hasKey && (

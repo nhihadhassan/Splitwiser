@@ -50,7 +50,8 @@ type Action =
   | { type: "addSettlement"; settlement: Settlement }
   | { type: "deleteSettlement"; settlementId: string }
   | { type: "updateReconciliation"; reconciliation: ReconciliationState }
-  | { type: "replace"; state: AppState };
+  | { type: "replace"; state: AppState }
+  | { type: "hydrate"; state: AppState };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -90,6 +91,8 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, reconciliation: action.reconciliation };
     case "replace":
       return normalizeState(action.state);
+    case "hydrate":
+      return action.state;
   }
 }
 
@@ -113,6 +116,17 @@ function loadLegacyReconciliation(): ReconciliationState {
   };
 }
 
+function emptyReconciliation(): ReconciliationState {
+  return {
+    decisions: {},
+    matches: {},
+    cashRemaining: "",
+    cashTransactions: DEFAULT_PERU_CASH_TRANSACTIONS,
+    cardTransactions: DEFAULT_SCOTIABANK_TRANSACTIONS,
+    exportTransactions: DEFAULT_EXPENSE_EXPORT_TRANSACTIONS,
+  };
+}
+
 function mergeStatementTransactions<T extends { id: string }>(
   canonical: T[],
   saved: T[] | undefined,
@@ -122,13 +136,23 @@ function mergeStatementTransactions<T extends { id: string }>(
   return [...saved, ...canonical.filter((item) => !savedIds.has(item.id))];
 }
 
-function normalizeState(state: Omit<AppState, "reconciliation"> & Partial<AppState>): AppState {
+/** Where a ledger came from. Legacy browser-storage keys belong to a single
+ * device, so they are only folded in for state read off this device. Merging
+ * them into a ledger pulled from the cloud would let one phone push its own
+ * private history over everyone else's numbers. */
+type StateSource = "local" | "remote";
+
+function normalizeState(
+  state: Omit<AppState, "reconciliation"> & Partial<AppState>,
+  source: StateSource = "local",
+): AppState {
   const savedReconciliation = state.reconciliation;
+  const legacy = source === "local" ? loadLegacyReconciliation() : emptyReconciliation();
   const normalized = addCentralAmericaTrip({
     ...state,
     dataMigrations: state.dataMigrations ?? [],
     reconciliation: {
-      ...loadLegacyReconciliation(),
+      ...legacy,
       ...savedReconciliation,
       matches: savedReconciliation?.matches ?? {},
       cashTransactions: mergeStatementTransactions(
@@ -298,9 +322,14 @@ interface CloudControls {
   connect: (syncKey: string) => Promise<boolean>;
   disconnect: () => void;
   retry: () => Promise<void>;
+  refresh: () => Promise<void>;
   useCloudVersion: () => Promise<void>;
   keepLocalVersion: () => Promise<void>;
 }
+
+/** How often a connected device re-reads the online ledger while it is the
+ * visible tab, so two devices left open converge without anyone tapping. */
+const POLL_INTERVAL_MS = 15_000;
 
 interface StoreValue {
   state: AppState;
@@ -326,19 +355,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const saveTimer = useRef<number | null>(null);
   const cloudRevision = useRef(0);
   const conflictActive = useRef(false);
+  /** Serialized copy of the ledger as it last stood online. Anything equal to
+   * this needs no upload, which keeps a freshly pulled ledger from bouncing
+   * straight back and bumping the revision on every device that opens it. */
+  const syncedSnapshot = useRef<string | null>(null);
 
   useEffect(() => {
+    const serialized = JSON.stringify(state);
     stateRef.current = state;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(STORAGE_KEY, serialized);
 
     if (!syncKey || !remoteReady || conflictActive.current) return;
+    if (serialized === syncedSnapshot.current) {
+      setCloudStatus("synced");
+      return;
+    }
 
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
     setCloudStatus("saving");
     saveTimer.current = window.setTimeout(async () => {
       try {
+        const pending = JSON.stringify(stateRef.current);
         const result = await saveCloudState(syncKey, stateRef.current, cloudRevision.current);
         cloudRevision.current = result.revision;
+        syncedSnapshot.current = pending;
         setLastSavedAt(result.updatedAt);
         setCloudError(null);
         setCloudStatus("synced");
@@ -358,41 +398,108 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
   }, [remoteReady, state, syncKey]);
 
-  useEffect(() => {
-    if (!syncKey) return;
-    const controller = new AbortController();
-    setCloudStatus("connecting");
-    setCloudError(null);
+  /** Adopt a ledger read from the server as the truth for this device. */
+  const adoptRemoteLedger = useCallback(
+    (ledger: { state: AppState; revision: number; updatedAt: string }) => {
+      const normalized = normalizeState(ledger.state, "remote");
+      cloudRevision.current = ledger.revision;
+      // Compare against what the server holds, not the normalized copy: if
+      // normalizing added anything the server has not seen, the save effect
+      // uploads it once and both devices settle on the same ledger.
+      syncedSnapshot.current = JSON.stringify(ledger.state);
+      conflictActive.current = false;
+      dispatch({ type: "hydrate", state: normalized });
+      setLastSavedAt(ledger.updatedAt);
+      setCloudError(null);
+      setRemoteReady(true);
+      setCloudStatus("synced");
+    },
+    [],
+  );
 
-    void loadCloudState(syncKey, controller.signal)
-      .then((ledger) => {
+  /** Re-read the online ledger. `background` keeps the routine polls quiet so
+   * the badge does not flicker while nothing has actually changed. */
+  const pullFromCloud = useCallback(
+    async (background = false, signal?: AbortSignal) => {
+      if (!syncKey) return;
+      if (!background) {
+        setCloudStatus("connecting");
+        setCloudError(null);
+      }
+      try {
+        const ledger = await loadCloudState(syncKey, signal);
+        if (signal?.aborted) return;
         if (!ledger) {
           throw new CloudSyncError("This sync key does not have an online ledger.", 404);
         }
-        dispatch({ type: "replace", state: ledger.state });
-        cloudRevision.current = ledger.revision;
-        conflictActive.current = false;
-        setLastSavedAt(ledger.updatedAt);
-        setRemoteReady(true);
-        setCloudStatus("synced");
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        setRemoteReady(false);
-        setCloudError(error instanceof Error ? error.message : "Could not open the online ledger.");
+        if (background) {
+          // Nothing new online: leave this device alone.
+          if (ledger.revision === cloudRevision.current) return;
+          // Something newer is online, but this device also holds edits that
+          // were never uploaded. Never silently drop them — ask instead.
+          const local = JSON.stringify(stateRef.current);
+          if (syncedSnapshot.current !== null && local !== syncedSnapshot.current) {
+            conflictActive.current = true;
+            setCloudError("This ledger changed on another device. Choose which version to keep.");
+            setCloudStatus("conflict");
+            return;
+          }
+        }
+        adoptRemoteLedger(ledger);
+      } catch (error) {
+        if (signal?.aborted) return;
+        if (!background) setRemoteReady(false);
+        setCloudError(
+          error instanceof Error ? error.message : "Could not open the online ledger.",
+        );
         setCloudStatus("error");
-      });
+      }
+    },
+    [adoptRemoteLedger, syncKey],
+  );
 
+  useEffect(() => {
+    if (!syncKey) return;
+    const controller = new AbortController();
+    void pullFromCloud(false, controller.signal);
     return () => controller.abort();
-  }, [syncKey]);
+  }, [pullFromCloud, syncKey]);
+
+  // Keep every connected device current: poll while visible, and pull again
+  // the moment the tab is brought back or the network returns. Phones freeze
+  // background tabs rather than reload them, so without this a phone can sit
+  // on a snapshot from days ago.
+  useEffect(() => {
+    if (!syncKey) return;
+
+    const refreshIfIdle = () => {
+      if (document.visibilityState !== "visible") return;
+      if (conflictActive.current) return;
+      void pullFromCloud(true);
+    };
+
+    const interval = window.setInterval(refreshIfIdle, POLL_INTERVAL_MS);
+    window.addEventListener("focus", refreshIfIdle);
+    window.addEventListener("online", refreshIfIdle);
+    document.addEventListener("visibilitychange", refreshIfIdle);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshIfIdle);
+      window.removeEventListener("online", refreshIfIdle);
+      document.removeEventListener("visibilitychange", refreshIfIdle);
+    };
+  }, [pullFromCloud, syncKey]);
 
   const enableCloud = useCallback(async (): Promise<string | null> => {
     const key = generateSyncKey();
     setCloudStatus("connecting");
     setCloudError(null);
     try {
+      const uploaded = JSON.stringify(stateRef.current);
       const result = await saveCloudState(key, stateRef.current, 0);
       cloudRevision.current = result.revision;
+      syncedSnapshot.current = uploaded;
       conflictActive.current = false;
       localStorage.setItem(SYNC_KEY_STORAGE_KEY, key);
       setSyncKey(key);
@@ -416,14 +523,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (!ledger) {
         throw new CloudSyncError("No online ledger was found for that sync key.", 404);
       }
-      dispatch({ type: "replace", state: ledger.state });
-      cloudRevision.current = ledger.revision;
-      conflictActive.current = false;
+      adoptRemoteLedger(ledger);
       localStorage.setItem(SYNC_KEY_STORAGE_KEY, key);
       setSyncKey(key);
-      setRemoteReady(true);
-      setLastSavedAt(ledger.updatedAt);
-      setCloudStatus("synced");
       return true;
     } catch (error) {
       setRemoteReady(false);
@@ -431,7 +533,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setCloudStatus("error");
       return false;
     }
-  }, []);
+  }, [adoptRemoteLedger]);
 
   const disconnectCloud = useCallback(() => {
     if (saveTimer.current) window.clearTimeout(saveTimer.current);
@@ -442,6 +544,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setCloudError(null);
     cloudRevision.current = 0;
     conflictActive.current = false;
+    syncedSnapshot.current = null;
     setCloudStatus("local");
   }, []);
 
@@ -450,8 +553,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setCloudStatus("saving");
     setCloudError(null);
     try {
+      const pending = JSON.stringify(stateRef.current);
       const result = await saveCloudState(syncKey, stateRef.current, cloudRevision.current);
       cloudRevision.current = result.revision;
+      syncedSnapshot.current = pending;
       setRemoteReady(true);
       setLastSavedAt(result.updatedAt);
       setCloudStatus("synced");
@@ -472,25 +577,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     try {
       const ledger = await loadCloudState(syncKey);
       if (!ledger) throw new CloudSyncError("The online ledger was not found.", 404);
-      cloudRevision.current = ledger.revision;
-      conflictActive.current = false;
-      dispatch({ type: "replace", state: ledger.state });
-      setLastSavedAt(ledger.updatedAt);
-      setCloudError(null);
-      setRemoteReady(true);
-      setCloudStatus("synced");
+      adoptRemoteLedger(ledger);
     } catch (error) {
       setCloudError(error instanceof Error ? error.message : "Could not load the online version.");
       setCloudStatus("error");
     }
-  }, [syncKey]);
+  }, [adoptRemoteLedger, syncKey]);
 
   const keepLocalVersion = useCallback(async () => {
     if (!syncKey) return;
     setCloudStatus("saving");
     try {
+      const pending = JSON.stringify(stateRef.current);
       const result = await saveCloudState(syncKey, stateRef.current, cloudRevision.current, true);
       cloudRevision.current = result.revision;
+      syncedSnapshot.current = pending;
       conflictActive.current = false;
       setLastSavedAt(result.updatedAt);
       setCloudError(null);
@@ -518,6 +619,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       connect: connectCloud,
       disconnect: disconnectCloud,
       retry: retryCloud,
+      refresh: () => pullFromCloud(false),
       useCloudVersion,
       keepLocalVersion,
     }),
@@ -529,6 +631,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       enableCloud,
       lastSavedAt,
       keepLocalVersion,
+      pullFromCloud,
       retryCloud,
       syncKey,
       useCloudVersion,
