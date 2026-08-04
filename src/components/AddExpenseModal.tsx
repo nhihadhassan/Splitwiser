@@ -1,12 +1,13 @@
 import { useId, useMemo, useState } from "react";
-import type { Expense, ExpenseCategory, SplitMethod } from "../types";
+import type { Expense, SplitMethod } from "../types";
 import { ME, uid, useStore } from "../store";
 import { centsToInput, formatMoney, parseMoney, splitByWeights, splitEqually } from "../utils/money";
-import { CATEGORIES, CATEGORY_META } from "../utils/categories";
+import { CATEGORIES, CATEGORY_META, normalizeExpenseCategory, type SelectableExpenseCategory } from "../utils/categories";
 import { CategoryIcon } from "./Icons";
 import { today } from "../utils/dates";
 import { Modal } from "./Modal";
 import { Avatar } from "./Avatar";
+import { DatePicker } from "./DatePicker";
 
 const METHOD_LABELS: { id: SplitMethod; label: string }[] = [
   { id: "equally", label: "Equally" },
@@ -31,7 +32,9 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
 
   const [description, setDescription] = useState(expense?.description ?? "");
   const [amountText, setAmountText] = useState(expense ? centsToInput(expense.amount) : "");
-  const [category, setCategory] = useState<ExpenseCategory>(expense?.category ?? "general");
+  const [category, setCategory] = useState<SelectableExpenseCategory>(
+    () => normalizeExpenseCategory(expense?.category ?? "other", expense?.description),
+  );
   const [date, setDate] = useState(expense?.date ?? today());
   const [notes, setNotes] = useState(expense?.notes ?? "");
   const [selectedGroupId, setSelectedGroupId] = useState<string>(
@@ -267,20 +270,30 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
         </div>
       </div>
 
-      <div className="field-pair">
-        <div className="field">
-          <label htmlFor={`${fieldId}-date`}>Date</label>
-          <input id={`${fieldId}-date`} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        </div>
-        <div className="field">
-          <label htmlFor={`${fieldId}-category`}>Category</label>
-          <select id={`${fieldId}-category`} value={category} onChange={(e) => setCategory(e.target.value as ExpenseCategory)}>
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                <CategoryIcon category={c} size={17} /> {CATEGORY_META[c].label}
-              </option>
-            ))}
-          </select>
+      <div className="field">
+        <label htmlFor={`${fieldId}-date`}>Date</label>
+        <DatePicker id={`${fieldId}-date`} value={date} onChange={setDate} />
+      </div>
+
+      <div className="field category-field">
+        <span className="field-label" id={`${fieldId}-category`}>Category</span>
+        <div className="category-picker" role="radiogroup" aria-labelledby={`${fieldId}-category`}>
+          {CATEGORIES.map((item) => {
+            const selected = category === item;
+            return (
+              <button
+                key={item}
+                type="button"
+                className={`category-card activity-icon-${item} ${selected ? "selected" : ""}`}
+                role="radio"
+                aria-checked={selected}
+                onClick={() => setCategory(item)}
+              >
+                <CategoryIcon category={item} size={25} />
+                <span>{CATEGORY_META[item].label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

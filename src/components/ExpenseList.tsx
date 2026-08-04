@@ -68,7 +68,7 @@ export function ExpenseList({
   if (items.length === 0) {
     return (
       <div className="empty-state">
-        <div className="big">🧾</div>
+        <div className="big"><CategoryIcon category="other" size={30} /></div>
         <div>{emptyMessage}</div>
       </div>
     );

@@ -29,6 +29,7 @@ import { addCentralAmericaTrip } from "./centralAmericaTrip";
 import { DEFAULT_EXPENSE_EXPORT_TRANSACTIONS, DEFAULT_NEW_YORK_MATCHES, DEFAULT_PERU_CASH_TRANSACTIONS, DEFAULT_PORTUGAL_CASH_TRANSACTIONS, DEFAULT_SCOTIABANK_TRANSACTIONS } from "./reconciliationData";
 import { ensureReconciliationWorkspace, removeExpenseFromReconciliation, resizeExpenseAmount, syncExpenseToReconciliation } from "./reconciliation";
 import { seedState } from "./seed";
+import { normalizeExpenseCategory } from "./utils/categories";
 import { splitEqually } from "./utils/money";
 
 export const ME = "me";
@@ -241,7 +242,16 @@ function normalizeState(
       },
     },
   });
-  const seededTripExpenses = seedState().expenses.filter((expense) => expense.id.startsWith("e-ny-card-"));
+  normalized.expenses = normalized.expenses.map((expense) => ({
+    ...expense,
+    category: normalizeExpenseCategory(expense.category, expense.description),
+  }));
+  const seededTripExpenses = seedState().expenses
+    .filter((expense) => expense.id.startsWith("e-ny-card-"))
+    .map((expense) => ({
+      ...expense,
+      category: normalizeExpenseCategory(expense.category, expense.description),
+    }));
   const existingExpenseIds = new Set(normalized.expenses.map((expense) => expense.id));
   normalized.expenses = normalized.expenses.concat(
     seededTripExpenses.filter((expense) => !existingExpenseIds.has(expense.id)),

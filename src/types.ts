@@ -31,15 +31,26 @@ export interface ExpenseSplit {
 }
 
 export type ExpenseCategory =
-  | "general"
+  | "flights"
+  | "lodging"
+  | "car-rental"
+  | "transit"
   | "food"
+  | "drinks"
+  | "sightseeing"
+  | "activities"
+  | "shopping"
+  | "gas"
   | "groceries"
+  | "other"
+  // Legacy values remain readable so older local and cloud ledgers can be
+  // normalized without rejecting or erasing their expenses.
+  | "general"
   | "rent"
   | "utilities"
   | "transport"
   | "travel"
   | "entertainment"
-  | "shopping"
   | "medical";
 
 export interface Expense {
