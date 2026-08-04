@@ -11,6 +11,7 @@ import type {
   ReconciliationWorkspace,
   StatementTransaction,
 } from "./types";
+import { splitByWeights, splitEqually } from "./utils/money";
 
 export const RECONCILIATION_SCHEMA_VERSION = 2 as const;
 export const SUGGESTION_ROUNDING_INCREMENT_CENTS = 50;
@@ -183,6 +184,137 @@ function leftTransaction(expense: Expense, tripId: ReconciliationTripId, status:
     amount: String(expense.amount),
     notes: expense.notes ?? "",
   });
+}
+
+export function linkedExpenseId(transaction: ReconciliationTransaction): string | null {
+  if (transaction.side !== "left" || transaction.accountType !== "wanderlog") return null;
+  return transaction.reference || transaction.id.split(":").slice(2).join(":") || null;
+}
+
+export function resizeExpenseAmount(expense: Expense, amount: number): Expense {
+  const owes = expense.splitMethod === "equally"
+    ? splitEqually(amount, expense.splits.length)
+    : splitByWeights(amount, expense.splits.map((split) => split.owes));
+  let paid = splitByWeights(amount, expense.splits.map((split) => split.paid));
+  if (amount > 0 && paid.every((share) => share === 0) && expense.splits.length > 0) {
+    const payerIndex = Math.max(0, expense.splits.findIndex((split) => split.personId === expense.createdBy));
+    paid = expense.splits.map((_, index) => index === payerIndex ? amount : 0);
+  }
+  return {
+    ...expense,
+    amount,
+    splits: expense.splits.map((split, index) => ({
+      ...split,
+      owes: owes[index] ?? 0,
+      paid: paid[index] ?? 0,
+    })),
+  };
+}
+
+export function expenseFromReconciliationTransaction(
+  expense: Expense,
+  transaction: ReconciliationTransaction,
+): Expense {
+  const resized = resizeExpenseAmount(expense, transaction.postedCadCents);
+  return {
+    ...resized,
+    description: transaction.description,
+    date: canonicalDate(transaction.date),
+  };
+}
+
+function transactionSearchText(item: ReconciliationTransaction): string {
+  return normalizeSearch([
+    item.date,
+    item.postedDate,
+    item.description,
+    item.reference,
+    item.category,
+    item.currency,
+    item.postedCadCents / 100,
+    item.notes ?? "",
+    item.sourceId,
+  ].join(" "));
+}
+
+export function updateReconciliationTransaction(
+  workspace: ReconciliationWorkspace,
+  id: string,
+  patch: Partial<ReconciliationTransaction>,
+): ReconciliationWorkspace {
+  const current = workspace.transactions.find((item) => item.id === id);
+  if (!current) return workspace;
+  const updated = { ...current, ...patch };
+  const amountChanged = updated.postedCadCents !== current.postedCadCents;
+  const transactions = workspace.transactions.map((item) => item.id === id
+    ? {
+        ...updated,
+        merchant: normalizeSearch(updated.description),
+        normalizedText: transactionSearchText(updated),
+        duplicateFingerprint: fingerprint([
+          updated.sourceId,
+          canonicalDate(updated.postedDate),
+          updated.postedCadCents,
+          updated.reference,
+          updated.description,
+        ]),
+        raw: {
+          ...updated.raw,
+          date: updated.date,
+          description: updated.description,
+          amount: String(updated.postedCadCents),
+        },
+      }
+    : item);
+  if (!amountChanged) return { ...workspace, transactions };
+
+  const reopenedIds = new Set<string>();
+  const matchGroups = workspace.matchGroups.map((group) => {
+    if (group.status !== "confirmed" || ![...group.leftIds, ...group.rightIds].includes(id)) return group;
+    [...group.leftIds, ...group.rightIds].forEach((transactionId) => reopenedIds.add(transactionId));
+    const byId = new Map(transactions.map((item) => [item.id, item]));
+    const leftTotalCents = group.leftIds.reduce((sum, transactionId) => sum + (byId.get(transactionId)?.postedCadCents ?? 0), 0);
+    const rightTotalCents = group.rightIds.reduce((sum, transactionId) => sum + (byId.get(transactionId)?.postedCadCents ?? 0), 0);
+    return {
+      ...group,
+      status: "draft" as const,
+      leftTotalCents,
+      rightTotalCents,
+      differenceCents: leftTotalCents - rightTotalCents - (group.adjustment?.amountCents ?? 0),
+      confirmedAt: undefined,
+      explanation: [...group.explanation, "Amount changed after confirmation; review this match again"],
+    };
+  });
+
+  return {
+    ...workspace,
+    transactions: transactions.map((item) => reopenedIds.has(item.id)
+      ? { ...item, status: "unmatched" as const }
+      : item),
+    matchGroups,
+  };
+}
+
+export function syncExpenseToReconciliation(
+  state: ReconciliationState,
+  expense: Expense,
+): ReconciliationState {
+  if (!state.workspace) return state;
+  const transaction = state.workspace.transactions.find((item) => linkedExpenseId(item) === expense.id);
+  if (!transaction) return state;
+  const originalAmountCents = transaction.currency === "CAD"
+    ? expense.amount
+    : transaction.originalAmountCents;
+  const workspace = updateReconciliationTransaction(state.workspace, transaction.id, {
+    date: expense.date,
+    postedDate: expense.date,
+    description: expense.description,
+    category: expense.category,
+    originalAmountCents,
+    postedCadCents: expense.amount,
+    notes: expense.notes,
+  });
+  return { ...state, workspace };
 }
 
 function rightTransaction(

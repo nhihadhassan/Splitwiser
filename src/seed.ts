@@ -167,7 +167,7 @@ export function seedState(): AppState {
   addEqual("e-pt-046", "Uber to Porto Bus Stn", 640, "transport", "2026-06-16", "g-portugal", "me", ["me", "p-rachel"], 1781611200000);
   addEqual("e-pt-047", "illicit Burgers", 1429, "food", "2026-06-16", "g-portugal", "me", ["me", "p-rachel"], 1781611200000);
   addEqual("e-pt-048", "Snacks", 406, "food", "2026-06-16", "g-portugal", "me", ["me", "p-rachel"], 1781611200000);
-  addEqual("e-pt-049", "Hostel Green Heart", 41626, "travel", "2026-06-17", "g-portugal", "me", ["me", "p-rachel"], 1781697600000);
+  addEqual("e-pt-049", "Hostel Green Heart", 45500, "travel", "2026-06-17", "g-portugal", "me", ["me", "p-rachel"], 1781697600000, "Paid in two card payments: Hostelworld and Green Heart Hostel.");
   addEqual("e-pt-050", "The Bakery Café", 2260, "food", "2026-06-17", "g-portugal", "me", ["me", "p-rachel"], 1781697600000);
   addEqual("e-pt-051", "Nata Portuguesa", 239, "food", "2026-06-17", "g-portugal", "me", ["me", "p-rachel"], 1781697600000);
   addEqual("e-pt-052", "Yak & Yeti (Lisbon)", 4056, "food", "2026-06-17", "g-portugal", "me", ["me", "p-rachel"], 1781697600000);

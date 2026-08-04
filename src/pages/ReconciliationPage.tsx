@@ -22,9 +22,12 @@ import {
   formatReconciliationDate,
   generateSuggestions,
   importedTransaction,
+  expenseFromReconciliationTransaction,
+  linkedExpenseId,
   normalizeSearch,
   previewDelimitedImport,
   reconciliationTotals,
+  updateReconciliationTransaction,
   type ImportPreviewRow,
 } from "../reconciliation";
 import { centsToInput, formatMoney, parseMoney } from "../utils/money";
@@ -395,15 +398,21 @@ export function ReconciliationPage() {
 
   function editTransaction(id: string, patch: Partial<ReconciliationTransaction>) {
     if (isLocked) return;
-    const next = {
-      ...workspace,
-      transactions: workspace.transactions.map((item) => {
-        if (item.id !== id) return item;
-        const updated = { ...item, ...patch };
-        return { ...updated, normalizedText: normalizeSearch(`${updated.date} ${updated.description} ${updated.reference} ${updated.notes ?? ""} ${updated.postedCadCents / 100}`) };
-      }),
-    };
-    updateWorkspace(withAudit(next, "edit", "Edited normalized transaction fields", [id]));
+    const next = updateReconciliationTransaction(workspace, id, patch);
+    const audited = withAudit(next, "edit", "Edited normalized transaction fields", [id]);
+    const updated = audited.transactions.find((item) => item.id === id);
+    const expenseId = updated ? linkedExpenseId(updated) : null;
+    const expense = expenseId ? state.expenses.find((item) => item.id === expenseId) : null;
+    if (updated && expense) {
+      dispatch({
+        type: "updateLinkedExpense",
+        expense: expenseFromReconciliationTransaction(expense, updated),
+        reconciliation: { ...state.reconciliation, workspace: audited },
+      });
+      setNotice("Updated the Wanderlog transaction and linked group expense.");
+      return;
+    }
+    updateWorkspace(audited);
   }
 
   function buildImportPreview() {

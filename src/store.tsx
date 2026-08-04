@@ -27,13 +27,14 @@ import {
 } from "./cloud";
 import { addCentralAmericaTrip } from "./centralAmericaTrip";
 import { DEFAULT_EXPENSE_EXPORT_TRANSACTIONS, DEFAULT_NEW_YORK_MATCHES, DEFAULT_PERU_CASH_TRANSACTIONS, DEFAULT_PORTUGAL_CASH_TRANSACTIONS, DEFAULT_SCOTIABANK_TRANSACTIONS } from "./reconciliationData";
-import { ensureReconciliationWorkspace } from "./reconciliation";
+import { ensureReconciliationWorkspace, resizeExpenseAmount, syncExpenseToReconciliation } from "./reconciliation";
 import { seedState } from "./seed";
 import { splitEqually } from "./utils/money";
 
 export const ME = "me";
 
 const STORAGE_KEY = "splitwiser-state-v2";
+export const GREEN_HEART_PAYMENT_MIGRATION = "portugal-green-heart-linked-payments-2026-08-04";
 
 export function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -46,6 +47,7 @@ type Action =
   | { type: "deleteGroup"; groupId: string }
   | { type: "addExpense"; expense: Expense }
   | { type: "updateExpense"; expense: Expense }
+  | { type: "updateLinkedExpense"; expense: Expense; reconciliation: ReconciliationState }
   | { type: "deleteExpense"; expenseId: string }
   | { type: "addSettlement"; settlement: Settlement }
   | { type: "deleteSettlement"; settlementId: string }
@@ -77,6 +79,13 @@ function reducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         expenses: state.expenses.map((e) => (e.id === action.expense.id ? action.expense : e)),
+        reconciliation: syncExpenseToReconciliation(state.reconciliation, action.expense),
+      };
+    case "updateLinkedExpense":
+      return {
+        ...state,
+        expenses: state.expenses.map((e) => (e.id === action.expense.id ? action.expense : e)),
+        reconciliation: action.reconciliation,
       };
     case "deleteExpense":
       return { ...state, expenses: state.expenses.filter((e) => e.id !== action.expenseId) };
@@ -138,6 +147,25 @@ function mergeStatementTransactions<T extends { id: string }>(
   return [...saved, ...canonical.filter((item) => !savedIds.has(item.id))];
 }
 
+export function applyGreenHeartPaymentMigration(state: AppState): AppState {
+  if (state.dataMigrations.includes(GREEN_HEART_PAYMENT_MIGRATION)) return state;
+  const expense = state.expenses.find((item) => item.id === "e-pt-049");
+  if (!expense) return state;
+  const paymentNote = "Paid in two card payments: Hostelworld and Green Heart Hostel.";
+  const updatedExpense = {
+    ...resizeExpenseAmount(expense, 45500),
+    notes: expense.notes?.includes(paymentNote)
+      ? expense.notes
+      : [expense.notes, paymentNote].filter(Boolean).join(" "),
+  };
+  return {
+    ...state,
+    expenses: state.expenses.map((item) => item.id === updatedExpense.id ? updatedExpense : item),
+    reconciliation: syncExpenseToReconciliation(state.reconciliation, updatedExpense),
+    dataMigrations: [...state.dataMigrations, GREEN_HEART_PAYMENT_MIGRATION],
+  };
+}
+
 /** Where a ledger came from. Legacy browser-storage keys belong to a single
  * device, so they are only folded in for state read off this device. Merging
  * them into a ledger pulled from the cloud would let one phone push its own
@@ -150,7 +178,7 @@ function normalizeState(
 ): AppState {
   const savedReconciliation = state.reconciliation;
   const legacy = source === "local" ? loadLegacyReconciliation() : emptyReconciliation();
-  const normalized = addCentralAmericaTrip({
+  let normalized = addCentralAmericaTrip({
     ...state,
     dataMigrations: state.dataMigrations ?? [],
     reconciliation: {
@@ -222,6 +250,7 @@ function normalizeState(
     ...normalized.reconciliation,
     matches: mergedNewYorkMatches,
   };
+  normalized = applyGreenHeartPaymentMigration(normalized);
   const savedTripExpenses = normalized.expenses.filter(
     (expense) => expense.groupId === "g-portugal"
       || expense.groupId === "g-peru"

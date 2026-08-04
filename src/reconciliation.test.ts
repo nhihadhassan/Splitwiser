@@ -6,11 +6,15 @@ import {
   compareReconciliationTransactions,
   createReconciliationWorkspace,
   ensureReconciliationWorkspace,
+  expenseFromReconciliationTransaction,
   formatReconciliationDate,
   generateSuggestions,
   normalizeSearch,
   previewDelimitedImport,
   reconciliationTotals,
+  resizeExpenseAmount,
+  syncExpenseToReconciliation,
+  updateReconciliationTransaction,
 } from "./reconciliation";
 
 interface MatchFixtureRow {
@@ -59,6 +63,69 @@ function matchingFixture(leftRows: MatchFixtureRow[], rightRows: MatchFixtureRow
 }
 
 describe("reconciliation schema migration", () => {
+  it("updates the linked expense and preserves balanced splits after a Wanderlog correction", () => {
+    const state = seedState();
+    const expense = state.expenses.find((item) => item.id === "e-pt-049")!;
+    const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
+    const transaction = workspace.transactions.find((item) => item.id === "wl:portugal:e-pt-049")!;
+    const editedWorkspace = updateReconciliationTransaction(workspace, transaction.id, {
+      description: "Green Heart Hostel",
+      postedCadCents: 45500,
+    });
+    const editedTransaction = editedWorkspace.transactions.find((item) => item.id === transaction.id)!;
+
+    const linkedExpense = expenseFromReconciliationTransaction(
+      resizeExpenseAmount(expense, 41626),
+      editedTransaction,
+    );
+
+    expect(linkedExpense.description).toBe("Green Heart Hostel");
+    expect(linkedExpense.amount).toBe(45500);
+    expect(linkedExpense.splits.map((split) => split.owes)).toEqual([22750, 22750]);
+    expect(linkedExpense.splits.reduce((sum, split) => sum + split.paid, 0)).toBe(45500);
+  });
+
+  it("syncs group expense edits back to Wanderlog reconciliation and reopens stale matches", () => {
+    const state = seedState();
+    const expense = state.expenses.find((item) => item.id === "e-pt-049")!;
+    const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
+    const leftId = "wl:portugal:e-pt-049";
+    const right = workspace.transactions.find((item) => item.tripId === "portugal" && item.side === "right")!;
+    state.reconciliation.workspace = {
+      ...workspace,
+      transactions: workspace.transactions.map((item) => [leftId, right.id].includes(item.id)
+        ? { ...item, status: "reconciled" }
+        : item),
+      matchGroups: [{
+        id: "confirmed-green-heart",
+        tripId: "portugal",
+        leftIds: [leftId],
+        rightIds: [right.id],
+        matchType: "1 left ↔ 1 right",
+        status: "confirmed",
+        leftTotalCents: expense.amount,
+        rightTotalCents: right.postedCadCents,
+        differenceCents: 0,
+        explanation: ["Previously confirmed"],
+        createdAt: new Date(0).toISOString(),
+        confirmedAt: new Date(0).toISOString(),
+      }],
+    };
+    const updatedExpense = {
+      ...resizeExpenseAmount(expense, 46000),
+      description: "Green Heart Hostel (two payments)",
+    };
+
+    const reconciliation = syncExpenseToReconciliation(state.reconciliation, updatedExpense);
+    const linked = reconciliation.workspace!.transactions.find((item) => item.id === leftId)!;
+
+    expect(linked.postedCadCents).toBe(46000);
+    expect(linked.description).toBe("Green Heart Hostel (two payments)");
+    expect(linked.status).toBe("unmatched");
+    expect(reconciliation.workspace!.matchGroups[0].status).toBe("draft");
+    expect(reconciliation.workspace!.matchGroups[0].confirmedAt).toBeUndefined();
+  });
+
   it("normalizes Portugal, Peru, and New York into integer-cent transactions", () => {
     const state = seedState();
     const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
