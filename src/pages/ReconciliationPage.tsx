@@ -277,7 +277,7 @@ export function ReconciliationPage() {
         : {
             amountCents: suggestedDifference,
             reason: "fx" as const,
-            note: `Accepted suggested match with ${money(Math.abs(suggestedDifference))} difference within the CA$0.50 tolerance.`,
+            note: `Accepted suggested match with ${money(Math.abs(suggestedDifference))} difference.`,
           }
       : adjustmentCents
         ? { amountCents: adjustmentCents, reason: adjustmentReason, note: adjustmentNote.trim() }
@@ -991,7 +991,7 @@ function SuggestionList({
 }) {
   return (
     <section className="recon-suggestions">
-      <header><h2>Suggestions ({suggestions.length})</h2><span>Exact CAD any date · near amounts by rule · exact groups up to 3</span></header>
+      <header><h2>Suggestions ({suggestions.length})</h2><span>Exact CAD any date · rounded Wanderlog entries ±7 days · exact groups up to 3</span></header>
       {suggestions.map((group) => {
         const left = group.leftIds.map((id) => byId.get(id)).filter((item): item is ReconciliationTransaction => Boolean(item));
         const right = group.rightIds.map((id) => byId.get(id)).filter((item): item is ReconciliationTransaction => Boolean(item));

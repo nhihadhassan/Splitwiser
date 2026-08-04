@@ -9,7 +9,6 @@ import {
   normalizeSearch,
   previewDelimitedImport,
   reconciliationTotals,
-  SUGGESTION_AMOUNT_TOLERANCE_CENTS,
 } from "./reconciliation";
 
 interface MatchFixtureRow {
@@ -153,7 +152,7 @@ describe("reconciliation schema migration", () => {
 
     expect(repaired.sources.find((item) => item.id === "export-peru")?.institution).toBe("Tangerine");
     expect(repaired.rules.find((item) => item.id === "default-exact")?.amountToleranceCents)
-      .toBe(SUGGESTION_AMOUNT_TOLERANCE_CENTS);
+      .toBe(0);
   });
 
   it("adds newly imported Peru charges to an existing workspace without changing matches", () => {
@@ -256,34 +255,30 @@ describe("matching and controls", () => {
     expect(first.every((item) => item.explanation.length >= 2)).toBe(true);
   });
 
-  it("suggests matches up to 50 cents apart but not 51 cents apart", () => {
-    const state = seedState();
-    const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
-    const candidate = generateSuggestions(workspace, "new-york")[0];
-    expect(candidate).toBeDefined();
-    const leftId = candidate.leftIds[0];
-    const rightId = candidate.rightIds[0];
-    const isolated = {
-      ...workspace,
-      transactions: workspace.transactions
-        .filter((item) => item.id === leftId || item.id === rightId)
-        .map((item) => ({ ...item, postedDate: "2026-06-01" })),
-      matchGroups: [],
-    };
-    const hasCandidate = (differenceCents: number) => {
-      const shifted = {
-        ...isolated,
-        transactions: isolated.transactions.map((item) => item.id === rightId
-          ? { ...item, postedCadCents: item.postedCadCents + differenceCents }
-          : item),
-      };
-      return generateSuggestions(shifted, "new-york").some((item) => (
-        item.leftIds[0] === leftId && item.rightIds[0] === rightId
-      ));
-    };
+  it("only suggests non-exact amounts when the Wanderlog entry looks deliberately rounded", () => {
+    const nonRounded = matchingFixture(
+      [{ id: "left-regua", amountCents: 1_253, date: "2026-06-22", description: "Regua" }],
+      [{ id: "right-colada", amountCents: 1_302, date: "2026-06-21", description: "Pina Colada" }],
+    );
+    const roundedDollar = matchingFixture(
+      [{ id: "left-dollar", amountCents: 1_300, date: "2026-06-22", description: "Dinner" }],
+      [{ id: "right-dollar", amountCents: 1_302, date: "2026-06-21", description: "Dinner" }],
+    );
+    const roundedHalfDollar = matchingFixture(
+      [{ id: "left-half", amountCents: 1_250, date: "2026-06-22", description: "Dinner" }],
+      [{ id: "right-half", amountCents: 1_253, date: "2026-06-21", description: "Dinner" }],
+    );
+    const roundedDownDollar = matchingFixture(
+      [{ id: "left-down", amountCents: 1_200, date: "2026-06-22", description: "Dinner" }],
+      [{ id: "right-down", amountCents: 1_253, date: "2026-06-21", description: "Dinner" }],
+    );
 
-    expect(hasCandidate(50)).toBe(true);
-    expect(hasCandidate(51)).toBe(false);
+    expect(generateSuggestions(nonRounded, "new-york")).toHaveLength(0);
+    expect(generateSuggestions(roundedDollar, "new-york")).toHaveLength(1);
+    expect(generateSuggestions(roundedHalfDollar, "new-york")).toHaveLength(1);
+    expect(generateSuggestions(roundedDownDollar, "new-york")).toHaveLength(1);
+    expect(generateSuggestions(roundedDollar, "new-york")[0].explanation).toContain("CA$0.02 difference");
+    expect(generateSuggestions(roundedDollar, "new-york")[0].explanation.join(" ")).not.toContain("tolerance");
   });
 
   it("suggests exact CAD matches even when posting dates are more than 7 days apart", () => {
@@ -324,7 +319,7 @@ describe("matching and controls", () => {
     );
   });
 
-  it("keeps the 7-day limit for non-exact amount suggestions", () => {
+  it("keeps the 7-day limit for rounded amount suggestions", () => {
     const state = seedState();
     const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
     const left = workspace.transactions.find((item) => item.tripId === "new-york" && item.side === "left")!;
@@ -393,11 +388,11 @@ describe("matching and controls", () => {
     );
     const strict = {
       ...workspace,
-      rules: workspace.rules.map((rule) => ({ ...rule, amountToleranceCents: 10, dateToleranceDays: 2 })),
+      rules: workspace.rules.map((rule) => ({ ...rule, dateToleranceDays: 2 })),
     };
     const tooStrict = {
       ...strict,
-      rules: strict.rules.map((rule) => ({ ...rule, amountToleranceCents: 9 })),
+      rules: strict.rules.map((rule) => ({ ...rule, dateToleranceDays: 1 })),
     };
     const disabled = {
       ...strict,

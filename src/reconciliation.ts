@@ -13,7 +13,7 @@ import type {
 } from "./types";
 
 export const RECONCILIATION_SCHEMA_VERSION = 2 as const;
-export const SUGGESTION_AMOUNT_TOLERANCE_CENTS = 50;
+export const SUGGESTION_ROUNDING_INCREMENT_CENTS = 50;
 const RECONCILIATION_TRIPS: ReconciliationTripId[] = ["portugal", "peru", "new-york"];
 
 const GROUP_BY_TRIP: Record<ReconciliationTripId, string> = {
@@ -285,11 +285,11 @@ export function createReconciliationWorkspace(
     rules: [
       {
         id: "default-exact",
-        name: "Amount within CA$0.50 and 7 days",
+        name: "Exact or rounded Wanderlog amounts within 7 days",
         priority: 10,
         sourceIds: [],
         dateToleranceDays: 7,
-        amountToleranceCents: SUGGESTION_AMOUNT_TOLERANCE_CENTS,
+        amountToleranceCents: 0,
         enabled: true,
       },
     ],
@@ -410,8 +410,8 @@ export function ensureReconciliationWorkspace(
       rules: state.workspace.rules.map((item) => item.id === "default-exact"
         ? {
             ...item,
-            name: "Amount within CA$0.50 and 7 days",
-            amountToleranceCents: SUGGESTION_AMOUNT_TOLERANCE_CENTS,
+            name: "Exact or rounded Wanderlog amounts within 7 days",
+            amountToleranceCents: 0,
           }
         : item),
     };
@@ -642,6 +642,20 @@ function ruleForTransactions(
   ));
 }
 
+function roundingIncrement(amountCents: number): 50 | 100 | null {
+  if (amountCents % 100 === 0) return 100;
+  if (amountCents % SUGGESTION_ROUNDING_INCREMENT_CENTS === 0) return SUGGESTION_ROUNDING_INCREMENT_CENTS;
+  return null;
+}
+
+function roundedAmountMatch(leftAmountCents: number, rightAmountCents: number): { incrementCents: 50 | 100 } | null {
+  const incrementCents = roundingIncrement(leftAmountCents);
+  if (!incrementCents) return null;
+  const lower = Math.floor(rightAmountCents / incrementCents) * incrementCents;
+  const upper = Math.ceil(rightAmountCents / incrementCents) * incrementCents;
+  return leftAmountCents === lower || leftAmountCents === upper ? { incrementCents } : null;
+}
+
 function scorePair(
   workspace: ReconciliationWorkspace,
   tripId: ReconciliationTripId,
@@ -652,14 +666,13 @@ function scorePair(
   if (!rule) return null;
   const amountDifference = Math.abs(left.postedCadCents - right.postedCadCents);
   const dateDays = dateDistance(left.postedDate, right.postedDate);
-  if (amountDifference !== 0 && (amountDifference > rule.amountToleranceCents || dateDays > rule.dateToleranceDays)) {
-    return null;
-  }
+  const roundedMatch = amountDifference === 0 ? null : roundedAmountMatch(left.postedCadCents, right.postedCadCents);
+  if (amountDifference !== 0 && (!roundedMatch || dateDays > rule.dateToleranceDays)) return null;
   const merchant = merchantScore(left, right);
   const support = supportScore(left, right);
   const amountScore = amountDifference === 0
     ? 50
-    : 50 * Math.max(0, 1 - amountDifference / Math.max(1, rule.amountToleranceCents + 1));
+    : 50 * Math.max(0, 1 - amountDifference / roundedMatch!.incrementCents);
   const dateScore = 15 * Math.max(0, 1 - dateDays / Math.max(1, rule.dateToleranceDays + 1));
   return {
     left,
@@ -751,7 +764,7 @@ function pairExplanation(candidate: ScoredPair, margin: number): string[] {
   return [
     candidate.amountDifference === 0
       ? "Exact CAD amount"
-      : `CA$${(candidate.amountDifference / 100).toFixed(2)} amount difference`,
+      : `CA$${(candidate.amountDifference / 100).toFixed(2)} difference`,
     `${candidate.dateDays} day${candidate.dateDays === 1 ? "" : "s"} apart`,
     candidate.merchant >= 0.65
       ? "Strong merchant similarity"
