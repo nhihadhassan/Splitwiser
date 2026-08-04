@@ -26,7 +26,7 @@ import {
   SYNC_KEY_STORAGE_KEY,
 } from "./cloud";
 import { addCentralAmericaTrip } from "./centralAmericaTrip";
-import { DEFAULT_EXPENSE_EXPORT_TRANSACTIONS, DEFAULT_NEW_YORK_MATCHES, DEFAULT_PERU_CASH_TRANSACTIONS, DEFAULT_SCOTIABANK_TRANSACTIONS } from "./reconciliationData";
+import { DEFAULT_EXPENSE_EXPORT_TRANSACTIONS, DEFAULT_NEW_YORK_MATCHES, DEFAULT_PERU_CASH_TRANSACTIONS, DEFAULT_PORTUGAL_CASH_TRANSACTIONS, DEFAULT_SCOTIABANK_TRANSACTIONS } from "./reconciliationData";
 import { ensureReconciliationWorkspace } from "./reconciliation";
 import { seedState } from "./seed";
 import { splitEqually } from "./utils/money";
@@ -111,6 +111,7 @@ function loadLegacyReconciliation(): ReconciliationState {
     matches: {},
     cashRemaining: localStorage.getItem("splitwiser-peru-cash-remaining") ?? "",
     cashTransactions: DEFAULT_PERU_CASH_TRANSACTIONS,
+    portugalCashTransactions: DEFAULT_PORTUGAL_CASH_TRANSACTIONS,
     cardTransactions: DEFAULT_SCOTIABANK_TRANSACTIONS,
     exportTransactions: DEFAULT_EXPENSE_EXPORT_TRANSACTIONS,
   };
@@ -122,6 +123,7 @@ function emptyReconciliation(): ReconciliationState {
     matches: {},
     cashRemaining: "",
     cashTransactions: DEFAULT_PERU_CASH_TRANSACTIONS,
+    portugalCashTransactions: DEFAULT_PORTUGAL_CASH_TRANSACTIONS,
     cardTransactions: DEFAULT_SCOTIABANK_TRANSACTIONS,
     exportTransactions: DEFAULT_EXPENSE_EXPORT_TRANSACTIONS,
   };
@@ -158,6 +160,10 @@ function normalizeState(
       cashTransactions: mergeStatementTransactions(
         DEFAULT_PERU_CASH_TRANSACTIONS,
         savedReconciliation?.cashTransactions,
+      ),
+      portugalCashTransactions: mergeStatementTransactions(
+        DEFAULT_PORTUGAL_CASH_TRANSACTIONS,
+        savedReconciliation?.portugalCashTransactions,
       ),
       cardTransactions: {
         portugal: mergeStatementTransactions(

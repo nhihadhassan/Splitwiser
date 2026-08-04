@@ -228,6 +228,7 @@ export interface ReconciliationState {
   matches: Record<string, string[]>;
   cashRemaining: string;
   cashTransactions: CashTransaction[];
+  portugalCashTransactions: CashTransaction[];
   cardTransactions: {
     portugal: StatementTransaction[];
     peru: StatementTransaction[];

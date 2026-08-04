@@ -1,5 +1,15 @@
 import type { CashTransaction, ReconciliationState, StatementTransaction } from "./types";
 
+export const DEFAULT_PORTUGAL_CASH_TRANSACTIONS: CashTransaction[] = [
+  {
+    id: "cash-portugal-euros",
+    date: "Before Jun 8",
+    description: "Euro cash for Portugal",
+    detail: "Approximately €250 cash · CA$411.29 equivalent",
+    amount: 411.29,
+  },
+];
+
 export const DEFAULT_PERU_CASH_TRANSACTIONS: CashTransaction[] = [
   { id: "cash-prior", date: "Before Jul 12", description: "Previous cash withdrawal", detail: "500 PEN cash received", amount: 212.00 },
   { id: "cash-jul-12-1", date: "Jul 12, 2026", description: "International ABM withdrawal", detail: "ESQ. Av. El Sol y Almagro, Cusco", amount: 171.22 },

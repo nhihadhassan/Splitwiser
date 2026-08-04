@@ -1,7 +1,7 @@
 import type { AppState } from "./types";
 import { addCentralAmericaTrip } from "./centralAmericaTrip";
 import { splitEqually } from "./utils/money";
-import { DEFAULT_EXPENSE_EXPORT_TRANSACTIONS, DEFAULT_PERU_CASH_TRANSACTIONS, DEFAULT_SCOTIABANK_TRANSACTIONS } from "./reconciliationData";
+import { DEFAULT_EXPENSE_EXPORT_TRANSACTIONS, DEFAULT_PERU_CASH_TRANSACTIONS, DEFAULT_PORTUGAL_CASH_TRANSACTIONS, DEFAULT_SCOTIABANK_TRANSACTIONS } from "./reconciliationData";
 
 export const AVATAR_COLORS = [
   "#5BC5A7",
@@ -62,6 +62,7 @@ export function seedState(): AppState {
       matches: {},
       cashRemaining: "",
       cashTransactions: DEFAULT_PERU_CASH_TRANSACTIONS,
+      portugalCashTransactions: DEFAULT_PORTUGAL_CASH_TRANSACTIONS,
       cardTransactions: DEFAULT_SCOTIABANK_TRANSACTIONS,
       exportTransactions: DEFAULT_EXPENSE_EXPORT_TRANSACTIONS,
     },

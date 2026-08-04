@@ -33,7 +33,7 @@ const tripMeta: Record<string, { name: string; dates: string; note: string }> = 
   portugal: {
     name: "Portugal",
     dates: "Jun 8 – Jun 24, 2026",
-    note: "111 Scotiabank charges",
+    note: "111 Scotiabank charges, €250 cash",
   },
   peru: {
     name: "Peru",
@@ -937,7 +937,7 @@ function Ledger({
             <div className="recon-description">
               <input value={item.description} onChange={(event) => onEdit(item.id, { description: event.target.value })} disabled={disabled} aria-label="Description" />
               <small>{item.reference || item.notes || "No reference"}</small>
-              {item.accountType === "cash" && <em className="cash-control-note">Cash withdrawal · match to cash-paid activities</em>}
+              {item.accountType === "cash" && <em className="cash-control-note">Cash source · match to cash-paid activities</em>}
               {item.currency !== "CAD" && <em>{item.currency} {(item.originalAmountCents / 100).toFixed(2)} original</em>}
             </div>
             <span className="recon-source">{sourceById.get(item.sourceId) ?? item.sourceId}</span>

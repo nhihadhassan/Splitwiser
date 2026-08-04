@@ -37,6 +37,9 @@ describe("reconciliation schema migration", () => {
     const portugalScotia = portugal.filter((item) => item.sourceId === "scotia-portugal");
     expect(portugalScotia).toHaveLength(102);
     expect(portugalScotia.reduce((sum, item) => sum + item.postedCadCents, 0)).toBe(234648);
+    expect(portugal.filter((item) => item.sourceId === "cash-portugal")).toHaveLength(1);
+    expect(portugal.filter((item) => item.side === "right")
+      .reduce((sum, item) => sum + item.postedCadCents, 0)).toBe(521915);
     expect(portugal.filter((item) => item.sourceId === "export-portugal")).toHaveLength(9);
     expect(newYork.filter((item) => item.sourceId === "scotia-new-york")).toHaveLength(20);
     expect(newYork.filter((item) => item.sourceId === "export-new-york")).toHaveLength(1);
@@ -149,6 +152,24 @@ describe("reconciliation schema migration", () => {
     expect(repaired.transactions.filter((item) => importedIds.has(item.id))).toHaveLength(79);
     expect(repaired.matchGroups.map((group) => group.id)).toEqual(existingGroupIds);
     expect(repaired.auditEvents.some((item) => item.id === "audit-scotiabank-csv-2026-08-04")).toBe(true);
+  });
+
+  it("backfills Portugal euro cash as a separate statement-side source", () => {
+    const state = seedState();
+    const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
+    state.reconciliation.workspace = {
+      ...workspace,
+      sources: workspace.sources.filter((item) => item.id !== "cash-portugal"),
+      transactions: workspace.transactions.filter((item) => item.sourceId !== "cash-portugal"),
+    };
+
+    const repaired = ensureReconciliationWorkspace(state.reconciliation, state.expenses);
+    const cash = repaired.transactions.find((item) => item.id === "cash:portugal:cash-portugal-euros");
+
+    expect(cash?.postedCadCents).toBe(41129);
+    expect(cash?.notes).toContain("€250");
+    expect(repaired.sources.some((item) => item.id === "cash-portugal")).toBe(true);
+    expect(repaired.auditEvents.some((item) => item.id === "audit-portugal-euro-cash-2026-08-04")).toBe(true);
   });
 });
 

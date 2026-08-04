@@ -82,6 +82,9 @@ function baseSources(): ReconciliationSource[] {
       ...(tripId === "peru"
         ? [source("cash-peru", tripId, "cash", "Tangerine", "International ATM withdrawals")]
         : []),
+      ...(tripId === "portugal"
+        ? [source("cash-portugal", tripId, "cash", "Cash", "Approximately €250 · CA$411.29 equivalent")]
+        : []),
     ];
   });
 }
@@ -205,6 +208,11 @@ function buildTransactions(state: ReconciliationState, expenses: Expense[]): Rec
     });
     if (tripId === "peru") {
       state.cashTransactions.forEach((item) => {
+        result.push(rightTransaction(item, tripId, "cash", legacyDecision(state, tripId, item.id, "right")));
+      });
+    }
+    if (tripId === "portugal") {
+      state.portugalCashTransactions.forEach((item) => {
         result.push(rightTransaction(item, tripId, "cash", legacyDecision(state, tripId, item.id, "right")));
       });
     }
@@ -359,6 +367,21 @@ export function ensureReconciliationWorkspace(
           transactionIds: importedPortugalIds,
         }]
       : [];
+    const portugalCashAuditId = "audit-portugal-euro-cash-2026-08-04";
+    const importedPortugalCashIds = missingTransactions
+      .filter((item) => item.tripId === "portugal" && item.sourceId === "cash-portugal")
+      .map((item) => item.id);
+    const portugalCashAuditEvents = importedPortugalCashIds.length > 0
+      && !state.workspace.auditEvents.some((item) => item.id === portugalCashAuditId)
+      ? [{
+          id: portugalCashAuditId,
+          tripId: "portugal" as const,
+          action: "import" as const,
+          timestamp: "2026-08-04T00:00:00.000Z",
+          summary: "Added approximately €250 in travel cash at its CA$411.29 equivalent",
+          transactionIds: importedPortugalCashIds,
+        }]
+      : [];
     return {
       ...state.workspace,
       sources: [
@@ -381,6 +404,7 @@ export function ensureReconciliationWorkspace(
         ...state.workspace.auditEvents,
         ...refreshAuditEvents,
         ...portugalImportAuditEvents,
+        ...portugalCashAuditEvents,
       ],
       periods: [...state.workspace.periods, ...missingPeriods],
       rules: state.workspace.rules.map((item) => item.id === "default-exact"
