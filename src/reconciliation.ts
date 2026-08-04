@@ -344,6 +344,21 @@ export function ensureReconciliationWorkspace(
           transactionIds: importedPeruIds,
         }]
       : [];
+    const portugalImportAuditId = "audit-scotiabank-csv-2026-08-04";
+    const importedPortugalIds = missingTransactions
+      .filter((item) => item.tripId === "portugal" && item.sourceId === "scotia-portugal")
+      .map((item) => item.id);
+    const portugalImportAuditEvents = importedPortugalIds.length > 0
+      && !state.workspace.auditEvents.some((item) => item.id === portugalImportAuditId)
+      ? [{
+          id: portugalImportAuditId,
+          tripId: "portugal" as const,
+          action: "import" as const,
+          timestamp: "2026-08-04T00:00:00.000Z",
+          summary: `Added ${importedPortugalIds.length} verified Scotiabank charges from the complete card CSV`,
+          transactionIds: importedPortugalIds,
+        }]
+      : [];
     return {
       ...state.workspace,
       sources: [
@@ -362,7 +377,11 @@ export function ensureReconciliationWorkspace(
         ...missingSources,
       ],
       transactions: [...repairedTransactions, ...missingTransactions],
-      auditEvents: [...state.workspace.auditEvents, ...refreshAuditEvents],
+      auditEvents: [
+        ...state.workspace.auditEvents,
+        ...refreshAuditEvents,
+        ...portugalImportAuditEvents,
+      ],
       periods: [...state.workspace.periods, ...missingPeriods],
       rules: state.workspace.rules.map((item) => item.id === "default-exact"
         ? {

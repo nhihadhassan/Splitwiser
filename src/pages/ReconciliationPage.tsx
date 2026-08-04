@@ -33,7 +33,7 @@ const tripMeta: Record<string, { name: string; dates: string; note: string }> = 
   portugal: {
     name: "Portugal",
     dates: "Jun 8 – Jun 24, 2026",
-    note: "32 Scotiabank charges",
+    note: "111 Scotiabank charges",
   },
   peru: {
     name: "Peru",

@@ -34,7 +34,9 @@ describe("reconciliation schema migration", () => {
     expect(portugal.filter((item) => item.side === "left")).toHaveLength(
       state.expenses.filter((item) => item.groupId === "g-portugal").length,
     );
-    expect(portugal.filter((item) => item.sourceId === "scotia-portugal")).toHaveLength(23);
+    const portugalScotia = portugal.filter((item) => item.sourceId === "scotia-portugal");
+    expect(portugalScotia).toHaveLength(102);
+    expect(portugalScotia.reduce((sum, item) => sum + item.postedCadCents, 0)).toBe(234648);
     expect(portugal.filter((item) => item.sourceId === "export-portugal")).toHaveLength(9);
     expect(newYork.filter((item) => item.sourceId === "scotia-new-york")).toHaveLength(20);
     expect(newYork.filter((item) => item.sourceId === "export-new-york")).toHaveLength(1);
@@ -123,6 +125,30 @@ describe("reconciliation schema migration", () => {
     expect(repaired.transactions.filter((item) => omittedIds.has(item.id))).toHaveLength(2);
     expect(repaired.matchGroups.map((group) => group.id)).toEqual(existingGroupIds);
     expect(repaired.auditEvents.some((item) => item.id === "audit-expense-export-2026-07-28")).toBe(true);
+  });
+
+  it("backfills the complete Portugal statement without changing existing matches", () => {
+    const state = seedState();
+    const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
+    const importedIds = new Set(
+      workspace.transactions
+        .filter((item) => item.tripId === "portugal"
+          && item.sourceId === "scotia-portugal"
+          && item.notes?.includes("Scotiabank CSV"))
+        .map((item) => item.id),
+    );
+    state.reconciliation.workspace = {
+      ...workspace,
+      transactions: workspace.transactions.filter((item) => !importedIds.has(item.id)),
+    };
+    const existingGroupIds = state.reconciliation.workspace.matchGroups.map((group) => group.id);
+
+    const repaired = ensureReconciliationWorkspace(state.reconciliation, state.expenses);
+
+    expect(importedIds).toHaveLength(79);
+    expect(repaired.transactions.filter((item) => importedIds.has(item.id))).toHaveLength(79);
+    expect(repaired.matchGroups.map((group) => group.id)).toEqual(existingGroupIds);
+    expect(repaired.auditEvents.some((item) => item.id === "audit-scotiabank-csv-2026-08-04")).toBe(true);
   });
 });
 
