@@ -18,6 +18,8 @@ import type {
 import {
   auditEvent,
   cashSummary,
+  compareReconciliationTransactions,
+  formatReconciliationDate,
   generateSuggestions,
   importedTransaction,
   normalizeSearch,
@@ -190,8 +192,12 @@ export function ReconciliationPage() {
     return true;
   }
 
-  const visibleLeft = transactions.filter((item) => item.side === "left" && matchesFilters(item));
-  const visibleRight = transactions.filter((item) => item.side === "right" && matchesFilters(item));
+  const visibleLeft = transactions
+    .filter((item) => item.side === "left" && matchesFilters(item))
+    .sort(compareReconciliationTransactions);
+  const visibleRight = transactions
+    .filter((item) => item.side === "right" && matchesFilters(item))
+    .sort(compareReconciliationTransactions);
   const visibleLeftIds = new Set(visibleLeft.map((item) => item.id));
   const visibleRightIds = new Set(visibleRight.map((item) => item.id));
   const hiddenSelected = selectedLeft.filter((id) => !visibleLeftIds.has(id)).length
@@ -894,6 +900,54 @@ function EditableMoneyInput({
   );
 }
 
+function EditableDateInput({ value, onCommit, disabled, label }: {
+  value: string;
+  onCommit: (value: string) => void;
+  disabled: boolean;
+  label: string;
+}) {
+  const formatted = formatReconciliationDate(value);
+  const [draft, setDraft] = useState(formatted);
+  const isFocused = useRef(false);
+  const cancelOnBlur = useRef(false);
+
+  useEffect(() => {
+    if (!isFocused.current) setDraft(formatted);
+  }, [formatted]);
+
+  return (
+    <input
+      className="recon-date-input"
+      value={draft}
+      onFocus={(event) => {
+        isFocused.current = true;
+        event.currentTarget.select();
+      }}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={(event) => {
+        isFocused.current = false;
+        if (cancelOnBlur.current) {
+          cancelOnBlur.current = false;
+          setDraft(formatted);
+          return;
+        }
+        const next = event.currentTarget.value.trim();
+        if (next && next !== formatted) onCommit(next);
+        else setDraft(formatted);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") event.currentTarget.blur();
+        if (event.key === "Escape") {
+          cancelOnBlur.current = true;
+          event.currentTarget.blur();
+        }
+      }}
+      aria-label={label}
+      disabled={disabled}
+    />
+  );
+}
+
 function Ledger({
   side,
   title,
@@ -946,11 +1000,10 @@ function Ledger({
               onClick={(event) => onToggle(item.id, event)}
               disabled={disabled}
             />
-            <input
-              className="recon-date-input"
+            <EditableDateInput
               value={item.date}
-              onChange={(event) => onEdit(item.id, { date: event.target.value, postedDate: event.target.value })}
-              aria-label={`Date for ${item.description}`}
+              onCommit={(date) => onEdit(item.id, { date, postedDate: date })}
+              label={`Date for ${item.description}`}
               disabled={disabled}
             />
             <div className="recon-description">
@@ -993,21 +1046,21 @@ function SuggestionList({
     <section className="recon-suggestions">
       <header><h2>Suggestions ({suggestions.length})</h2><span>Exact CAD any date · rounded Wanderlog entries ±7 days · exact groups up to 3</span></header>
       {suggestions.map((group) => {
-        const left = group.leftIds.map((id) => byId.get(id)).filter((item): item is ReconciliationTransaction => Boolean(item));
-        const right = group.rightIds.map((id) => byId.get(id)).filter((item): item is ReconciliationTransaction => Boolean(item));
+        const left = group.leftIds.map((id) => byId.get(id)).filter((item): item is ReconciliationTransaction => Boolean(item)).sort(compareReconciliationTransactions);
+        const right = group.rightIds.map((id) => byId.get(id)).filter((item): item is ReconciliationTransaction => Boolean(item)).sort(compareReconciliationTransactions);
         if (left.length !== group.leftIds.length || right.length !== group.rightIds.length) return null;
         return (
           <article key={group.id}>
             <span className={`suggestion-confidence ${group.status === "ambiguous" ? "ambiguous" : group.confidence}`}>{group.status === "ambiguous" ? "Ambiguous" : `${group.confidence} confidence`}</span>
             <div className="suggestion-side">
               <small>Wanderlog · {group.leftIds.length}</small>
-              {left.map((item) => <div className="suggestion-transaction" key={item.id}><strong>{item.description}</strong><span>{item.date} · {money(item.postedCadCents)}</span></div>)}
+              {left.map((item) => <div className="suggestion-transaction" key={item.id}><strong>{item.description}</strong><span>{formatReconciliationDate(item.date)} · {money(item.postedCadCents)}</span></div>)}
               <em>Total {money(group.leftTotalCents)}</em>
             </div>
             <b>↔</b>
             <div className="suggestion-side">
               <small>Statement · {group.rightIds.length}</small>
-              {right.map((item) => <div className="suggestion-transaction" key={item.id}><strong>{item.description}</strong><span>{item.date} · {money(item.postedCadCents)}</span></div>)}
+              {right.map((item) => <div className="suggestion-transaction" key={item.id}><strong>{item.description}</strong><span>{formatReconciliationDate(item.date)} · {money(item.postedCadCents)}</span></div>)}
               <em>Total {money(group.rightTotalCents)}</em>
             </div>
             <ul>{group.explanation.map((reason) => <li key={reason}>{reason}</li>)}</ul>
@@ -1066,11 +1119,14 @@ function ReconciledGroups({
 }
 
 function GroupColumn({ label, ids, byId }: { label: string; ids: string[]; byId: Map<string, ReconciliationTransaction> }) {
+  const transactions = ids
+    .map((id) => byId.get(id))
+    .filter((item): item is ReconciliationTransaction => Boolean(item))
+    .sort(compareReconciliationTransactions);
   return (
-    <div className="recon-group-column"><strong>{label}</strong>{ids.map((id) => {
-      const item = byId.get(id);
-      return item ? <div key={id}><span>{item.date}</span><b>{item.description}</b><strong>{money(item.postedCadCents)}</strong></div> : null;
-    })}</div>
+    <div className="recon-group-column"><strong>{label}</strong>{transactions.map((item) => (
+      <div key={item.id}><span>{formatReconciliationDate(item.date)}</span><b>{item.description}</b><strong>{money(item.postedCadCents)}</strong></div>
+    ))}</div>
   );
 }
 

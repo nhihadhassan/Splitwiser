@@ -3,8 +3,10 @@ import { seedState } from "./seed";
 import type { ReconciliationTransaction, ReconciliationWorkspace } from "./types";
 import {
   cashSummary,
+  compareReconciliationTransactions,
   createReconciliationWorkspace,
   ensureReconciliationWorkspace,
+  formatReconciliationDate,
   generateSuggestions,
   normalizeSearch,
   previewDelimitedImport,
@@ -244,6 +246,26 @@ describe("search and import quality", () => {
 });
 
 describe("matching and controls", () => {
+  it("formats mixed reconciliation dates consistently and sorts them oldest first", () => {
+    const workspace = matchingFixture(
+      [
+        { id: "left-latest", amountCents: 300, date: "2026-07-23", description: "Latest" },
+        { id: "left-earliest", amountCents: 100, date: "Jul 21, 2026", description: "Earliest" },
+        { id: "left-middle", amountCents: 200, date: "2026-07-22", description: "Middle" },
+      ],
+      [],
+    );
+
+    expect(formatReconciliationDate("2026-07-23")).toBe("Jul 23, 2026");
+    expect(formatReconciliationDate("Jul 23, 2026")).toBe("Jul 23, 2026");
+    expect(formatReconciliationDate("Before Jun 8")).toBe("Before Jun 8");
+    expect(workspace.transactions.sort(compareReconciliationTransactions).map((item) => item.id)).toEqual([
+      "left-earliest",
+      "left-middle",
+      "left-latest",
+    ]);
+  });
+
   it("produces deterministic exact-amount suggestions with explanations", () => {
     const state = seedState();
     const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);

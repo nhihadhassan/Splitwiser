@@ -46,6 +46,42 @@ function canonicalDate(value: string): string {
   return Number.isNaN(parsed.getTime()) ? value.trim() : parsed.toISOString().slice(0, 10);
 }
 
+function reconciliationDateTimestamp(value: string): number {
+  const trimmed = value.trim();
+  if (normalizeSearch(trimmed).startsWith("before")) return Number.NaN;
+  const isoDate = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoDate) return Date.UTC(Number(isoDate[1]), Number(isoDate[2]) - 1, Number(isoDate[3]));
+  const parsed = Date.parse(trimmed);
+  return Number.isNaN(parsed) ? Number.NaN : parsed;
+}
+
+const reconciliationDateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+export function formatReconciliationDate(value: string): string {
+  const timestamp = reconciliationDateTimestamp(value);
+  return Number.isNaN(timestamp) ? value : reconciliationDateFormatter.format(new Date(timestamp));
+}
+
+export function compareReconciliationTransactions(
+  left: ReconciliationTransaction,
+  right: ReconciliationTransaction,
+): number {
+  const leftTimestamp = reconciliationDateTimestamp(left.date);
+  const rightTimestamp = reconciliationDateTimestamp(right.date);
+  const sortableLeft = Number.isNaN(leftTimestamp)
+    ? (normalizeSearch(left.date).startsWith("before") ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY)
+    : leftTimestamp;
+  const sortableRight = Number.isNaN(rightTimestamp)
+    ? (normalizeSearch(right.date).startsWith("before") ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY)
+    : rightTimestamp;
+  return sortableLeft - sortableRight || left.id.localeCompare(right.id);
+}
+
 function source(
   id: string,
   tripId: ReconciliationTripId,
