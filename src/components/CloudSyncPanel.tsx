@@ -56,10 +56,10 @@ export function CloudSyncPanel() {
             onClick={enableOnlineSave}
             disabled={cloud.status === "connecting"}
           >
-            Save online
+            Create new online ledger
           </button>
           <details>
-            <summary>Use a sync key</summary>
+            <summary>Connect an existing ledger</summary>
             <form className="cloud-sync-connect" onSubmit={connect}>
               <label htmlFor="cloud-sync-key">Sync key</label>
               <div>
@@ -76,6 +76,7 @@ export function CloudSyncPanel() {
                 </button>
               </div>
             </form>
+            <p className="cloud-sync-connect-help">Use the exact sync key from your laptop. Creating a new ledger here will start a separate cloud copy.</p>
           </details>
         </div>
       )}
@@ -109,6 +110,17 @@ export function CloudSyncPanel() {
             Stop online saving on this device
           </button>
         </details>
+      )}
+
+      {cloud.hasKey && (
+        <button
+          className="btn btn-secondary"
+          type="button"
+          onClick={() => void cloud.refresh()}
+          disabled={cloud.status === "connecting" || cloud.status === "saving"}
+        >
+          Sync now
+        </button>
       )}
 
       {newKey && (

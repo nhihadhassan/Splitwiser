@@ -35,6 +35,8 @@ Recent shipped changes:
   and preserved the pre-trip 500 PEN / CA$212 opening cash.
 - Added revision-aware cloud saves with an explicit conflict screen instead of
   silently overwriting changes made on another device.
+- Added automatic cross-device refresh: connected devices check for newer cloud
+  revisions every 10 seconds and refresh when the app regains focus or becomes visible.
 - Reworked the old Splitwise-style shell into the current Splitwiser premium ledger UI.
 - Added a first-class **Groups** overview page.
 - Added a first-class **Settlement Center** with inbound/outbound totals, individual settlement actions, and "Settle All".
@@ -153,7 +155,8 @@ npm test
   key `splitwiser-state-v2`, so the app can still open without a network connection.
 - **Online save.** Enabling online saving creates a high-entropy sync key and
   migrates the current browser ledger to the linked private Blob store. The same
-  key connects another browser. The key is the credential and must remain private.
+  key connects another browser. Connected devices refresh automatically, and the
+  key is the credential and must remain private.
 - **First run.** A browser without cached data or a sync key loads the bundled
   trip ledgers so the reconciliation workspace is usable immediately. Existing
   browser or cloud state remains authoritative and is preserved.

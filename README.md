@@ -30,6 +30,7 @@ save the complete ledger to a private Vercel Blob for cross-device access.
 - Exact **integer-cent arithmetic** — equal splits distribute leftover cents so
   every expense always sums exactly to its total
 - **Private online saving** with a high-entropy sync key that can connect another browser
+- **Automatic cross-device refresh** for devices connected with the same sync key
 - Clean first run with no seeded demo ledger
 
 ## Running
