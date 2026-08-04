@@ -27,7 +27,7 @@ import {
 } from "./cloud";
 import { addCentralAmericaTrip } from "./centralAmericaTrip";
 import { DEFAULT_EXPENSE_EXPORT_TRANSACTIONS, DEFAULT_NEW_YORK_MATCHES, DEFAULT_PERU_CASH_TRANSACTIONS, DEFAULT_PORTUGAL_CASH_TRANSACTIONS, DEFAULT_SCOTIABANK_TRANSACTIONS } from "./reconciliationData";
-import { ensureReconciliationWorkspace, resizeExpenseAmount, syncExpenseToReconciliation } from "./reconciliation";
+import { ensureReconciliationWorkspace, removeExpenseFromReconciliation, resizeExpenseAmount, syncExpenseToReconciliation } from "./reconciliation";
 import { seedState } from "./seed";
 import { splitEqually } from "./utils/money";
 
@@ -40,7 +40,7 @@ export function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
-type Action =
+export type Action =
   | { type: "addPerson"; person: Person }
   | { type: "addGroup"; group: Group }
   | { type: "updateGroup"; group: Group }
@@ -55,7 +55,7 @@ type Action =
   | { type: "replace"; state: AppState }
   | { type: "hydrate"; state: AppState };
 
-function reducer(state: AppState, action: Action): AppState {
+export function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case "addPerson":
       return { ...state, people: [...state.people, action.person] };
@@ -67,14 +67,28 @@ function reducer(state: AppState, action: Action): AppState {
         groups: state.groups.map((g) => (g.id === action.group.id ? action.group : g)),
       };
     case "deleteGroup":
+      {
+        const groupExpenseIds = state.expenses
+          .filter((expense) => expense.groupId === action.groupId)
+          .map((expense) => expense.id);
+        const reconciliation = groupExpenseIds.reduce(
+          (current, expenseId) => removeExpenseFromReconciliation(current, expenseId),
+          state.reconciliation,
+        );
       return {
         ...state,
         groups: state.groups.filter((g) => g.id !== action.groupId),
         expenses: state.expenses.filter((e) => e.groupId !== action.groupId),
         settlements: state.settlements.filter((s) => s.groupId !== action.groupId),
+        reconciliation,
       };
+      }
     case "addExpense":
-      return { ...state, expenses: [...state.expenses, action.expense] };
+      return {
+        ...state,
+        expenses: [...state.expenses, action.expense],
+        reconciliation: syncExpenseToReconciliation(state.reconciliation, action.expense),
+      };
     case "updateExpense":
       return {
         ...state,
@@ -88,7 +102,11 @@ function reducer(state: AppState, action: Action): AppState {
         reconciliation: action.reconciliation,
       };
     case "deleteExpense":
-      return { ...state, expenses: state.expenses.filter((e) => e.id !== action.expenseId) };
+      return {
+        ...state,
+        expenses: state.expenses.filter((e) => e.id !== action.expenseId),
+        reconciliation: removeExpenseFromReconciliation(state.reconciliation, action.expenseId),
+      };
     case "addSettlement":
       return { ...state, settlements: [...state.settlements, action.settlement] };
     case "deleteSettlement":

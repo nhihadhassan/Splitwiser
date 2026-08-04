@@ -191,6 +191,12 @@ export function linkedExpenseId(transaction: ReconciliationTransaction): string 
   return transaction.reference || transaction.id.split(":").slice(2).join(":") || null;
 }
 
+function reconciliationTripForGroup(groupId: string | null): ReconciliationTripId | null {
+  if (!groupId) return null;
+  const entry = Object.entries(GROUP_BY_TRIP).find(([, candidateGroupId]) => candidateGroupId === groupId);
+  return entry ? entry[0] as ReconciliationTripId : null;
+}
+
 export function resizeExpenseAmount(expense: Expense, amount: number): Expense {
   const owes = expense.splitMethod === "equally"
     ? splitEqually(amount, expense.splits.length)
@@ -301,7 +307,21 @@ export function syncExpenseToReconciliation(
 ): ReconciliationState {
   if (!state.workspace) return state;
   const transaction = state.workspace.transactions.find((item) => linkedExpenseId(item) === expense.id);
-  if (!transaction) return state;
+  const tripId = reconciliationTripForGroup(expense.groupId);
+  if (!tripId) return transaction ? removeExpenseFromReconciliation(state, expense.id) : state;
+  if (!transaction) {
+    const created = leftTransaction(expense, tripId, "unmatched");
+    return {
+      ...state,
+      workspace: {
+        ...state.workspace,
+        transactions: [...state.workspace.transactions, created],
+      },
+    };
+  }
+  if (transaction.tripId !== tripId) {
+    return syncExpenseToReconciliation(removeExpenseFromReconciliation(state, expense.id), expense);
+  }
   const originalAmountCents = transaction.currency === "CAD"
     ? expense.amount
     : transaction.originalAmountCents;
@@ -315,6 +335,44 @@ export function syncExpenseToReconciliation(
     notes: expense.notes,
   });
   return { ...state, workspace };
+}
+
+export function removeExpenseFromReconciliation(
+  state: ReconciliationState,
+  expenseId: string,
+): ReconciliationState {
+  if (!state.workspace) return state;
+  const removed = state.workspace.transactions.filter((item) => linkedExpenseId(item) === expenseId);
+  if (removed.length === 0) return state;
+  const removedIds = new Set(removed.map((item) => item.id));
+  const affectedGroups = state.workspace.matchGroups.filter((group) =>
+    [...group.leftIds, ...group.rightIds].some((id) => removedIds.has(id)),
+  );
+  const affectedRemainingIds = new Set(
+    affectedGroups.flatMap((group) => [...group.leftIds, ...group.rightIds]).filter((id) => !removedIds.has(id)),
+  );
+  const transactions = state.workspace.transactions
+    .filter((item) => !removedIds.has(item.id))
+    .map((item) => affectedRemainingIds.has(item.id) ? { ...item, status: "unmatched" as const } : item);
+  const transactionById = new Map(transactions.map((item) => [item.id, item]));
+  const exceptions = state.workspace.exceptions.flatMap((exception) => {
+    const transactionIds = exception.transactionIds.filter((id) => !removedIds.has(id));
+    if (transactionIds.length === 0) return [];
+    return [{
+      ...exception,
+      transactionIds,
+      amountCents: transactionIds.reduce((sum, id) => sum + (transactionById.get(id)?.postedCadCents ?? 0), 0),
+    }];
+  });
+  return {
+    ...state,
+    workspace: {
+      ...state.workspace,
+      transactions,
+      matchGroups: state.workspace.matchGroups.filter((group) => !affectedGroups.includes(group)),
+      exceptions,
+    },
+  };
 }
 
 function rightTransaction(
