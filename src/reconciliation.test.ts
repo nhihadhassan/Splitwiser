@@ -4,6 +4,7 @@ import type { ReconciliationTransaction, ReconciliationWorkspace } from "./types
 import {
   cashSummary,
   compareReconciliationTransactions,
+  createExpenseFromStatementTransaction,
   createReconciliationWorkspace,
   ensureReconciliationWorkspace,
   expenseFromReconciliationTransaction,
@@ -14,6 +15,7 @@ import {
   reconciliationTotals,
   resizeExpenseAmount,
   syncExpenseToReconciliation,
+  statementExpenseId,
   updateReconciliationTransaction,
 } from "./reconciliation";
 
@@ -63,6 +65,31 @@ function matchingFixture(leftRows: MatchFixtureRow[], rightRows: MatchFixtureRow
 }
 
 describe("reconciliation schema migration", () => {
+  it("creates a balanced trip expense from a statement transaction", () => {
+    const state = seedState();
+    const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
+    const statement = workspace.transactions.find((item) =>
+      item.tripId === "portugal" && item.side === "right" && item.description === "Green Heart Hostel"
+    )!;
+    const group = state.groups.find((item) => item.id === "g-portugal")!;
+
+    const expense = createExpenseFromStatementTransaction(statement, group, 123456);
+
+    expect(expense.id).toBe(statementExpenseId(statement));
+    expect(expense).toMatchObject({
+      description: "Green Heart Hostel",
+      amount: 36008,
+      category: "other",
+      date: "2026-06-17",
+      groupId: "g-portugal",
+      splitMethod: "equally",
+      createdAt: 123456,
+      createdBy: "me",
+    });
+    expect(expense.splits.reduce((sum, split) => sum + split.owes, 0)).toBe(36008);
+    expect(expense.splits.reduce((sum, split) => sum + split.paid, 0)).toBe(36008);
+  });
+
   it("updates the linked expense and preserves balanced splits after a Wanderlog correction", () => {
     const state = seedState();
     const expense = state.expenses.find((item) => item.id === "e-pt-049")!;

@@ -560,6 +560,31 @@
   padding: 2px 4px 0;
 }
 
+.recon-add-expense {
+  align-items: center;
+  align-self: start;
+  background: color-mix(in srgb, var(--recon-amber) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--recon-amber) 38%, transparent);
+  border-radius: 999px;
+  color: var(--recon-amber);
+  display: inline-flex;
+  font-size: 9px;
+  font-weight: 800;
+  justify-self: start;
+  margin: 4px 4px 0;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+.recon-add-expense:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--recon-amber) 18%, transparent);
+}
+
+.recon-add-expense:disabled {
+  cursor: default;
+  opacity: .62;
+}
+
 .recon-date-input:hover,
 .recon-description input:hover,
 .recon-amount-input input:hover,

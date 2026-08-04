@@ -19,6 +19,7 @@ import {
   auditEvent,
   cashSummary,
   compareReconciliationTransactions,
+  createExpenseFromStatementTransaction,
   formatReconciliationDate,
   generateSuggestions,
   importedTransaction,
@@ -27,6 +28,7 @@ import {
   normalizeSearch,
   previewDelimitedImport,
   reconciliationTotals,
+  statementExpenseId,
   updateReconciliationTransaction,
   type ImportPreviewRow,
 } from "../reconciliation";
@@ -51,6 +53,12 @@ const tripMeta: Record<string, { name: string; dates: string; note: string }> = 
     dates: "Jun 25 – Jun 28, 2026",
     note: "21 Scotiabank charges",
   },
+};
+
+const tripGroupIds: Record<ReconciliationTripId, string> = {
+  portugal: "g-portugal",
+  peru: "g-peru",
+  "new-york": "g-new-york",
 };
 
 const queueLabels: Record<QueueTab, string> = {
@@ -415,6 +423,33 @@ export function ReconciliationPage() {
     updateWorkspace(audited);
   }
 
+  function addStatementToTrip(transaction: ReconciliationTransaction) {
+    if (isLocked || transaction.side !== "right") return;
+    const group = state.groups.find((item) => item.id === tripGroupIds[transaction.tripId]);
+    if (!group) {
+      setNotice("This reconciliation is not connected to a trip group.");
+      return;
+    }
+    const expenseId = statementExpenseId(transaction);
+    if (state.expenses.some((item) => item.id === expenseId)) {
+      setNotice("This statement transaction is already in the trip expenses.");
+      return;
+    }
+    const expense = createExpenseFromStatementTransaction(transaction, group, Date.now());
+    dispatch({ type: "addExpense", expense });
+    setSelectedLeft([`wl:${transaction.tripId}:${expense.id}`]);
+    setSelectedRight([transaction.id]);
+    setAdjustment("");
+    setAdjustmentNote("");
+    setQuery("");
+    setSourceFilter("all");
+    setCategoryFilter("all");
+    setMinAmount("");
+    setMaxAmount("");
+    setQueue("suggested");
+    setNotice(`Added ${transaction.description} to ${group.name} and selected the match for review.`);
+  }
+
   function buildImportPreview() {
     setImportPreview(previewDelimitedImport(importText, workspace.transactions, importSource));
     setImportReport("");
@@ -720,6 +755,7 @@ export function ReconciliationPage() {
             onEdit={editTransaction}
             disabled={isLocked}
             sourceById={new Map(sources.map((item) => [item.id, item.institution]))}
+            existingExpenseIds={new Set(state.expenses.map((item) => item.id))}
           />
           <Ledger
             side="right"
@@ -732,6 +768,8 @@ export function ReconciliationPage() {
             onEdit={editTransaction}
             disabled={isLocked}
             sourceById={new Map(sources.map((item) => [item.id, item.institution]))}
+            existingExpenseIds={new Set(state.expenses.map((item) => item.id))}
+            onAddToTrip={addStatementToTrip}
           />
         </div>
       )}
@@ -968,6 +1006,8 @@ function Ledger({
   onEdit,
   disabled,
   sourceById,
+  existingExpenseIds,
+  onAddToTrip,
 }: {
   side: "left" | "right";
   title: string;
@@ -979,6 +1019,8 @@ function Ledger({
   onEdit: (id: string, patch: Partial<ReconciliationTransaction>) => void;
   disabled: boolean;
   sourceById: Map<string, string>;
+  existingExpenseIds: Set<string>;
+  onAddToTrip?: (transaction: ReconciliationTransaction) => void;
 }) {
   const allSelected = rows.length > 0 && rows.every((item) => selected.includes(item.id));
   return (
@@ -992,7 +1034,9 @@ function Ledger({
       </header>
       <div className="recon-ledger-labels"><span>Date</span><span>Transaction</span><span>Source</span><span>Amount</span></div>
       <div className="recon-lines">
-        {rows.map((item) => (
+        {rows.map((item) => {
+          const isAddedToTrip = existingExpenseIds.has(statementExpenseId(item));
+          return (
           <article
             key={item.id}
             className={`recon-line ${item.accountType === "cash" ? "cash-line" : ""} ${selected.includes(item.id) ? "selected" : ""}`}
@@ -1020,6 +1064,18 @@ function Ledger({
               <small>{item.reference || item.notes || "No reference"}</small>
               {item.accountType === "cash" && <em className="cash-control-note">Cash source · match to cash-paid activities</em>}
               {item.currency !== "CAD" && <em>{item.currency} {(item.originalAmountCents / 100).toFixed(2)} original</em>}
+              {side === "right" && onAddToTrip && item.accountType === "card" && item.status === "unmatched" && (
+                <button
+                  type="button"
+                  className="recon-add-expense"
+                  disabled={disabled || isAddedToTrip}
+                  onClick={() => onAddToTrip(item)}
+                  aria-label={isAddedToTrip ? `${item.description} added to trip expenses` : `Add ${item.description} to trip expenses`}
+                  title={isAddedToTrip ? "Already added to trip expenses" : "Add to trip expenses"}
+                >
+                  {isAddedToTrip ? "Added" : "+ Add"}
+                </button>
+              )}
             </div>
             <span className="recon-source">{sourceById.get(item.sourceId) ?? item.sourceId}</span>
             <label className="recon-amount-input">
@@ -1031,7 +1087,8 @@ function Ledger({
               />
             </label>
           </article>
-        ))}
+          );
+        })}
         {rows.length === 0 && <p className="recon-empty">No {side === "left" ? "Wanderlog" : "statement"} transactions in this view.</p>}
       </div>
     </section>

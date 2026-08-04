@@ -1,5 +1,6 @@
 import type {
   Expense,
+  Group,
   ReconciliationAuditEvent,
   ReconciliationException,
   ReconciliationMatchGroup,
@@ -189,6 +190,40 @@ function leftTransaction(expense: Expense, tripId: ReconciliationTripId, status:
 export function linkedExpenseId(transaction: ReconciliationTransaction): string | null {
   if (transaction.side !== "left" || transaction.accountType !== "wanderlog") return null;
   return transaction.reference || transaction.id.split(":").slice(2).join(":") || null;
+}
+
+export function statementExpenseId(transaction: ReconciliationTransaction): string {
+  return `statement-expense:${transaction.id}`;
+}
+
+export function createExpenseFromStatementTransaction(
+  transaction: ReconciliationTransaction,
+  group: Group,
+  createdAt: number,
+): Expense {
+  const memberIds = group.memberIds.length > 0 ? group.memberIds : ["me"];
+  const payerId = memberIds.includes("me") ? "me" : memberIds[0];
+  const owes = splitEqually(transaction.postedCadCents, memberIds.length);
+  return {
+    id: statementExpenseId(transaction),
+    description: transaction.description,
+    amount: transaction.postedCadCents,
+    category: "other",
+    date: canonicalDate(transaction.date),
+    groupId: group.id,
+    splitMethod: "equally",
+    splits: memberIds.map((personId, index) => ({
+      personId,
+      owes: owes[index],
+      paid: personId === payerId ? transaction.postedCadCents : 0,
+    })),
+    notes: [
+      `Added from statement transaction ${transaction.id}.`,
+      transaction.notes,
+    ].filter(Boolean).join(" "),
+    createdAt,
+    createdBy: "me",
+  };
 }
 
 function reconciliationTripForGroup(groupId: string | null): ReconciliationTripId | null {
