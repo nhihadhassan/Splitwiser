@@ -11,6 +11,11 @@
   padding-bottom: 170px;
 }
 
+.pane.reconciliation-page {
+  backdrop-filter: none;
+  overflow: visible;
+}
+
 .reconciliation-page button,
 .reconciliation-page input,
 .reconciliation-page select,
