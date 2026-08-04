@@ -970,7 +970,7 @@ function SuggestionList({
 }) {
   return (
     <section className="recon-suggestions">
-      <header><h2>Suggestions ({suggestions.length})</h2><span>CA$0.50 · ±7 days</span></header>
+      <header><h2>Suggestions ({suggestions.length})</h2><span>Exact CAD any date · near amounts ±7 days</span></header>
       {suggestions.map((group) => {
         const left = byId.get(group.leftIds[0]);
         const right = byId.get(group.rightIds[0]);

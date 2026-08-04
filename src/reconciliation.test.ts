@@ -215,21 +215,87 @@ describe("matching and controls", () => {
     const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
     const candidate = generateSuggestions(workspace, "new-york")[0];
     expect(candidate).toBeDefined();
+    const leftId = candidate.leftIds[0];
     const rightId = candidate.rightIds[0];
+    const isolated = {
+      ...workspace,
+      transactions: workspace.transactions
+        .filter((item) => item.id === leftId || item.id === rightId)
+        .map((item) => ({ ...item, postedDate: "2026-06-01" })),
+      matchGroups: [],
+    };
     const hasCandidate = (differenceCents: number) => {
       const shifted = {
-        ...workspace,
-        transactions: workspace.transactions.map((item) => item.id === rightId
+        ...isolated,
+        transactions: isolated.transactions.map((item) => item.id === rightId
           ? { ...item, postedCadCents: item.postedCadCents + differenceCents }
           : item),
       };
       return generateSuggestions(shifted, "new-york").some((item) => (
-        item.leftIds[0] === candidate.leftIds[0] && item.rightIds[0] === rightId
+        item.leftIds[0] === leftId && item.rightIds[0] === rightId
       ));
     };
 
     expect(hasCandidate(50)).toBe(true);
     expect(hasCandidate(51)).toBe(false);
+  });
+
+  it("suggests exact CAD matches even when posting dates are more than 7 days apart", () => {
+    const state = seedState();
+    const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
+    const left = workspace.transactions.find((item) => item.tripId === "new-york" && item.side === "left")!;
+    const right = workspace.transactions.find((item) => item.tripId === "new-york" && item.side === "right")!;
+    const distantExact = {
+      ...workspace,
+      transactions: workspace.transactions.filter((item) => item.id === left.id || item.id === right.id).map((item) => {
+        if (item.id === left.id) return { ...item, postedCadCents: 72_787, postedDate: "2026-06-16" };
+        if (item.id === right.id) return { ...item, postedCadCents: 72_787, postedDate: "2026-05-28" };
+        return item;
+      }),
+      matchGroups: [],
+    };
+
+    const suggestion = generateSuggestions(distantExact, "new-york").find((item) => (
+      item.leftIds[0] === left.id && item.rightIds[0] === right.id
+    ));
+
+    expect(suggestion).toBeDefined();
+    expect(suggestion?.differenceCents).toBe(0);
+    expect(suggestion?.explanation).toContain("Exact CAD amount");
+    expect(suggestion?.explanation).toContain("19 days apart");
+  });
+
+  it("surfaces the Portugal Air Transat and GetYourGuide exact-amount matches", () => {
+    const state = seedState();
+    const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
+    const suggestionIds = generateSuggestions(workspace, "portugal").map((item) => item.id);
+
+    expect(suggestionIds).toContain(
+      "suggestion:wl:portugal:e-pt-041:export:portugal:export-pt-2026-05-28-air-transat-return",
+    );
+    expect(suggestionIds).toContain(
+      "suggestion:wl:portugal:e-pt-084:export:portugal:export-pt-2026-05-29-getyourguide",
+    );
+  });
+
+  it("keeps the 7-day limit for non-exact amount suggestions", () => {
+    const state = seedState();
+    const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
+    const left = workspace.transactions.find((item) => item.tripId === "new-york" && item.side === "left")!;
+    const right = workspace.transactions.find((item) => item.tripId === "new-york" && item.side === "right")!;
+    const distantNearMatch = {
+      ...workspace,
+      transactions: workspace.transactions.filter((item) => item.id === left.id || item.id === right.id).map((item) => {
+        if (item.id === left.id) return { ...item, postedCadCents: 10_000, postedDate: "2026-06-16" };
+        if (item.id === right.id) return { ...item, postedCadCents: 10_050, postedDate: "2026-05-28" };
+        return item;
+      }),
+      matchGroups: [],
+    };
+
+    expect(generateSuggestions(distantNearMatch, "new-york").some((item) => (
+      item.leftIds[0] === left.id && item.rightIds[0] === right.id
+    ))).toBe(false);
   });
 
   it("summarizes cash available, remaining, and used", () => {

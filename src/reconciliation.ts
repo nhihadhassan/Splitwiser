@@ -589,19 +589,30 @@ export function generateSuggestions(
     const exact = right
       .map((rightItem) => ({
         rightItem,
+        amountDifference: Math.abs(leftItem.postedCadCents - rightItem.postedCadCents),
         dateDays: dateDistance(leftItem.postedDate, rightItem.postedDate),
         merchant: merchantScore(leftItem.description, rightItem.description),
       }))
-      .filter(({ rightItem, dateDays }) => (
-        Math.abs(leftItem.postedCadCents - rightItem.postedCadCents) <= SUGGESTION_AMOUNT_TOLERANCE_CENTS
-        && dateDays <= 7
+      .filter(({ amountDifference, dateDays }) => (
+        amountDifference === 0
+        || (amountDifference <= SUGGESTION_AMOUNT_TOLERANCE_CENTS && dateDays <= 7)
       ))
-      .sort((a, b) => b.merchant - a.merchant || a.dateDays - b.dateDays || a.rightItem.id.localeCompare(b.rightItem.id));
+      .sort((a, b) => (
+        a.amountDifference - b.amountDifference
+        || b.merchant - a.merchant
+        || a.dateDays - b.dateDays
+        || a.rightItem.id.localeCompare(b.rightItem.id)
+      ));
     if (exact.length === 0) return;
     const best = exact[0];
     const amountDifference = leftItem.postedCadCents - best.rightItem.postedCadCents;
-    const ambiguous = exact.length > 1 && exact[1].merchant === best.merchant && exact[1].dateDays === best.dateDays;
-    const confidence = best.merchant >= 0.5 && best.dateDays <= 3 ? "high" : best.dateDays <= 7 ? "medium" : "low";
+    const ambiguous = exact.length > 1
+      && exact[1].amountDifference === best.amountDifference
+      && exact[1].merchant === best.merchant
+      && exact[1].dateDays === best.dateDays;
+    const confidence = best.amountDifference === 0
+      ? (best.merchant >= 0.5 || best.dateDays <= 7 ? "high" : "medium")
+      : (best.merchant >= 0.5 && best.dateDays <= 3 ? "high" : "medium");
     candidates.push({
       id: `suggestion:${leftItem.id}:${best.rightItem.id}`,
       tripId,
