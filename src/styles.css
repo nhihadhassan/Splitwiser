@@ -469,12 +469,22 @@ a {
   background: var(--button-secondary-bg-hover);
 }
 
+.btn-link,
 .btn-link-danger,
 .btn-link-success {
   border: 0;
   background: transparent;
   font-weight: var(--button-font-weight);
   padding: 4px;
+}
+
+.btn-link {
+  color: var(--color-text-secondary);
+  margin-left: auto;
+}
+
+.btn-link:disabled {
+  opacity: 0.5;
 }
 
 .btn-link-danger {
@@ -486,6 +496,7 @@ a {
 }
 
 .btn:focus-visible,
+.btn-link:focus-visible,
 .btn-link-danger:focus-visible,
 .btn-link-success:focus-visible,
 .tool-button:focus-visible {
