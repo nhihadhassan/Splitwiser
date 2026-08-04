@@ -565,12 +565,285 @@ function dateDistance(left: string, right: string): number {
   return Math.round(Math.abs(leftTime - rightTime) / 86_400_000);
 }
 
-function merchantScore(left: string, right: string): number {
-  const a = new Set(normalizeSearch(left).split(" ").filter((word) => word.length > 2));
-  const b = new Set(normalizeSearch(right).split(" ").filter((word) => word.length > 2));
+function tokenSimilarity(left: string, right: string): number {
+  const a = new Set(normalizeSearch(left).split(" ").filter((word) => word.length > 1));
+  const b = new Set(normalizeSearch(right).split(" ").filter((word) => word.length > 1));
   if (!a.size || !b.size) return 0;
-  const overlap = [...a].filter((word) => b.has(word)).length;
-  return overlap / Math.max(a.size, b.size);
+  const intersection = [...a].filter((word) => b.has(word)).length;
+  const union = new Set([...a, ...b]).size;
+  return union ? intersection / union : 0;
+}
+
+function characterTrigrams(value: string): string[] {
+  const normalized = normalizeSearch(value).replace(/\s/g, "");
+  if (normalized.length < 3) return normalized ? [normalized] : [];
+  return Array.from({ length: normalized.length - 2 }, (_, index) => normalized.slice(index, index + 3));
+}
+
+function characterSimilarity(left: string, right: string): number {
+  const a = characterTrigrams(left);
+  const b = characterTrigrams(right);
+  if (!a.length || !b.length) return 0;
+  const remaining = [...b];
+  let overlap = 0;
+  a.forEach((item) => {
+    const index = remaining.indexOf(item);
+    if (index >= 0) {
+      overlap += 1;
+      remaining.splice(index, 1);
+    }
+  });
+  return (2 * overlap) / (a.length + b.length);
+}
+
+function textSimilarity(left: string, right: string): number {
+  const a = normalizeSearch(left);
+  const b = normalizeSearch(right);
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+  const containment = a.includes(b) || b.includes(a) ? Math.min(a.length, b.length) / Math.max(a.length, b.length) : 0;
+  return Math.max(tokenSimilarity(a, b), characterSimilarity(a, b), containment);
+}
+
+function merchantScore(left: ReconciliationTransaction, right: ReconciliationTransaction): number {
+  return textSimilarity(left.description, right.description);
+}
+
+function supportScore(left: ReconciliationTransaction, right: ReconciliationTransaction): number {
+  return textSimilarity(
+    [left.reference, left.notes, left.raw.detail].filter(Boolean).join(" "),
+    [right.reference, right.notes, right.raw.detail].filter(Boolean).join(" "),
+  );
+}
+
+interface ScoredPair {
+  left: ReconciliationTransaction;
+  right: ReconciliationTransaction;
+  score: number;
+  amountDifference: number;
+  dateDays: number;
+  merchant: number;
+  support: number;
+}
+
+function enabledRules(workspace: ReconciliationWorkspace, tripId: ReconciliationTripId) {
+  return workspace.rules
+    .filter((rule) => rule.enabled && (!rule.tripId || rule.tripId === tripId))
+    .sort((a, b) => b.priority - a.priority || a.id.localeCompare(b.id));
+}
+
+function ruleForTransactions(
+  workspace: ReconciliationWorkspace,
+  tripId: ReconciliationTripId,
+  transactions: ReconciliationTransaction[],
+) {
+  return enabledRules(workspace, tripId).find((rule) => (
+    rule.sourceIds.length === 0 || transactions.every((item) => rule.sourceIds.includes(item.sourceId))
+  ));
+}
+
+function scorePair(
+  workspace: ReconciliationWorkspace,
+  tripId: ReconciliationTripId,
+  left: ReconciliationTransaction,
+  right: ReconciliationTransaction,
+): ScoredPair | null {
+  const rule = ruleForTransactions(workspace, tripId, [left, right]);
+  if (!rule) return null;
+  const amountDifference = Math.abs(left.postedCadCents - right.postedCadCents);
+  const dateDays = dateDistance(left.postedDate, right.postedDate);
+  if (amountDifference !== 0 && (amountDifference > rule.amountToleranceCents || dateDays > rule.dateToleranceDays)) {
+    return null;
+  }
+  const merchant = merchantScore(left, right);
+  const support = supportScore(left, right);
+  const amountScore = amountDifference === 0
+    ? 50
+    : 50 * Math.max(0, 1 - amountDifference / Math.max(1, rule.amountToleranceCents + 1));
+  const dateScore = 15 * Math.max(0, 1 - dateDays / Math.max(1, rule.dateToleranceDays + 1));
+  return {
+    left,
+    right,
+    score: amountScore + merchant * 30 + dateScore + support * 5,
+    amountDifference,
+    dateDays,
+    merchant,
+    support,
+  };
+}
+
+function maximumWeightPairs(
+  left: ReconciliationTransaction[],
+  right: ReconciliationTransaction[],
+  candidates: ScoredPair[],
+): ScoredPair[] {
+  if (!left.length || !right.length || !candidates.length) return [];
+  const pairByKey = new Map(candidates.map((item) => [`${item.left.id}|${item.right.id}`, item]));
+  const columnCount = right.length + left.length;
+  const costs = left.map((leftItem) => Array.from({ length: columnCount }, (_, columnIndex) => {
+    if (columnIndex >= right.length) return 1_200;
+    const candidate = pairByKey.get(`${leftItem.id}|${right[columnIndex].id}`);
+    const assignmentWeight = candidate
+      ? candidate.score + (candidate.amountDifference === 0 ? 1_000 : 0)
+      : 0;
+    return candidate ? 1_200 - assignmentWeight : 100_000;
+  }));
+  const rowCount = left.length;
+  const u = Array(rowCount + 1).fill(0) as number[];
+  const v = Array(columnCount + 1).fill(0) as number[];
+  const matchedRow = Array(columnCount + 1).fill(0) as number[];
+  const path = Array(columnCount + 1).fill(0) as number[];
+  for (let row = 1; row <= rowCount; row += 1) {
+    matchedRow[0] = row;
+    let column = 0;
+    const minValue = Array(columnCount + 1).fill(Number.POSITIVE_INFINITY) as number[];
+    const used = Array(columnCount + 1).fill(false) as boolean[];
+    do {
+      used[column] = true;
+      const currentRow = matchedRow[column];
+      let delta = Number.POSITIVE_INFINITY;
+      let nextColumn = 0;
+      for (let candidateColumn = 1; candidateColumn <= columnCount; candidateColumn += 1) {
+        if (used[candidateColumn]) continue;
+        const cost = costs[currentRow - 1][candidateColumn - 1] - u[currentRow] - v[candidateColumn];
+        if (cost < minValue[candidateColumn]) {
+          minValue[candidateColumn] = cost;
+          path[candidateColumn] = column;
+        }
+        if (minValue[candidateColumn] < delta) {
+          delta = minValue[candidateColumn];
+          nextColumn = candidateColumn;
+        }
+      }
+      for (let candidateColumn = 0; candidateColumn <= columnCount; candidateColumn += 1) {
+        if (used[candidateColumn]) {
+          u[matchedRow[candidateColumn]] += delta;
+          v[candidateColumn] -= delta;
+        } else {
+          minValue[candidateColumn] -= delta;
+        }
+      }
+      column = nextColumn;
+    } while (matchedRow[column] !== 0);
+    do {
+      const previous = path[column];
+      matchedRow[column] = matchedRow[previous];
+      column = previous;
+    } while (column !== 0);
+  }
+  const selected: ScoredPair[] = [];
+  for (let column = 1; column <= right.length; column += 1) {
+    const row = matchedRow[column];
+    if (!row) continue;
+    const candidate = pairByKey.get(`${left[row - 1].id}|${right[column - 1].id}`);
+    if (candidate) selected.push(candidate);
+  }
+  return selected;
+}
+
+function confidenceFor(score: number, margin: number) {
+  if (score >= 75 && margin >= 10) return { confidence: "high" as const, ambiguous: false };
+  if (score >= 55 && margin >= 5) return { confidence: "medium" as const, ambiguous: false };
+  return { confidence: "low" as const, ambiguous: true };
+}
+
+function pairExplanation(candidate: ScoredPair, margin: number): string[] {
+  return [
+    candidate.amountDifference === 0
+      ? "Exact CAD amount"
+      : `CA$${(candidate.amountDifference / 100).toFixed(2)} amount difference`,
+    `${candidate.dateDays} day${candidate.dateDays === 1 ? "" : "s"} apart`,
+    candidate.merchant >= 0.65
+      ? "Strong merchant similarity"
+      : candidate.merchant >= 0.25
+        ? "Partial merchant similarity"
+        : "Merchant differs",
+    `Match score ${Math.round(candidate.score)}/100`,
+    ...(margin < 10 ? [`Another option is within ${Math.max(0, Math.round(margin))} points`] : []),
+  ];
+}
+
+function combinations(items: ReconciliationTransaction[], size: 2 | 3): ReconciliationTransaction[][] {
+  const result: ReconciliationTransaction[][] = [];
+  for (let first = 0; first < items.length; first += 1) {
+    for (let second = first + 1; second < items.length; second += 1) {
+      if (size === 2) {
+        result.push([items[first], items[second]]);
+        continue;
+      }
+      for (let third = second + 1; third < items.length; third += 1) {
+        result.push([items[first], items[second], items[third]]);
+      }
+    }
+  }
+  return result;
+}
+
+function dateSpan(items: ReconciliationTransaction[]): number {
+  let span = 0;
+  items.forEach((leftItem) => items.forEach((rightItem) => {
+    span = Math.max(span, dateDistance(leftItem.postedDate, rightItem.postedDate));
+  }));
+  return span;
+}
+
+interface GroupCandidate {
+  leftIds: string[];
+  rightIds: string[];
+  leftTotalCents: number;
+  rightTotalCents: number;
+  score: number;
+  dateDays: number;
+  merchant: number;
+  groupSpan: number;
+}
+
+function groupedCandidates(
+  workspace: ReconciliationWorkspace,
+  tripId: ReconciliationTripId,
+  left: ReconciliationTransaction[],
+  right: ReconciliationTransaction[],
+): GroupCandidate[] {
+  const result: GroupCandidate[] = [];
+  const build = (
+    singles: ReconciliationTransaction[],
+    grouped: ReconciliationTransaction[],
+    singleSide: "left" | "right",
+  ) => {
+    const groupedByAmount = new Map<number, ReconciliationTransaction[][]>();
+    ([2, 3] as const).flatMap((size) => combinations(grouped, size)).forEach((items) => {
+      const span = dateSpan(items);
+      if (span > 3) return;
+      const total = items.reduce((sum, item) => sum + item.postedCadCents, 0);
+      groupedByAmount.set(total, [...(groupedByAmount.get(total) ?? []), items]);
+    });
+    singles.forEach((single) => {
+      (groupedByAmount.get(single.postedCadCents) ?? []).forEach((items) => {
+        const rule = ruleForTransactions(workspace, tripId, [single, ...items]);
+        if (!rule) return;
+        const dateDays = Math.max(...items.map((item) => dateDistance(single.postedDate, item.postedDate)));
+        if (dateDays > rule.dateToleranceDays) return;
+        const merchant = Math.max(...items.map((item) => merchantScore(single, item)));
+        const support = Math.max(...items.map((item) => supportScore(single, item)));
+        const dateScore = 15 * Math.max(0, 1 - dateDays / Math.max(1, rule.dateToleranceDays + 1));
+        const groupedIds = items.map((item) => item.id).sort();
+        const groupedTotalCents = items.reduce((sum, item) => sum + item.postedCadCents, 0);
+        result.push({
+          leftIds: singleSide === "left" ? [single.id] : groupedIds,
+          rightIds: singleSide === "right" ? [single.id] : groupedIds,
+          leftTotalCents: singleSide === "left" ? single.postedCadCents : groupedTotalCents,
+          rightTotalCents: singleSide === "right" ? single.postedCadCents : groupedTotalCents,
+          score: 50 + merchant * 30 + dateScore + support * 5,
+          dateDays,
+          merchant,
+          groupSpan: dateSpan(items),
+        });
+      });
+    });
+  };
+  build(left, right, "left");
+  build(right, left, "right");
+  return result;
 }
 
 export function generateSuggestions(
@@ -582,59 +855,90 @@ export function generateSuggestions(
       .filter((group) => group.status === "confirmed")
       .flatMap((group) => [...group.leftIds, ...group.rightIds]),
   );
-  const left = workspace.transactions.filter((item) => item.tripId === tripId && item.side === "left" && item.status === "unmatched" && !unavailable.has(item.id));
-  const right = workspace.transactions.filter((item) => item.tripId === tripId && item.side === "right" && item.status === "unmatched" && !unavailable.has(item.id));
-  const candidates: ReconciliationMatchGroup[] = [];
-  left.forEach((leftItem) => {
-    const exact = right
-      .map((rightItem) => ({
-        rightItem,
-        amountDifference: Math.abs(leftItem.postedCadCents - rightItem.postedCadCents),
-        dateDays: dateDistance(leftItem.postedDate, rightItem.postedDate),
-        merchant: merchantScore(leftItem.description, rightItem.description),
-      }))
-      .filter(({ amountDifference, dateDays }) => (
-        amountDifference === 0
-        || (amountDifference <= SUGGESTION_AMOUNT_TOLERANCE_CENTS && dateDays <= 7)
-      ))
-      .sort((a, b) => (
-        a.amountDifference - b.amountDifference
-        || b.merchant - a.merchant
-        || a.dateDays - b.dateDays
-        || a.rightItem.id.localeCompare(b.rightItem.id)
-      ));
-    if (exact.length === 0) return;
-    const best = exact[0];
-    const amountDifference = leftItem.postedCadCents - best.rightItem.postedCadCents;
-    const ambiguous = exact.length > 1
-      && exact[1].amountDifference === best.amountDifference
-      && exact[1].merchant === best.merchant
-      && exact[1].dateDays === best.dateDays;
-    const confidence = best.amountDifference === 0
-      ? (best.merchant >= 0.5 || best.dateDays <= 7 ? "high" : "medium")
-      : (best.merchant >= 0.5 && best.dateDays <= 3 ? "high" : "medium");
-    candidates.push({
-      id: `suggestion:${leftItem.id}:${best.rightItem.id}`,
+  workspace.exceptions
+    .filter((exception) => exception.tripId === tripId && !exception.resolved)
+    .forEach((exception) => exception.transactionIds.forEach((id) => unavailable.add(id)));
+  if (!enabledRules(workspace, tripId).length) return [];
+  const left = workspace.transactions
+    .filter((item) => item.tripId === tripId && item.side === "left" && item.status === "unmatched" && !unavailable.has(item.id))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const right = workspace.transactions
+    .filter((item) => item.tripId === tripId && item.side === "right" && item.status === "unmatched" && !unavailable.has(item.id))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const pairCandidates = left.flatMap((leftItem) => right
+    .map((rightItem) => scorePair(workspace, tripId, leftItem, rightItem))
+    .filter((item): item is ScoredPair => Boolean(item)));
+  const assignedPairs = maximumWeightPairs(left, right, pairCandidates);
+  const suggestions: ReconciliationMatchGroup[] = assignedPairs.map((candidate) => {
+    const alternativeScore = Math.max(
+      0,
+      ...pairCandidates
+        .filter((item) => item !== candidate && (item.left.id === candidate.left.id || item.right.id === candidate.right.id))
+        .map((item) => item.score),
+    );
+    const margin = candidate.score - alternativeScore;
+    const { confidence, ambiguous } = confidenceFor(candidate.score, margin);
+    return {
+      id: `suggestion:${candidate.left.id}:${candidate.right.id}`,
       tripId,
-      leftIds: [leftItem.id],
-      rightIds: [best.rightItem.id],
+      leftIds: [candidate.left.id],
+      rightIds: [candidate.right.id],
       matchType: "1 ↔ 1",
       status: ambiguous ? "ambiguous" : "suggested",
-      leftTotalCents: leftItem.postedCadCents,
-      rightTotalCents: best.rightItem.postedCadCents,
-      differenceCents: leftItem.postedCadCents - best.rightItem.postedCadCents,
+      leftTotalCents: candidate.left.postedCadCents,
+      rightTotalCents: candidate.right.postedCadCents,
+      differenceCents: candidate.left.postedCadCents - candidate.right.postedCadCents,
+      confidence,
+      explanation: pairExplanation(candidate, margin),
+      createdAt: new Date().toISOString(),
+    };
+  });
+  const assignedIds = new Set(suggestions.flatMap((item) => [...item.leftIds, ...item.rightIds]));
+  const remainingLeft = left.filter((item) => !assignedIds.has(item.id));
+  const remainingRight = right.filter((item) => !assignedIds.has(item.id));
+  const groupPool = groupedCandidates(workspace, tripId, remainingLeft, remainingRight)
+    .sort((a, b) => b.score - a.score || [...a.leftIds, ...a.rightIds].join("|").localeCompare([...b.leftIds, ...b.rightIds].join("|")));
+  const groupedUsed = new Set<string>();
+  groupPool.forEach((candidate) => {
+    const ids = [...candidate.leftIds, ...candidate.rightIds];
+    if (ids.some((id) => groupedUsed.has(id))) return;
+    const alternativeScore = Math.max(
+      0,
+      ...groupPool
+        .filter((item) => item !== candidate && [...item.leftIds, ...item.rightIds].some((id) => ids.includes(id)))
+        .map((item) => item.score),
+    );
+    const margin = candidate.score - alternativeScore;
+    const { confidence, ambiguous } = confidenceFor(candidate.score, margin);
+    ids.forEach((id) => groupedUsed.add(id));
+    suggestions.push({
+      id: `suggestion:${candidate.leftIds.join("+")}:${candidate.rightIds.join("+")}`,
+      tripId,
+      leftIds: candidate.leftIds,
+      rightIds: candidate.rightIds,
+      matchType: `${candidate.leftIds.length} ↔ ${candidate.rightIds.length}`,
+      status: ambiguous ? "ambiguous" : "suggested",
+      leftTotalCents: candidate.leftTotalCents,
+      rightTotalCents: candidate.rightTotalCents,
+      differenceCents: 0,
       confidence,
       explanation: [
-        amountDifference === 0
-          ? "Exact CAD amount"
-          : `CA$${(Math.abs(amountDifference) / 100).toFixed(2)} amount difference (within CA$0.50 tolerance)`,
-        `${best.dateDays} day${best.dateDays === 1 ? "" : "s"} apart`,
-        best.merchant > 0 ? "Merchant text overlaps" : "Merchant differs",
+        "Exact grouped CAD total",
+        `${candidate.dateDays} day${candidate.dateDays === 1 ? "" : "s"} from the statement date`,
+        `Grouped transactions span ${candidate.groupSpan} day${candidate.groupSpan === 1 ? "" : "s"}`,
+        candidate.merchant >= 0.25 ? "Merchant text supports the group" : "Merchant text differs",
+        `Match score ${Math.round(candidate.score)}/100`,
+        ...(margin < 10 ? [`Another option is within ${Math.max(0, Math.round(margin))} points`] : []),
       ],
       createdAt: new Date().toISOString(),
     });
   });
-  return candidates;
+  const confidenceOrder = { high: 0, medium: 1, low: 2 };
+  return suggestions.sort((a, b) => (
+    (a.status === "ambiguous" ? 1 : 0) - (b.status === "ambiguous" ? 1 : 0)
+    || confidenceOrder[a.confidence ?? "low"] - confidenceOrder[b.confidence ?? "low"]
+    || a.id.localeCompare(b.id)
+  ));
 }
 
 export function cashSummary(workspace: ReconciliationWorkspace, endingCashCents: number) {

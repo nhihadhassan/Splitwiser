@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -119,6 +120,10 @@ export function ReconciliationPage() {
   const searchRef = useRef<HTMLInputElement>(null);
   const lastLeftIndex = useRef<number | null>(null);
   const lastRightIndex = useRef<number | null>(null);
+  const suggestions = useMemo(
+    () => workspace ? generateSuggestions(workspace, trip) : [],
+    [workspace, trip],
+  );
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -155,7 +160,6 @@ export function ReconciliationPage() {
   const isLocked = isClosed || isArchived;
   const transactions = workspace.transactions.filter((item) => item.tripId === trip);
   const sources = workspace.sources.filter((item) => item.tripId === trip);
-  const suggestions = generateSuggestions(workspace, trip);
   const totals = reconciliationTotals(workspace, trip);
   const cash = cashSummary(workspace, Math.round((Number(endingCash) || 0) * 100));
   const confirmedGroups = workspace.matchGroups.filter((group) => group.tripId === trip && group.status === "confirmed");
@@ -311,6 +315,15 @@ export function ReconciliationPage() {
     setAdjustment("");
     setAdjustmentNote("");
     setNotice("Match confirmed and moved to Reconciled.");
+  }
+
+  function reviewSuggestion(group: ReconciliationMatchGroup) {
+    if (isLocked) return;
+    setSelectedLeft(group.leftIds);
+    setSelectedRight(group.rightIds);
+    setAdjustment("");
+    setAdjustmentNote("");
+    setNotice("Suggestion loaded into the manual match controls for review.");
   }
 
   function reopenGroup(group: ReconciliationMatchGroup) {
@@ -668,7 +681,13 @@ export function ReconciliationPage() {
       {notice && <button type="button" className="recon-notice" onClick={() => setNotice("")}>{notice}<span>×</span></button>}
 
       {queue === "suggested" && (
-        <SuggestionList suggestions={suggestions} byId={byId} onConfirm={confirmGroup} disabled={isLocked} />
+        <SuggestionList
+          suggestions={suggestions}
+          byId={byId}
+          onConfirm={confirmGroup}
+          onReview={reviewSuggestion}
+          disabled={isLocked}
+        />
       )}
 
       {queue === "reconciled" ? (
@@ -961,28 +980,44 @@ function SuggestionList({
   suggestions,
   byId,
   onConfirm,
+  onReview,
   disabled,
 }: {
   suggestions: ReconciliationMatchGroup[];
   byId: Map<string, ReconciliationTransaction>;
   onConfirm: (group: ReconciliationMatchGroup) => void;
+  onReview: (group: ReconciliationMatchGroup) => void;
   disabled: boolean;
 }) {
   return (
     <section className="recon-suggestions">
-      <header><h2>Suggestions ({suggestions.length})</h2><span>Exact CAD any date · near amounts ±7 days</span></header>
+      <header><h2>Suggestions ({suggestions.length})</h2><span>Exact CAD any date · near amounts by rule · exact groups up to 3</span></header>
       {suggestions.map((group) => {
-        const left = byId.get(group.leftIds[0]);
-        const right = byId.get(group.rightIds[0]);
-        if (!left || !right) return null;
+        const left = group.leftIds.map((id) => byId.get(id)).filter((item): item is ReconciliationTransaction => Boolean(item));
+        const right = group.rightIds.map((id) => byId.get(id)).filter((item): item is ReconciliationTransaction => Boolean(item));
+        if (left.length !== group.leftIds.length || right.length !== group.rightIds.length) return null;
         return (
           <article key={group.id}>
             <span className={`suggestion-confidence ${group.status === "ambiguous" ? "ambiguous" : group.confidence}`}>{group.status === "ambiguous" ? "Ambiguous" : `${group.confidence} confidence`}</span>
-            <div><small>Wanderlog</small><strong>{left.description}</strong><span>{left.date} · {money(left.postedCadCents)}</span></div>
+            <div className="suggestion-side">
+              <small>Wanderlog · {group.leftIds.length}</small>
+              {left.map((item) => <div className="suggestion-transaction" key={item.id}><strong>{item.description}</strong><span>{item.date} · {money(item.postedCadCents)}</span></div>)}
+              <em>Total {money(group.leftTotalCents)}</em>
+            </div>
             <b>↔</b>
-            <div><small>Statement</small><strong>{right.description}</strong><span>{right.date} · {money(right.postedCadCents)}</span></div>
+            <div className="suggestion-side">
+              <small>Statement · {group.rightIds.length}</small>
+              {right.map((item) => <div className="suggestion-transaction" key={item.id}><strong>{item.description}</strong><span>{item.date} · {money(item.postedCadCents)}</span></div>)}
+              <em>Total {money(group.rightTotalCents)}</em>
+            </div>
             <ul>{group.explanation.map((reason) => <li key={reason}>{reason}</li>)}</ul>
-            <button type="button" onClick={() => onConfirm(group)} disabled={disabled || group.status === "ambiguous"}>{group.status === "ambiguous" ? "Review manually" : "Confirm suggestion"}</button>
+            <button
+              type="button"
+              onClick={() => group.status === "ambiguous" ? onReview(group) : onConfirm(group)}
+              disabled={disabled}
+            >
+              {group.status === "ambiguous" ? "Review manually" : "Confirm suggestion"}
+            </button>
           </article>
         );
       })}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { seedState } from "./seed";
+import type { ReconciliationTransaction, ReconciliationWorkspace } from "./types";
 import {
   cashSummary,
   createReconciliationWorkspace,
@@ -10,6 +11,51 @@ import {
   reconciliationTotals,
   SUGGESTION_AMOUNT_TOLERANCE_CENTS,
 } from "./reconciliation";
+
+interface MatchFixtureRow {
+  id: string;
+  amountCents: number;
+  date: string;
+  description: string;
+  reference?: string;
+}
+
+function matchingFixture(leftRows: MatchFixtureRow[], rightRows: MatchFixtureRow[]): ReconciliationWorkspace {
+  const state = seedState();
+  const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
+  const create = (side: "left" | "right", row: MatchFixtureRow): ReconciliationTransaction => {
+    const template = workspace.transactions.find((item) => item.tripId === "new-york" && item.side === side)!;
+    const sourceId = side === "left" ? "wanderlog-new-york" : "scotia-new-york";
+    return {
+      ...template,
+      id: row.id,
+      sourceId,
+      side,
+      accountType: side === "left" ? "wanderlog" : "card",
+      date: row.date,
+      postedDate: row.date,
+      description: row.description,
+      reference: row.reference ?? "",
+      originalAmountCents: row.amountCents,
+      postedCadCents: row.amountCents,
+      status: "unmatched",
+      normalizedText: normalizeSearch([row.date, row.description, row.reference ?? "", row.amountCents].join(" ")),
+      duplicateFingerprint: row.id,
+      raw: { detail: row.reference ?? "" },
+      notes: row.reference,
+    };
+  };
+  return {
+    ...workspace,
+    transactions: [
+      ...leftRows.map((row) => create("left", row)),
+      ...rightRows.map((row) => create("right", row)),
+    ],
+    matchGroups: [],
+    exceptions: [],
+    rules: workspace.rules.map((rule) => ({ ...rule, enabled: true, tripId: "new-york" })),
+  };
+}
 
 describe("reconciliation schema migration", () => {
   it("normalizes Portugal, Peru, and New York into integer-cent transactions", () => {
@@ -296,6 +342,174 @@ describe("matching and controls", () => {
     expect(generateSuggestions(distantNearMatch, "new-york").some((item) => (
       item.leftIds[0] === left.id && item.rightIds[0] === right.id
     ))).toBe(false);
+  });
+
+  it("prioritizes an exact amount over a stronger merchant near-match", () => {
+    const workspace = matchingFixture(
+      [{ id: "left-alpha", amountCents: 1_000, date: "2026-06-10", description: "Alpha Cafe" }],
+      [
+        { id: "right-exact", amountCents: 1_000, date: "2026-06-10", description: "Different Merchant" },
+        { id: "right-near", amountCents: 995, date: "2026-06-10", description: "Alpha Café" },
+      ],
+    );
+
+    const suggestion = generateSuggestions(workspace, "new-york")[0];
+
+    expect(suggestion.rightIds).toEqual(["right-exact"]);
+    expect(suggestion.explanation).toContain("Exact CAD amount");
+  });
+
+  it("uses accent-insensitive merchant similarity for the strongest global assignment", () => {
+    const workspace = matchingFixture(
+      [
+        { id: "left-cafe", amountCents: 488, date: "2026-06-22", description: "Cafe Santiago Porto" },
+        { id: "left-nata", amountCents: 488, date: "2026-06-22", description: "Pasteis de Belem" },
+      ],
+      [
+        { id: "right-cafe", amountCents: 488, date: "2026-06-22", description: "Café Santiago" },
+        { id: "right-nata", amountCents: 488, date: "2026-06-22", description: "Pastéis de Belém Lisboa" },
+      ],
+    );
+
+    const pairs = generateSuggestions(workspace, "new-york")
+      .map((item) => `${item.leftIds[0]}|${item.rightIds[0]}`);
+
+    expect(pairs).toContain("left-cafe|right-cafe");
+    expect(pairs).toContain("left-nata|right-nata");
+  });
+
+  it("never reuses a transaction when duplicate amounts have several candidates", () => {
+    const state = seedState();
+    const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
+    const ids = generateSuggestions(workspace, "portugal").flatMap((item) => [...item.leftIds, ...item.rightIds]);
+
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("uses the enabled workspace rule and stops when matching is disabled", () => {
+    const workspace = matchingFixture(
+      [{ id: "left-rule", amountCents: 1_000, date: "2026-06-10", description: "Rule Cafe" }],
+      [{ id: "right-rule", amountCents: 1_010, date: "2026-06-12", description: "Rule Cafe" }],
+    );
+    const strict = {
+      ...workspace,
+      rules: workspace.rules.map((rule) => ({ ...rule, amountToleranceCents: 10, dateToleranceDays: 2 })),
+    };
+    const tooStrict = {
+      ...strict,
+      rules: strict.rules.map((rule) => ({ ...rule, amountToleranceCents: 9 })),
+    };
+    const disabled = {
+      ...strict,
+      rules: strict.rules.map((rule) => ({ ...rule, enabled: false })),
+    };
+
+    expect(generateSuggestions(strict, "new-york")).toHaveLength(1);
+    expect(generateSuggestions(tooStrict, "new-york")).toHaveLength(0);
+    expect(generateSuggestions(disabled, "new-york")).toHaveLength(0);
+  });
+
+  it("excludes unresolved exceptions and non-unmatched transactions", () => {
+    const workspace = matchingFixture(
+      [
+        { id: "left-exception", amountCents: 1_000, date: "2026-06-10", description: "Exception Cafe" },
+        { id: "left-excluded", amountCents: 2_000, date: "2026-06-10", description: "Excluded Cafe" },
+      ],
+      [
+        { id: "right-exception", amountCents: 1_000, date: "2026-06-10", description: "Exception Cafe" },
+        { id: "right-excluded", amountCents: 2_000, date: "2026-06-10", description: "Excluded Cafe" },
+      ],
+    );
+    const guarded = {
+      ...workspace,
+      transactions: workspace.transactions.map((item) => item.id === "left-excluded" ? { ...item, status: "excluded" as const } : item),
+      exceptions: [{
+        id: "exception-open",
+        tripId: "new-york" as const,
+        transactionIds: ["left-exception"],
+        reason: "other" as const,
+        note: "Needs review",
+        amountCents: 1_000,
+        resolved: false,
+        createdAt: "2026-06-10T00:00:00.000Z",
+      }],
+    };
+
+    expect(generateSuggestions(guarded, "new-york")).toHaveLength(0);
+  });
+
+  it("suggests bounded exact-total 1-to-many and many-to-1 groups", () => {
+    const oneToMany = matchingFixture(
+      [{ id: "left-total", amountCents: 1_000, date: "2026-06-10", description: "Shared dinner" }],
+      [
+        { id: "right-part-a", amountCents: 400, date: "2026-06-09", description: "Dinner deposit" },
+        { id: "right-part-b", amountCents: 600, date: "2026-06-10", description: "Dinner balance" },
+      ],
+    );
+    const manyToOne = matchingFixture(
+      [
+        { id: "left-part-a", amountCents: 400, date: "2026-06-09", description: "Tour deposit" },
+        { id: "left-part-b", amountCents: 600, date: "2026-06-10", description: "Tour balance" },
+      ],
+      [{ id: "right-total", amountCents: 1_000, date: "2026-06-10", description: "Tour company" }],
+    );
+    const oneToThree = matchingFixture(
+      [{ id: "left-three-total", amountCents: 1_000, date: "2026-06-10", description: "Three-part booking" }],
+      [
+        { id: "right-three-a", amountCents: 200, date: "2026-06-09", description: "Booking deposit" },
+        { id: "right-three-b", amountCents: 300, date: "2026-06-10", description: "Booking installment" },
+        { id: "right-three-c", amountCents: 500, date: "2026-06-11", description: "Booking balance" },
+      ],
+    );
+    const threeToOne = matchingFixture(
+      [
+        { id: "left-three-a", amountCents: 200, date: "2026-06-09", description: "Stay deposit" },
+        { id: "left-three-b", amountCents: 300, date: "2026-06-10", description: "Stay installment" },
+        { id: "left-three-c", amountCents: 500, date: "2026-06-11", description: "Stay balance" },
+      ],
+      [{ id: "right-three-total", amountCents: 1_000, date: "2026-06-10", description: "Hotel stay" }],
+    );
+
+    expect(generateSuggestions(oneToMany, "new-york").some((item) => item.matchType === "1 ↔ 2")).toBe(true);
+    expect(generateSuggestions(manyToOne, "new-york").some((item) => item.matchType === "2 ↔ 1")).toBe(true);
+    expect(generateSuggestions(oneToThree, "new-york").some((item) => item.matchType === "1 ↔ 3")).toBe(true);
+    expect(generateSuggestions(threeToOne, "new-york").some((item) => item.matchType === "3 ↔ 1")).toBe(true);
+  });
+
+  it("rejects unsafe grouped totals, wide date clusters, groups over three, and many-to-many", () => {
+    const approximate = matchingFixture(
+      [{ id: "left-total", amountCents: 1_000, date: "2026-06-10", description: "Total" }],
+      [
+        { id: "right-a", amountCents: 400, date: "2026-06-10", description: "Part A" },
+        { id: "right-b", amountCents: 601, date: "2026-06-10", description: "Part B" },
+      ],
+    );
+    const wide = matchingFixture(
+      [{ id: "left-wide", amountCents: 1_000, date: "2026-06-10", description: "Wide" }],
+      [
+        { id: "right-wide-a", amountCents: 400, date: "2026-06-08", description: "Part A" },
+        { id: "right-wide-b", amountCents: 600, date: "2026-06-12", description: "Part B" },
+      ],
+    );
+    const fourParts = matchingFixture(
+      [{ id: "left-four", amountCents: 1_000, date: "2026-06-10", description: "Four" }],
+      [1, 2, 3, 4].map((index) => ({ id: `right-four-${index}`, amountCents: 250, date: "2026-06-10", description: `Part ${index}` })),
+    );
+    const manyToMany = matchingFixture(
+      [
+        { id: "left-mm-a", amountCents: 400, date: "2026-06-10", description: "Left A" },
+        { id: "left-mm-b", amountCents: 600, date: "2026-06-10", description: "Left B" },
+      ],
+      [
+        { id: "right-mm-a", amountCents: 300, date: "2026-06-10", description: "Right A" },
+        { id: "right-mm-b", amountCents: 700, date: "2026-06-10", description: "Right B" },
+      ],
+    );
+
+    expect(generateSuggestions(approximate, "new-york")).toHaveLength(0);
+    expect(generateSuggestions(wide, "new-york")).toHaveLength(0);
+    expect(generateSuggestions(fourParts, "new-york")).toHaveLength(0);
+    expect(generateSuggestions(manyToMany, "new-york")).toHaveLength(0);
   });
 
   it("summarizes cash available, remaining, and used", () => {

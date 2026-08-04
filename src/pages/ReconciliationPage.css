@@ -898,6 +898,29 @@
   gap: 2px;
 }
 
+.suggestion-side {
+  align-content: start;
+}
+
+.suggestion-transaction {
+  border-top: 1px solid color-mix(in srgb, var(--recon-line) 65%, transparent);
+  display: grid;
+  gap: 2px;
+  padding-top: 5px;
+}
+
+.suggestion-transaction:first-of-type {
+  border-top: 0;
+}
+
+.suggestion-side em {
+  color: var(--recon-ink);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  margin-top: 3px;
+}
+
 .recon-suggestions article small,
 .recon-suggestions article span {
   color: var(--recon-muted);
