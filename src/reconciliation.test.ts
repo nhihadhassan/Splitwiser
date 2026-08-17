@@ -1,0 +1,222 @@
+import { describe, expect, it } from "vitest";
+import type { ReconciliationTransaction, ReconciliationWorkspace } from "./types";
+import {
+  auditEvent,
+  cashSummary,
+  compareReconciliationTransactions,
+  createExpenseFromStatementTransaction,
+  createReconciliationWorkspace,
+  ensureReconciliationWorkspace,
+  exceptionTotal,
+  formatReconciliationDate,
+  generateSuggestions,
+  importedTransaction,
+  linkedExpenseId,
+  normalizeSearch,
+  previewDelimitedImport,
+  reconciliationTotals,
+  removeExpenseFromReconciliation,
+  resizeExpenseAmount,
+  statementExpenseId,
+  syncExpenseToReconciliation,
+  updateReconciliationTransaction,
+} from "./reconciliation";
+import { seedState } from "./seed";
+
+function fixture() {
+  const state = seedState();
+  const workspace = createReconciliationWorkspace(state.reconciliation, state.expenses);
+  return { state, workspace };
+}
+
+function isolated(workspace: ReconciliationWorkspace, transactions: ReconciliationTransaction[]): ReconciliationWorkspace {
+  return { ...workspace, transactions, matchGroups: [], exceptions: [], rules: workspace.rules.map((rule) => ({ ...rule, enabled: true })) };
+}
+
+describe("reconciliation workspace", () => {
+  it("uses schema version 2", () => expect(fixture().workspace.schemaVersion).toBe(2));
+
+  it("normalizes every financial amount to integer cents", () => {
+    expect(fixture().workspace.transactions.every((item) => Number.isInteger(item.postedCadCents))).toBe(true);
+  });
+
+  it("creates generic private sources without account identifiers", () => {
+    const sources = fixture().workspace.sources;
+    expect(sources.some((item) => item.institution === "Card statement")).toBe(true);
+    expect(sources.every((item) => !item.account.includes("••••"))).toBe(true);
+  });
+
+  it("creates one period for each synthetic group", () => {
+    expect(fixture().workspace.periods.map((item) => item.tripId).sort()).toEqual(["cabin", "city", "coast"]);
+  });
+
+  it("resizes equally split expenses without losing cents", () => {
+    const expense = fixture().state.expenses.find((item) => item.id === "expense-coast-lodge")!;
+    const resized = resizeExpenseAmount(expense, 10_001);
+    expect(resized.splits.reduce((sum, item) => sum + item.owes, 0)).toBe(10_001);
+    expect(resized.splits.reduce((sum, item) => sum + item.paid, 0)).toBe(10_001);
+  });
+
+  it("creates a balanced group expense from a statement item", () => {
+    const { state, workspace } = fixture();
+    const transaction = workspace.transactions.find((item) => item.id === "statement:coast:statement-coast-market")!;
+    const group = state.groups.find((item) => item.id === "group-coast")!;
+    const expense = createExpenseFromStatementTransaction(transaction, group, 123);
+    expect(expense.splits.reduce((sum, item) => sum + item.owes, 0)).toBe(expense.amount);
+    expect(expense.splits.reduce((sum, item) => sum + item.paid, 0)).toBe(expense.amount);
+  });
+
+  it("adds a new group expense to an existing workspace", () => {
+    const { state, workspace } = fixture();
+    state.reconciliation.workspace = workspace;
+    const template = state.expenses[0];
+    const expense = { ...template, id: "expense-new", description: "New item" };
+    const next = syncExpenseToReconciliation(state.reconciliation, expense, [...state.expenses, expense]);
+    expect(next.workspace?.transactions.some((item) => item.reference === expense.id)).toBe(true);
+  });
+
+  it("updates a linked transaction when its expense changes", () => {
+    const { state, workspace } = fixture();
+    state.reconciliation.workspace = workspace;
+    const expense = { ...state.expenses[0], description: "Updated lodge" };
+    const next = syncExpenseToReconciliation(state.reconciliation, expense, state.expenses);
+    expect(next.workspace?.transactions.find((item) => item.reference === expense.id)?.description).toBe("Updated lodge");
+  });
+
+  it("removes linked transactions with deleted expenses", () => {
+    const { state, workspace } = fixture();
+    state.reconciliation.workspace = workspace;
+    const expenseId = state.expenses[0].id;
+    expect(removeExpenseFromReconciliation(state.reconciliation, expenseId).workspace?.transactions.some((item) => item.reference === expenseId)).toBe(false);
+  });
+
+  it("calculates stable ledger and statement totals", () => {
+    const totals = reconciliationTotals(fixture().workspace, "coast");
+    expect(totals.left).toBeGreaterThan(0);
+    expect(totals.right).toBeGreaterThan(0);
+    expect(totals.difference).toBe(totals.left - totals.right);
+  });
+
+  it("backfills missing canonical transactions without replacing matches", () => {
+    const { state, workspace } = fixture();
+    const omitted = workspace.transactions[0];
+    state.reconciliation.workspace = { ...workspace, transactions: workspace.transactions.slice(1) };
+    const repaired = ensureReconciliationWorkspace(state.reconciliation, state.expenses);
+    expect(repaired.transactions.some((item) => item.id === omitted.id)).toBe(true);
+    expect(repaired.matchGroups).toEqual(workspace.matchGroups);
+  });
+
+  it("normalizes accents, punctuation, and case for search", () => {
+    expect(normalizeSearch("  Café & CRÈME! ")).toBe("cafe creme");
+  });
+
+  it("formats ISO dates consistently", () => expect(formatReconciliationDate("2027-01-15")).toContain("Jan"));
+
+  it("sorts transaction dates oldest first", () => {
+    const rows = [...fixture().workspace.transactions].sort(compareReconciliationTransactions);
+    expect(new Date(rows[0].date).getTime()).toBeLessThanOrEqual(new Date(rows[rows.length - 1].date).getTime());
+  });
+
+  it("previews valid CSV rows", () => {
+    const preview = previewDelimitedImport("Date,Description,Amount,Reference\n2027-03-01,Example shop,12.34,R1", [], "source");
+    expect(preview[0]).toMatchObject({ valid: true, amountCents: 1234, reference: "R1" });
+  });
+
+  it("flags duplicate import rows", () => {
+    const { workspace } = fixture();
+    const existing = workspace.transactions.find((item) => item.side === "right")!;
+    const text = `Date,Description,Amount,Reference\n"${existing.date}",${existing.description},${(existing.postedCadCents / 100).toFixed(2)},${existing.reference}`;
+    expect(previewDelimitedImport(text, workspace.transactions, existing.sourceId)[0].duplicate).toBe(true);
+  });
+
+  it("parses tab-delimited account exports", () => {
+    const preview = previewDelimitedImport("Date\tMerchant\tDebit\n2027-03-02\tCorner shop\t8.50", [], "source");
+    expect(preview[0]).toMatchObject({ valid: true, description: "Corner shop", amountCents: 850 });
+  });
+
+  it("imports ledger sources on the left and statements on the right", () => {
+    const row = { row: 2, date: "2027-03-02", description: "Test", amountCents: 850, reference: "", valid: true, duplicate: false };
+    expect(importedTransaction(row, "coast", "ledger-coast", "left").side).toBe("left");
+    expect(importedTransaction(row, "coast", "statement-coast", "right").side).toBe("right");
+  });
+
+  it("builds stable statement expense identifiers", () => {
+    const transaction = fixture().workspace.transactions.find((item) => item.side === "right")!;
+    expect(statementExpenseId(transaction)).toBe(`statement-expense:${transaction.id}`);
+  });
+
+  it("finds the linked expense identifier", () => {
+    const transaction = fixture().workspace.transactions.find((item) => item.side === "left")!;
+    expect(linkedExpenseId(transaction)).toBe(transaction.reference);
+  });
+
+  it("generates deterministic exact suggestions", () => {
+    const { workspace } = fixture();
+    const first = generateSuggestions(workspace, "coast").map((item) => item.id);
+    const second = generateSuggestions(workspace, "coast").map((item) => item.id);
+    expect(first.length).toBeGreaterThan(0);
+    expect(first).toEqual(second);
+  });
+
+  it("allows exact matches even when dates are far apart", () => {
+    const { workspace } = fixture();
+    const left = workspace.transactions.find((item) => item.side === "left")!;
+    const right = workspace.transactions.find((item) => item.side === "right")!;
+    const exact = isolated(workspace, [{ ...left, postedCadCents: 5_000, date: "2027-01-01", postedDate: "2027-01-01" }, { ...right, postedCadCents: 5_000, date: "2027-03-01", postedDate: "2027-03-01" }]);
+    expect(generateSuggestions(exact, left.tripId)).toHaveLength(1);
+  });
+
+  it("accepts rounded near-matches inside the date window", () => {
+    const { workspace } = fixture();
+    const left = workspace.transactions.find((item) => item.side === "left")!;
+    const right = workspace.transactions.find((item) => item.side === "right")!;
+    const rounded = isolated(workspace, [{ ...left, postedCadCents: 10_000, date: "2027-01-01", postedDate: "2027-01-01" }, { ...right, postedCadCents: 9_975, date: "2027-01-02", postedDate: "2027-01-02" }]);
+    expect(generateSuggestions(rounded, left.tripId)).toHaveLength(1);
+  });
+
+  it("rejects arbitrary non-rounded near-matches", () => {
+    const { workspace } = fixture();
+    const left = workspace.transactions.find((item) => item.side === "left")!;
+    const right = workspace.transactions.find((item) => item.side === "right")!;
+    const mismatch = isolated(workspace, [{ ...left, postedCadCents: 10_023 }, { ...right, postedCadCents: 9_975 }]);
+    expect(generateSuggestions(mismatch, left.tripId)).toHaveLength(0);
+  });
+
+  it("suggests bounded one-to-many exact groups", () => {
+    const { workspace } = fixture();
+    const left = workspace.transactions.find((item) => item.side === "left")!;
+    const right = workspace.transactions.find((item) => item.side === "right")!;
+    const grouped = isolated(workspace, [
+      { ...left, id: "left-group", postedCadCents: 10_000 },
+      { ...right, id: "right-a", postedCadCents: 4_000 },
+      { ...right, id: "right-b", postedCadCents: 6_000 },
+    ]);
+    expect(generateSuggestions(grouped, left.tripId).some((item) => item.matchType === "1 ↔ 2")).toBe(true);
+  });
+
+  it("stops suggestions when the matching rule is disabled", () => {
+    const { workspace } = fixture();
+    const disabled = { ...workspace, rules: workspace.rules.map((rule) => ({ ...rule, enabled: false })) };
+    expect(generateSuggestions(disabled, "coast")).toHaveLength(0);
+  });
+
+  it("reopens a confirmed match after an amount edit", () => {
+    const { workspace } = fixture();
+    const suggestion = generateSuggestions(workspace, "coast")[0];
+    const confirmed = { ...workspace, matchGroups: [{ ...suggestion, status: "confirmed" as const }], transactions: workspace.transactions.map((item) => [...suggestion.leftIds, ...suggestion.rightIds].includes(item.id) ? { ...item, status: "reconciled" as const } : item) };
+    const updated = updateReconciliationTransaction(confirmed, suggestion.leftIds[0], { postedCadCents: suggestion.leftTotalCents + 100 });
+    expect(updated.matchGroups[0].status).toBe("draft");
+  });
+
+  it("summarizes cash remaining and used", () => {
+    const summary = cashSummary(fixture().workspace, 1_500, "coast");
+    expect(summary.total).toBeGreaterThan(0);
+    expect(summary.used).toBe(summary.total - 1_500);
+  });
+
+  it("creates audit records and totals open exceptions", () => {
+    const event = auditEvent("coast", "edit", "Updated item", ["one"]);
+    expect(event).toMatchObject({ tripId: "coast", action: "edit", transactionIds: ["one"] });
+    expect(exceptionTotal([{ id: "x", tripId: "coast", transactionIds: [], reason: "other", note: "", amountCents: 725, resolved: false, createdAt: "now" }], "coast")).toBe(725);
+  });
+});
