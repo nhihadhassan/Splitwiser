@@ -12,7 +12,10 @@ const MAX_RETRIES = 4;
 type StoredWorkspace = { envelope: WorkspaceEnvelopeV3; etag: string };
 
 export function blobToken(): string {
-  const token = process.env.SPLITWISER_BLOB_READ_WRITE_TOKEN?.trim();
+  // The dedicated name preserves compatibility with the isolated preview store.
+  // Production Blob provisioning supplies Vercel's standard name automatically.
+  const token = process.env.SPLITWISER_BLOB_READ_WRITE_TOKEN?.trim()
+    ?? process.env.BLOB_READ_WRITE_TOKEN?.trim();
   if (!token) throw new HttpError(503, "Private financial storage is not configured.");
   return token;
 }

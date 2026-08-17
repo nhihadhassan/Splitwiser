@@ -118,18 +118,22 @@ async function main() {
       people: state.people.map((person) => ({ ...person, claimed: person.id === ownerPersonId && typeof ownerAccountId === "string" })),
     },
   };
+  // Claim status is intentionally introduced by this migration. Verify the
+  // source against its original manifest, then verify the stored migrated form.
+  const migratedManifest = preservationManifest(envelope.state);
 
   if (!options.has("write")) {
     console.log(JSON.stringify({ mode: "dry-run", manifest }, null, 2));
     return;
   }
-  const token = process.env.SPLITWISER_BLOB_READ_WRITE_TOKEN?.trim();
-  if (!token) throw new Error("SPLITWISER_BLOB_READ_WRITE_TOKEN is required for --write.");
+  const token = process.env.SPLITWISER_BLOB_READ_WRITE_TOKEN?.trim()
+    ?? process.env.BLOB_READ_WRITE_TOKEN?.trim();
+  if (!token) throw new Error("A private Blob read/write token is required for --write.");
   await put(WORKSPACE_PATH, JSON.stringify(envelope), { access: "private", token, allowOverwrite: false, contentType: "application/json", cacheControlMaxAge: 60 });
   const stored = await get(WORKSPACE_PATH, { access: "private", token, useCache: false });
   if (!stored || stored.statusCode !== 200) throw new Error("Uploaded workspace could not be read back.");
   const verified = JSON.parse(await new Response(stored.stream).text());
-  assertManifest(preservationManifest(verified.state), manifest);
+  assertManifest(preservationManifest(verified.state), migratedManifest);
   console.log(JSON.stringify({ mode: "written-and-verified", path: WORKSPACE_PATH, revision: verified.revision, manifest }, null, 2));
 }
 
