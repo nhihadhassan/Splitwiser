@@ -38,6 +38,9 @@ export function Dashboard() {
   const iOwe = [...balances.entries()].filter(([, v]) => v < 0);
   const totalOwedToMe = owedToMe.reduce((sum, [, v]) => sum + v, 0);
   const totalIOwe = iOwe.reduce((sum, [, v]) => sum - v, 0);
+  const groupCurrencies = new Set(myGroupCurrencies(state, currentPersonId));
+  const singleCurrency = groupCurrencies.size <= 1;
+  const overallBalance = totalOwedToMe - totalIOwe;
   const recentExpenses = [...state.expenses]
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, 4);
@@ -95,6 +98,13 @@ export function Dashboard() {
         </div>
 
         <div className="overview-totals">
+          <div className="overview-total-primary">
+            <span>Overall balance</span>
+            <strong className={overallBalance > 0 ? "pos" : overallBalance < 0 ? "neg" : "zero"}>
+              {singleCurrency ? `${overallBalance > 0 ? "+" : overallBalance < 0 ? "-" : ""}${formatMoney(Math.abs(overallBalance))}` : "By currency"}
+            </strong>
+            {!singleCurrency && <small>Balances stay separate when groups use different home currencies.</small>}
+          </div>
           <div>
             <span>You are owed</span>
             <strong className={totalOwedToMe > 0 ? "pos" : "zero"}>
@@ -261,4 +271,8 @@ export function Dashboard() {
       {settling && <SettleUpModal prefill={settling.toId ? settling : undefined} onClose={closeSettlement} />}
     </main>
   );
+}
+
+function myGroupCurrencies(state: import("../types").AppState, personId: string): string[] {
+  return state.groups.filter((group) => group.memberIds.includes(personId)).map((group) => group.homeCurrency ?? state.defaultCurrency ?? "CAD");
 }

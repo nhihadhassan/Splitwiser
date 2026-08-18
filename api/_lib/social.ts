@@ -87,6 +87,30 @@ export async function listSocial(
   return { items, unread: items.filter((item) => item.createdAt > readCursor && item.authorPersonId !== session.personId).length, readOnly: false };
 }
 
+/** One authorized request for every group badge. The server derives the group
+ * list from the workspace, so callers cannot probe unread state elsewhere. */
+export async function unreadSocialSummary(
+  envelope: WorkspaceEnvelopeV3,
+  session: SessionProfile,
+): Promise<{ unreadByGroup: Record<string, number>; totalUnread: number }> {
+  const groupIds = envelope.state.groups
+    .filter((group) => session.role === "owner" || group.memberIds.includes(session.personId))
+    .map((group) => group.id);
+  const redis = redisClient();
+  const pairs = await Promise.all(groupIds.map(async (groupId) => {
+    const ids = await redis.zrange<string[]>(groupKey(groupId), "-inf", "+inf", { byScore: true });
+    const [values, cursor] = await Promise.all([
+      Promise.all(ids.slice(-100).map((id) => redis.get<SocialItem>(itemKey(id)))),
+      redis.get<number>(`social:read:${session.accountId}:${groupId}`),
+    ]);
+    const readCursor = Number(cursor ?? 0);
+    const unread = values.filter((item): item is SocialItem => Boolean(item)).filter((item) => item.createdAt > readCursor && item.authorPersonId !== session.personId).length;
+    return [groupId, unread] as const;
+  }));
+  const unreadByGroup = Object.fromEntries(pairs);
+  return { unreadByGroup, totalUnread: Object.values(unreadByGroup).reduce((sum, count) => sum + count, 0) };
+}
+
 type CreateSocial = { groupId?: string; scope?: "group" | "expense"; scopeId?: string; body?: string };
 
 export async function createSocial(

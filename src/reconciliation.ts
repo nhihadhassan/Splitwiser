@@ -17,8 +17,12 @@ import { splitByWeights, splitEqually } from "./utils/money.js";
 export const RECONCILIATION_SCHEMA_VERSION = 2 as const;
 export const SUGGESTION_ROUNDING_INCREMENT_CENTS = 50;
 
-function tripIdForGroup(groupId: string): ReconciliationTripId {
+export function tripIdForGroup(groupId: string): ReconciliationTripId {
   return groupId.replace(/^group-/, "").replace(/^g-/, "") || groupId;
+}
+
+export function reconciliationAmount(transaction: ReconciliationTransaction): number {
+  return transaction.postedHomeCents ?? transaction.postedCadCents;
 }
 
 export function normalizeSearch(value: string): string {
@@ -153,6 +157,7 @@ function leftTransaction(expense: Expense, tripId: ReconciliationTripId, status:
     category: expense.category,
     currency,
     originalAmountCents,
+    postedHomeCents: expense.amount,
     postedCadCents: expense.amount,
     status,
     notes: expense.notes,

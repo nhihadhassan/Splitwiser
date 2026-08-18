@@ -25,11 +25,9 @@ export default {
           } catch {
             throw new HttpError(400, "Receipt upload details are invalid.");
           }
-          const group = envelope.state.groups.find((item) => item.id === payload.groupId);
-          if (!group || (session.role !== "owner" && !group.memberIds.includes(session.personId))) {
-            throw new HttpError(403, "You cannot attach a receipt to this group.");
-          }
-          if (group.status === "closed") throw new HttpError(409, "This group is closed and read-only.");
+          const group = payload.groupId ? envelope.state.groups.find((item) => item.id === payload.groupId) : null;
+          if (payload.groupId && (!group || (session.role !== "owner" && !group.memberIds.includes(session.personId)))) throw new HttpError(403, "You cannot attach a receipt to this group.");
+          if (group?.status === "closed") throw new HttpError(409, "This group is closed and read-only.");
           if (!payload.receiptId || !/^[A-Za-z0-9_-]{8,128}$/.test(payload.receiptId)) throw new HttpError(400, "Receipt identifier is invalid.");
           const expectedPath = `private/receipts/${accountId}/${payload.receiptId}`;
           if (pathname !== expectedPath) throw new HttpError(400, "Receipt upload path is invalid.");

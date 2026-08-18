@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { UserButton } from "@clerk/react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useStore } from "../store";
@@ -11,15 +11,25 @@ import { CloudStatusBadge } from "./CloudStatusBadge";
 import { GroupModal } from "./GroupModal";
 import { InvitationModal } from "./InvitationModal";
 import { BrandMark, GroupBadge, NavIcon } from "./Icons";
+import { loadSocialUnreadSummary } from "../social";
 
 export function Layout() {
-  const { state, peopleById, currentPersonId, session, undo } = useStore();
+  const { state, peopleById, currentPersonId, session, undo, getToken } = useStore();
   const { pathname } = useLocation();
   const [addingFriend, setAddingFriend] = useState(false);
   const [addingGroup, setAddingGroup] = useState(false);
   const [addingExpense, setAddingExpense] = useState(false);
   const [showingMore, setShowingMore] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const [unread, setUnread] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!getToken) return;
+    let live = true;
+    void loadSocialUnreadSummary(getToken).then((summary) => { if (live) setUnread(summary.unreadByGroup); }).catch(() => { if (live) setUnread({}); });
+    return () => { live = false; };
+  }, [getToken, state.groups]);
+  const totalUnread = Object.values(unread).reduce((sum, count) => sum + count, 0);
 
   const friendBalances = useMemo(() => {
     const ledger = buildLedger(state);
@@ -66,7 +76,7 @@ export function Layout() {
             <NavIcon type="groups" /> Groups
           </NavLink>
           <NavLink to="/activity" className="nav-link">
-            <NavIcon type="activity" /> Activity
+            <NavIcon type="activity" /> Activity {totalUnread > 0 && <span className="unread-badge">{totalUnread}</span>}
           </NavLink>
           {session.capabilities.reconcile && (
             <NavLink to="/reconciliation" className="nav-link">
@@ -82,6 +92,7 @@ export function Layout() {
           {state.groups.map((g) => (
             <NavLink key={g.id} to={`/groups/${g.id}`} className="nav-sub">
               <GroupBadge type={g.type} name={g.name} size={28} /> {g.name}
+              {unread[g.id] > 0 && <span className="unread-badge">{unread[g.id]}</span>}
             </NavLink>
           ))}
 
@@ -131,7 +142,7 @@ export function Layout() {
           Add
         </button>
         <NavLink to="/activity">
-          <span><NavIcon type="activity" /></span>
+          <span><NavIcon type="activity" />{totalUnread > 0 && <b className="unread-badge">{totalUnread}</b>}</span>
           Activity
         </NavLink>
         <button type="button" onClick={() => setShowingMore(true)}>

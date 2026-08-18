@@ -3,12 +3,25 @@ export interface ParsedReceipt {
   totalCents: number | null;
   date: string | null;
   totalCandidates: Array<{ cents: number; line: string; score: number }>;
+  subtotalCents: number | null;
+  charges: Array<{ kind: "tax" | "tip" | "discount" | "fee"; cents: number; line: string }>;
+  lineItems: Array<{ description: string; cents: number }>;
 }
 
 const EXCLUDED_TOTAL_LINE = /\b(sub\s*total|tax|tip|gratuity|change|cash|visa|mastercard|amex|debit|credit|payment|tender|balance due)\b/i;
 const TOTAL_WORD = /\b(grand\s+total|amount\s+due|total)\b/i;
 const MONEY = /(?:\$|cad\s*)?(-?\d{1,5}(?:[,.]\d{2}))(?!\d)/gi;
 const HAS_MONEY = /(?:\$|cad\s*)?-?\d{1,5}(?:[,.]\d{2})(?!\d)/i;
+const EXCLUDED_ITEM_LINE = /\b(tender|card|change|cash|visa|mastercard|amex|debit|credit|payment|approved|auth|balance)\b/i;
+const CHARGE_KIND = /\b(tax|hst|gst|tip|gratuity|discount|coupon|fee|service)\b/i;
+
+function centsFromLine(line: string): number | null {
+  MONEY.lastIndex = 0;
+  const match = MONEY.exec(line);
+  if (!match) return null;
+  const amount = Number(match[1].replace(",", "."));
+  return Number.isFinite(amount) ? Math.round(amount * 100) : null;
+}
 
 function parseDate(text: string): string | null {
   const iso = text.match(/\b(20\d{2})[-/.](0?[1-9]|1[0-2])[-/.](0?[1-9]|[12]\d|3[01])\b/);
@@ -44,11 +57,26 @@ export function parseReceiptText(rawText: string): ParsedReceipt {
     }
   });
   totalCandidates.sort((a, b) => b.score - a.score || b.cents - a.cents);
+  const charges = lines.flatMap((line) => {
+    const cents = centsFromLine(line);
+    if (cents == null || !CHARGE_KIND.test(line)) return [];
+    const kind: "tax" | "tip" | "discount" | "fee" = /discount|coupon/i.test(line) ? "discount" : /tip|gratuity/i.test(line) ? "tip" : /fee|service/i.test(line) ? "fee" : "tax";
+    return [{ kind, cents: kind === "discount" ? -Math.abs(cents) : cents, line }];
+  });
+  const lineItems = lines.flatMap((line) => {
+    const cents = centsFromLine(line);
+    if (cents == null || EXCLUDED_ITEM_LINE.test(line) || CHARGE_KIND.test(line) || TOTAL_WORD.test(line) || /subtotal/i.test(line)) return [];
+    const description = line.replace(MONEY, "").replace(/[xX]\s*\d+(?:\.\d+)?/g, "").replace(/\s+/g, " ").trim();
+    return description.length >= 2 ? [{ description, cents }] : [];
+  });
   return {
     merchant: merchantFrom(lines),
     totalCents: totalCandidates[0]?.cents ?? null,
     date: parseDate(rawText),
     totalCandidates: totalCandidates.slice(0, 5),
+    subtotalCents: lines.find((line) => /sub\s*total/i.test(line)) ? centsFromLine(lines.find((line) => /sub\s*total/i.test(line))!) : null,
+    charges,
+    lineItems,
   };
 }
 

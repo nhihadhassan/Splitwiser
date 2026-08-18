@@ -1,6 +1,16 @@
 export type SplitMethod = "equally" | "exact" | "percentage" | "shares" | "adjustment";
 
 export type GroupType = "trip" | "home" | "couple" | "other";
+export type CurrencyCode = string;
+
+/** A saved quote, expressed as a decimal string so money never passes through
+ * floating point arithmetic. `rate` converts originalCurrency to homeCurrency. */
+export interface FxSnapshot {
+  rate: string;
+  rateDate: string;
+  source: "identity" | "frankfurter" | "manual";
+  fetchedAt?: string;
+}
 
 export type AccountRole = "owner" | "member";
 
@@ -41,6 +51,8 @@ export interface Group {
   startDate?: string;
   endDate?: string;
   createdBy?: string;
+  /** Accounting currency for this group. Legacy groups are CAD. */
+  homeCurrency?: CurrencyCode;
 }
 
 export interface ReceiptAttachment {
@@ -56,6 +68,36 @@ export interface ReceiptAttachment {
   receiptDate?: string;
   createdAt: number;
   createdBy: string;
+}
+
+export interface ReceiptParticipantAllocation {
+  personId: string;
+  /** Minor units in the receipt's original currency. */
+  amountMinor: number;
+}
+
+export interface ReceiptLineItem {
+  id: string;
+  description: string;
+  quantity?: number;
+  amountMinor: number;
+  allocations: ReceiptParticipantAllocation[];
+}
+
+export interface ReceiptCharge {
+  kind: "tax" | "tip" | "discount" | "fee" | "rounding" | "other";
+  label: string;
+  amountMinor: number;
+  allocations: ReceiptParticipantAllocation[];
+}
+
+/** Confirmed receipt allocations only. Raw OCR text never enters AppState. */
+export interface ReceiptAllocation {
+  currency: CurrencyCode;
+  totalMinor: number;
+  items: ReceiptLineItem[];
+  charges: ReceiptCharge[];
+  participantTotalsMinor: ReceiptParticipantAllocation[];
 }
 
 export interface ExpenseSplit {
@@ -105,6 +147,11 @@ export interface Expense {
   updatedAt?: number;
   updatedBy?: string;
   receipt?: ReceiptAttachment;
+  homeCurrency?: CurrencyCode;
+  originalCurrency?: CurrencyCode;
+  originalAmountMinor?: number;
+  fx?: FxSnapshot;
+  receiptAllocation?: ReceiptAllocation;
 }
 
 export interface Settlement {
@@ -119,6 +166,7 @@ export interface Settlement {
   createdBy: string;
   updatedAt?: number;
   updatedBy?: string;
+  currency?: CurrencyCode;
 }
 
 export type FinancialActivityKind =
@@ -212,6 +260,8 @@ export interface ReconciliationTransaction {
   category: string;
   currency: string;
   originalAmountCents: number;
+  /** Generic home-currency amount. `postedCadCents` remains readable for V3. */
+  postedHomeCents?: number;
   postedCadCents: number;
   status: ReconciliationQueue;
   normalizedText: string;
@@ -336,6 +386,8 @@ export interface AppState {
   reconciliation: ReconciliationState;
   dataMigrations: string[];
   financialActivity?: FinancialActivityEvent[];
+  /** Workspace display/default currency. Legacy workspaces default to CAD. */
+  defaultCurrency?: CurrencyCode;
 }
 
 export interface AccountLink {
@@ -376,6 +428,7 @@ export type FinancialMutation =
   | { type: "deleteExpense"; expenseId: string }
   | { type: "addSettlement"; settlement: Settlement }
   | { type: "deleteSettlement"; settlementId: string }
+  | { type: "setTripStatus"; groupId: string; status: "open" | "closed"; reason?: string; allowUnreconciled?: boolean }
   | { type: "updateReconciliation"; reconciliation: ReconciliationState };
 
 export interface MutationCommand {

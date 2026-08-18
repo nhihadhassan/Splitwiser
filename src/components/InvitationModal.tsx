@@ -37,7 +37,7 @@ export function InvitationModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal
-      title="Invite a member"
+      title="Invite someone"
       onClose={onClose}
       footer={status === "sent" ? (
         <button className="btn btn-primary" type="button" onClick={onClose}>Done</button>
@@ -51,21 +51,21 @@ export function InvitationModal({ onClose }: { onClose: () => void }) {
       )}
     >
       {status === "sent" ? (
-        <p role="status">Invitation sent. The account will be linked to this person after they accept and sign in.</p>
+        <p role="status">Invitation sent. After they sign in, they’ll see the trips you share.</p>
       ) : people.length === 0 ? (
         <p className="empty-inline">Everyone in this workspace already has an account.</p>
       ) : (
         <>
           {error && <p className="form-error" role="alert">{error}</p>}
           <label className="field" htmlFor={`${fieldId}-person`}>
-            <span>Person record</span>
+            <span>Invite as</span>
             <select id={`${fieldId}-person`} value={personId} onChange={(event) => setPersonId(event.target.value)}>
               {people.map((person) => <option value={person.id} key={person.id}>{person.name}</option>)}
             </select>
           </label>
           <div className="invite-person-preview">
             <Avatar person={state.people.find((person) => person.id === personId)} size={32} />
-            <span>This invitation claims exactly this existing ledger identity.</span>
+            <span>This account will belong to this person only. They’ll see every trip that includes them.</span>
           </div>
           <label className="field" htmlFor={`${fieldId}-email`}>
             <span>Email address</span>

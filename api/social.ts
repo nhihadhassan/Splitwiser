@@ -1,7 +1,7 @@
 import type { Reaction } from "../src/types.js";
 import { requireAccountId } from "./_lib/auth.js";
 import { errorResponse, HttpError, json, methodNotAllowed, readJson } from "./_lib/http.js";
-import { createSocial, deleteSocial, editSocial, listSocial, markSocialRead, reactToSocial } from "./_lib/social.js";
+import { createSocial, deleteSocial, editSocial, listSocial, markSocialRead, reactToSocial, unreadSocialSummary } from "./_lib/social.js";
 import { resolveWorkspaceSession } from "./_lib/workspace.js";
 
 type SocialBody = {
@@ -23,6 +23,7 @@ export default {
       const { envelope, session } = await resolveWorkspaceSession(accountId);
       if (request.method === "GET") {
         const url = new URL(request.url);
+        if (url.searchParams.get("summary") === "1") return json(await unreadSocialSummary(envelope, session));
         const groupId = url.searchParams.get("groupId")?.trim();
         if (!groupId) throw new HttpError(400, "A group is required.");
         try {

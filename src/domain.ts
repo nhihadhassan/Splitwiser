@@ -7,7 +7,9 @@ import type {
 import {
   removeExpenseFromReconciliation,
   syncExpenseToReconciliation,
+  tripIdForGroup,
 } from "./reconciliation.js";
+import { identityFx, normalizedCurrency } from "./utils/currency.js";
 
 const ACTIVITY_LIMIT = 1_000;
 
@@ -31,7 +33,11 @@ function validateExpenseReferences(state: AppState, expense: Expense): void {
     const group = state.groups.find((item) => item.id === expense.groupId);
     if (!group) throw new Error("Expense group was not found.");
     if (expense.splits.some((split) => !group.memberIds.includes(split.personId))) throw new Error("Expense participant does not belong to the group.");
+    const homeCurrency = normalizedCurrency(group.homeCurrency ?? state.defaultCurrency);
+    if (expense.homeCurrency && normalizedCurrency(expense.homeCurrency) !== homeCurrency) throw new Error("Expense home currency must match its group.");
   }
+  if (expense.originalAmountMinor != null && (!Number.isInteger(expense.originalAmountMinor) || expense.originalAmountMinor <= 0)) throw new Error("Original amount must be a positive number of minor units.");
+  if (expense.fx && !/^\d+(?:\.\d+)?$/.test(expense.fx.rate)) throw new Error("Expense FX rate is invalid.");
 }
 
 function validateSettlementReferences(state: AppState, fromId: string, toId: string, groupId: string | null): void {
@@ -73,6 +79,8 @@ function eventFor(
       const kind = mutation.group.status === "closed" ? "group-closed" : mutation.group.closedAt == null ? "group-reopened" : "group-updated";
       return { id: `activity:${mutation.group.id}:updated:${now}`, kind, actorPersonId, groupId: mutation.group.id, entityId: mutation.group.id, summary: `Updated ${mutation.group.name}`, createdAt: now };
     }
+    case "setTripStatus":
+      return { id: `activity:${mutation.groupId}:status:${now}`, kind: mutation.status === "closed" ? "group-closed" : "group-reopened", actorPersonId, groupId: mutation.groupId, entityId: mutation.groupId, summary: mutation.status === "closed" ? "Closed the trip" : "Reopened the trip", createdAt: now };
     case "deleteGroup":
     case "addPerson":
     case "updateReconciliation":
@@ -101,13 +109,15 @@ export function applyFinancialMutation(
     case "addGroup":
       if (state.groups.some((group) => group.id === mutation.group.id)) return state;
       validateGroupReferences(state, mutation.group.memberIds, mutation.group.name);
-      next = { ...state, groups: [...state.groups, { ...mutation.group, createdBy: actorPersonId }] };
+      next = { ...state, groups: [...state.groups, { ...mutation.group, homeCurrency: normalizedCurrency(mutation.group.homeCurrency ?? state.defaultCurrency), createdBy: actorPersonId }] };
       break;
     case "updateGroup": {
       const previous = state.groups.find((group) => group.id === mutation.group.id);
       if (!previous) throw new Error("Group was not found.");
       validateGroupReferences(state, mutation.group.memberIds, mutation.group.name);
-      const group = { ...mutation.group, createdAt: previous.createdAt, createdBy: previous.createdBy };
+      const hasFinancialHistory = state.expenses.some((expense) => expense.groupId === previous.id) || state.settlements.some((settlement) => settlement.groupId === previous.id);
+      if (hasFinancialHistory && normalizedCurrency(mutation.group.homeCurrency) !== normalizedCurrency(previous.homeCurrency ?? state.defaultCurrency)) throw new Error("A group's home currency locks after its first expense or settlement.");
+      const group = { ...mutation.group, homeCurrency: normalizedCurrency(mutation.group.homeCurrency ?? previous.homeCurrency ?? state.defaultCurrency), createdAt: previous.createdAt, createdBy: previous.createdBy };
       next = { ...state, groups: state.groups.map((item) => item.id === group.id ? group : item) };
       break;
     }
@@ -130,7 +140,10 @@ export function applyFinancialMutation(
       if (!isBalancedExpense(mutation.expense)) throw new Error("Expense splits must balance exactly.");
       validateExpenseReferences(state, mutation.expense);
       if (state.expenses.some((expense) => expense.id === mutation.expense.id)) return state;
-      const expense = { ...mutation.expense, createdBy: actorPersonId, updatedBy: actorPersonId, updatedAt: now };
+      const groupCurrency = mutation.expense.groupId ? state.groups.find((group) => group.id === mutation.expense.groupId)?.homeCurrency : state.defaultCurrency;
+      const homeCurrency = normalizedCurrency(mutation.expense.homeCurrency ?? groupCurrency);
+      const originalCurrency = normalizedCurrency(mutation.expense.originalCurrency ?? homeCurrency);
+      const expense = { ...mutation.expense, homeCurrency, originalCurrency, originalAmountMinor: mutation.expense.originalAmountMinor ?? mutation.expense.amount, fx: mutation.expense.fx ?? identityFx(originalCurrency, mutation.expense.date), createdBy: actorPersonId, updatedBy: actorPersonId, updatedAt: now };
       next = {
         ...state,
         expenses: [...state.expenses, expense],
@@ -143,7 +156,7 @@ export function applyFinancialMutation(
       validateExpenseReferences(state, mutation.expense);
       const previous = state.expenses.find((expense) => expense.id === mutation.expense.id);
       if (!previous) throw new Error("Expense not found.");
-      const expense = { ...mutation.expense, createdAt: previous.createdAt, createdBy: previous.createdBy, updatedBy: actorPersonId, updatedAt: now };
+      const expense = { ...mutation.expense, homeCurrency: mutation.expense.homeCurrency ?? previous.homeCurrency ?? normalizedCurrency(state.defaultCurrency), originalCurrency: mutation.expense.originalCurrency ?? previous.originalCurrency ?? normalizedCurrency(state.defaultCurrency), originalAmountMinor: mutation.expense.originalAmountMinor ?? previous.originalAmountMinor ?? mutation.expense.amount, fx: mutation.expense.fx ?? previous.fx ?? identityFx(normalizedCurrency(mutation.expense.originalCurrency ?? previous.originalCurrency), mutation.expense.date), createdAt: previous.createdAt, createdBy: previous.createdBy, updatedBy: actorPersonId, updatedAt: now };
       next = {
         ...state,
         expenses: state.expenses.map((item) => item.id === expense.id ? expense : item),
@@ -175,12 +188,38 @@ export function applyFinancialMutation(
       if (!Number.isInteger(mutation.settlement.amount) || mutation.settlement.amount <= 0) throw new Error("Settlement amount must be a positive number of cents.");
       validateSettlementReferences(state, mutation.settlement.fromId, mutation.settlement.toId, mutation.settlement.groupId);
       if (state.settlements.some((settlement) => settlement.id === mutation.settlement.id)) return state;
-      next = { ...state, settlements: [...state.settlements, { ...mutation.settlement, createdBy: actorPersonId, updatedBy: actorPersonId, updatedAt: now }] };
+      const settlementCurrency = mutation.settlement.groupId ? state.groups.find((group) => group.id === mutation.settlement.groupId)?.homeCurrency : state.defaultCurrency;
+      next = { ...state, settlements: [...state.settlements, { ...mutation.settlement, currency: normalizedCurrency(mutation.settlement.currency ?? settlementCurrency), createdBy: actorPersonId, updatedBy: actorPersonId, updatedAt: now }] };
       break;
     }
     case "deleteSettlement":
       next = { ...state, settlements: state.settlements.filter((settlement) => settlement.id !== mutation.settlementId) };
       break;
+    case "setTripStatus": {
+      const group = state.groups.find((item) => item.id === mutation.groupId);
+      if (!group) throw new Error("Group was not found.");
+      if (group.type === "trip" && mutation.status === "closed") {
+        const unsettled = state.expenses.some((expense) => expense.groupId === group.id && expense.splits.some((split) => split.owes !== split.paid));
+        if (unsettled) throw new Error("Record or settle all repayments before closing this trip.");
+      }
+      const workspace = state.reconciliation.workspace;
+      const tripId = tripIdForGroup(group.id);
+      const period = workspace?.periods.find((item) => item.tripId === tripId);
+      if (group.type === "trip" && mutation.status === "closed" && period?.status === "open") {
+        const pending = workspace?.transactions.some((item) => item.tripId === tripId && !["reconciled", "excluded"].includes(item.status));
+        if (pending && !mutation.allowUnreconciled) throw new Error("Resolve reconciliation or explicitly skip it before closing this trip.");
+      }
+      const nextWorkspace = workspace ? {
+        ...workspace,
+        periods: period ? workspace.periods.map((item) => item.tripId === tripId ? { ...item, status: mutation.status, closedAt: mutation.status === "closed" ? new Date(now).toISOString() : item.closedAt, reopenedAt: mutation.status === "open" ? new Date(now).toISOString() : item.reopenedAt } : item) : workspace.periods,
+      } : undefined;
+      next = {
+        ...state,
+        groups: state.groups.map((item) => item.id === group.id ? { ...item, status: mutation.status, closedAt: mutation.status === "closed" ? now : undefined } : item),
+        reconciliation: nextWorkspace ? { ...state.reconciliation, workspace: nextWorkspace } : state.reconciliation,
+      };
+      break;
+    }
     case "updateReconciliation":
       next = { ...state, reconciliation: mutation.reconciliation };
       break;

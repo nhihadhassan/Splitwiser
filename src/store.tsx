@@ -49,6 +49,7 @@ export type Action =
   | { type: "deleteExpense"; expenseId: string }
   | { type: "addSettlement"; settlement: Settlement }
   | { type: "deleteSettlement"; settlementId: string }
+  | { type: "setTripStatus"; groupId: string; status: "open" | "closed"; reason?: string; allowUnreconciled?: boolean }
   | { type: "updateReconciliation"; reconciliation: ReconciliationState }
   | { type: "applyCommand"; mutation: FinancialMutation; actorPersonId: string }
   | { type: "replace"; state: AppState }
@@ -117,6 +118,8 @@ export function reducer(state: AppState, action: Action): AppState {
       };
     case "updateReconciliation":
       return { ...state, reconciliation: action.reconciliation };
+    case "setTripStatus":
+      return applyFinancialMutation(state, action, state.people[0]?.id ?? ME);
     case "replace":
       return normalizeState(action.state);
     case "hydrate":
@@ -146,7 +149,14 @@ function normalizeState(
   normalized.expenses = normalized.expenses.map((expense) => ({
     ...expense,
     category: normalizeExpenseCategory(expense.category, expense.description),
+    homeCurrency: expense.homeCurrency ?? normalized.groups.find((group) => group.id === expense.groupId)?.homeCurrency ?? state.defaultCurrency ?? "CAD",
+    originalCurrency: expense.originalCurrency ?? expense.homeCurrency ?? normalized.groups.find((group) => group.id === expense.groupId)?.homeCurrency ?? state.defaultCurrency ?? "CAD",
+    originalAmountMinor: expense.originalAmountMinor ?? expense.amount,
+    fx: expense.fx ?? { rate: "1", rateDate: expense.date, source: "identity" },
   }));
+  normalized.defaultCurrency = normalized.defaultCurrency ?? "CAD";
+  normalized.groups = normalized.groups.map((group) => ({ ...group, homeCurrency: group.homeCurrency ?? normalized.defaultCurrency }));
+  normalized.settlements = normalized.settlements.map((settlement) => ({ ...settlement, currency: settlement.currency ?? normalized.groups.find((group) => group.id === settlement.groupId)?.homeCurrency ?? normalized.defaultCurrency }));
   normalized.reconciliation.workspace = ensureReconciliationWorkspace(
     normalized.reconciliation,
     normalized.expenses.filter((expense) => expense.groupId),

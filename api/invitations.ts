@@ -21,9 +21,10 @@ export default {
       if (envelope.accountLinks.some((link) => link.personId === person.id && link.status === "active")) {
         throw new HttpError(409, "This person has already claimed an account.");
       }
-      const redirectUrl = process.env.VERCEL_ENV === "production"
+      const appUrl = process.env.VERCEL_ENV === "production"
         ? process.env.SPLITWISER_APP_URL?.trim() || "https://splitwiser-xi.vercel.app"
         : new URL(request.url).origin;
+      const redirectUrl = `${appUrl.replace(/\/$/, "")}/join`;
       const invitation = await clerkClient().invitations.createInvitation({
         emailAddress: email,
         expiresInDays: 7,

@@ -7,6 +7,7 @@ export interface SocialFeed {
   readOnly: boolean;
   message?: string;
 }
+export interface SocialUnreadSummary { unreadByGroup: Record<string, number>; totalUnread: number; }
 
 async function headers(getToken: TokenProvider): Promise<HeadersInit> {
   const token = await getToken();
@@ -28,6 +29,10 @@ async function request<T>(getToken: TokenProvider, method: string, body?: unknow
 
 export function loadSocial(getToken: TokenProvider, groupId: string, after = 0): Promise<SocialFeed> {
   return request(getToken, "GET", undefined, `?groupId=${encodeURIComponent(groupId)}&after=${after}`);
+}
+
+export function loadSocialUnreadSummary(getToken: TokenProvider): Promise<SocialUnreadSummary> {
+  return request(getToken, "GET", undefined, "?summary=1");
 }
 
 export function createSocial(getToken: TokenProvider, groupId: string, scope: "group" | "expense", scopeId: string, body: string): Promise<SocialItem> {

@@ -129,6 +129,8 @@ function groupForMutation(state: AppState, mutation: FinancialMutation): string 
       return mutation.group.id;
     case "deleteGroup":
       return mutation.groupId;
+    case "setTripStatus":
+      return mutation.groupId;
     case "addPerson":
     case "updateReconciliation":
       return undefined;
@@ -150,7 +152,7 @@ export function authorizeMutation(
     }
     return;
   }
-  if (mutation.type === "addPerson" || mutation.type === "addGroup" || mutation.type === "updateGroup" || mutation.type === "deleteGroup" || mutation.type === "updateReconciliation" || mutation.type === "updateLinkedExpense") {
+  if (mutation.type === "addPerson" || mutation.type === "addGroup" || mutation.type === "updateGroup" || mutation.type === "deleteGroup" || mutation.type === "setTripStatus" || mutation.type === "updateReconciliation" || mutation.type === "updateLinkedExpense") {
     throw new HttpError(403, "Only the owner can make this change.");
   }
   const groupId = groupForMutation(envelope.state, mutation);
