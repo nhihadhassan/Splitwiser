@@ -60,14 +60,18 @@ export function GroupPage() {
   }
 
   function toggleClosed() {
-    dispatch({
-      type: "updateGroup",
-      group: {
-        ...group!,
-        status: group!.status === "closed" ? "open" : "closed",
-        closedAt: group!.status === "closed" ? undefined : Date.now(),
-      },
-    });
+    if (!group) return;
+    if (group.status === "closed") {
+      const reason = window.prompt("Why are you reopening this trip?");
+      if (!reason?.trim()) return;
+      dispatch({ type: "setTripStatus", groupId: group.id, status: "open", reason: reason.trim() });
+      return;
+    }
+    const canClose = window.confirm(group.type === "trip"
+      ? "Close this trip after confirming repayments are settled. If its reconciliation still has open items, you will be asked to resolve or explicitly skip them."
+      : "Close this group? Its ledger will become read-only.");
+    if (!canClose) return;
+    dispatch({ type: "setTripStatus", groupId: group.id, status: "closed", allowUnreconciled: false });
   }
 
   return (
@@ -180,7 +184,7 @@ export function GroupPage() {
               Edit group
             </button>
             <button className="btn btn-secondary" onClick={toggleClosed}>
-              {group.status === "closed" ? "Reopen group" : "Close group"}
+              {group.status === "closed" ? "Reopen trip" : "Close trip"}
             </button>
             <button className="btn-link-danger" onClick={deleteGroup}>
               Delete group
