@@ -319,4 +319,40 @@ describe("reconciliation workspace", () => {
     expect(slugOnly.name).toBe("Quebec City");
     expect(slugOnly.dates).toBe("No dates set");
   });
+
+  it("prefers the trip's own ledger dates over a wide, unrelated statement import", () => {
+    const { workspace } = fixture();
+    const left = workspace.transactions.find((item) => item.side === "left")!;
+    const right = workspace.transactions.find((item) => item.side === "right")!;
+    const noisy = isolated(workspace, [
+      { ...left, id: "left-a", date: "2027-01-15", postedDate: "2027-01-15" },
+      { ...left, id: "left-b", date: "2027-01-17", postedDate: "2027-01-17" },
+      // A months-long, mostly unrelated card statement import shouldn't
+      // dominate the displayed trip range once real ledger dates exist.
+      { ...right, id: "right-old", date: "2026-06-01", postedDate: "2026-06-01" },
+      { ...right, id: "right-new", date: "2027-08-01", postedDate: "2027-08-01" },
+    ]);
+    const meta = periodMeta({ tripId: left.tripId, status: "open" }, [], noisy.transactions);
+    expect(meta.dates).toBe("Jan 15, 2027 to Jan 17, 2027");
+  });
+
+  it("ignores excluded transactions when computing the trip date range", () => {
+    const { workspace } = fixture();
+    const left = workspace.transactions.find((item) => item.side === "left")!;
+    const excludedOutlier: typeof left = { ...left, id: "left-outlier", date: "2020-01-01", postedDate: "2020-01-01", status: "excluded" };
+    const real = { ...left, id: "left-real", date: "2027-01-15", postedDate: "2027-01-15" };
+    const meta = periodMeta({ tripId: left.tripId, status: "open" }, [], [excludedOutlier, real]);
+    expect(meta.dates).toBe("Jan 15, 2027");
+  });
+
+  it("falls back to statement dates when the trip has no ledger transactions yet", () => {
+    const { workspace } = fixture();
+    const right = workspace.transactions.find((item) => item.side === "right")!;
+    const statementOnly = [
+      { ...right, id: "right-a", date: "2027-03-01", postedDate: "2027-03-01" },
+      { ...right, id: "right-b", date: "2027-03-04", postedDate: "2027-03-04" },
+    ];
+    const meta = periodMeta({ tripId: right.tripId, status: "open" }, [], statementOnly);
+    expect(meta.dates).toBe("Mar 1, 2027 to Mar 4, 2027");
+  });
 });

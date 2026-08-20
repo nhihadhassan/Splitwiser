@@ -102,7 +102,14 @@ export function periodMeta(
       : formatReconciliationDate(owningGroup.startDate);
   }
   if (!dates && tripTransactions.length > 0) {
-    const parsedDates = tripTransactions
+    // Prefer the trip's own ledger expenses for the date range: an imported
+    // card statement can span months of unrelated spending that hasn't been
+    // excluded yet, which would otherwise dominate the min/max and make the
+    // displayed range meaningless.
+    const active = tripTransactions.filter((item) => item.status !== "excluded");
+    const ledgerOnly = active.filter((item) => item.side === "left");
+    const candidates = ledgerOnly.length > 0 ? ledgerOnly : active;
+    const parsedDates = candidates
       .map((item) => ({ raw: item.postedDate, time: reconciliationDateTimestamp(item.postedDate) }))
       .filter((item) => !Number.isNaN(item.time))
       .sort((a, b) => a.time - b.time);
