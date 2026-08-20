@@ -102,12 +102,17 @@ export function periodMeta(
       : formatReconciliationDate(owningGroup.startDate);
   }
   if (!dates && tripTransactions.length > 0) {
-    const sortedDates = tripTransactions.map((item) => item.postedDate).sort();
-    const earliest = sortedDates[0];
-    const latest = sortedDates[sortedDates.length - 1];
-    dates = earliest === latest
-      ? formatReconciliationDate(earliest)
-      : `${formatReconciliationDate(earliest)} to ${formatReconciliationDate(latest)}`;
+    const parsedDates = tripTransactions
+      .map((item) => ({ raw: item.postedDate, time: reconciliationDateTimestamp(item.postedDate) }))
+      .filter((item) => !Number.isNaN(item.time))
+      .sort((a, b) => a.time - b.time);
+    const earliest = parsedDates[0]?.raw;
+    const latest = parsedDates[parsedDates.length - 1]?.raw;
+    if (earliest && latest) {
+      dates = earliest === latest
+        ? formatReconciliationDate(earliest)
+        : `${formatReconciliationDate(earliest)} to ${formatReconciliationDate(latest)}`;
+    }
   }
   return { name, dates: dates ?? "No dates set", itemCount: tripTransactions.length };
 }
@@ -1242,6 +1247,109 @@ export function generateSuggestions(
     || confidenceOrder[a.confidence ?? "low"] - confidenceOrder[b.confidence ?? "low"]
     || a.id.localeCompare(b.id)
   ));
+}
+
+export interface MergePeriodsResult {
+  workspace: ReconciliationWorkspace;
+  movedTransactions: number;
+}
+
+/** Merges every transaction, match, exception, and audit record from
+ * `sourceTripId` into `targetTripId`, then removes the now-empty source
+ * period. Transaction and source ids embed their tripId (e.g.
+ * `wl:coast:expense-1`), so ids are rewritten to point at the target trip
+ * rather than duplicated — this keeps match-group and exception references
+ * consistent instead of orphaning them. Nothing is deleted: every moved
+ * record keeps its history, just filed under the target trip. */
+export function mergeReconciliationPeriods(
+  workspace: ReconciliationWorkspace,
+  sourceTripId: ReconciliationTripId,
+  targetTripId: ReconciliationTripId,
+): MergePeriodsResult {
+  if (sourceTripId === targetTripId) return { workspace, movedTransactions: 0 };
+  const sourcePeriod = workspace.periods.find((item) => item.tripId === sourceTripId);
+  const targetPeriod = workspace.periods.find((item) => item.tripId === targetTripId);
+  if (!sourcePeriod || !targetPeriod) return { workspace, movedTransactions: 0 };
+
+  const rewriteTripSegment = (id: string): string => {
+    const parts = id.split(":");
+    return parts.length > 1 && parts[1] === sourceTripId
+      ? [parts[0], targetTripId, ...parts.slice(2)].join(":")
+      : id;
+  };
+
+  const idRemap = new Map<string, string>();
+  workspace.transactions
+    .filter((item) => item.tripId === sourceTripId)
+    .forEach((item) => idRemap.set(item.id, rewriteTripSegment(item.id)));
+
+  const targetSourceByShape = new Map<string, string>(
+    workspace.sources
+      .filter((item) => item.tripId === targetTripId)
+      .map((item) => [`${item.type}|${item.institution}|${item.account}`, item.id]),
+  );
+  const sourceIdRemap = new Map<string, string>();
+  const keptSources: ReconciliationSource[] = [];
+  workspace.sources.forEach((item) => {
+    if (item.tripId !== sourceTripId) {
+      keptSources.push(item);
+      return;
+    }
+    const shapeKey: string = `${item.type}|${item.institution}|${item.account}`;
+    const existingTargetId = targetSourceByShape.get(shapeKey);
+    if (existingTargetId) {
+      sourceIdRemap.set(item.id, existingTargetId);
+      return;
+    }
+    const relocatedId = rewriteTripSegment(item.id);
+    sourceIdRemap.set(item.id, relocatedId);
+    keptSources.push({ ...item, id: relocatedId, tripId: targetTripId });
+  });
+
+  const movedTransactions = workspace.transactions
+    .filter((item) => item.tripId === sourceTripId)
+    .map((item) => ({
+      ...item,
+      id: idRemap.get(item.id) ?? item.id,
+      tripId: targetTripId,
+      sourceId: sourceIdRemap.get(item.sourceId) ?? item.sourceId,
+    }));
+  const transactions = [
+    ...workspace.transactions.filter((item) => item.tripId !== sourceTripId),
+    ...movedTransactions,
+  ];
+
+  const remapIds = (ids: string[]) => ids.map((id) => idRemap.get(id) ?? id);
+  const matchGroups = workspace.matchGroups.map((group) => group.tripId === sourceTripId
+    ? { ...group, tripId: targetTripId, leftIds: remapIds(group.leftIds), rightIds: remapIds(group.rightIds) }
+    : group);
+  const exceptions = workspace.exceptions.map((exception) => exception.tripId === sourceTripId
+    ? { ...exception, tripId: targetTripId, transactionIds: remapIds(exception.transactionIds) }
+    : exception);
+  const auditEvents = workspace.auditEvents.map((event) => event.tripId === sourceTripId
+    ? { ...event, tripId: targetTripId, transactionIds: remapIds(event.transactionIds) }
+    : event);
+  const sourceName = sourcePeriod.name ?? titleCaseSlug(sourceTripId);
+  const targetName = targetPeriod.name ?? titleCaseSlug(targetTripId);
+  auditEvents.push(auditEvent(
+    targetTripId,
+    "merge",
+    `Merged "${sourceName}" into "${targetName}"`,
+    movedTransactions.map((item) => item.id),
+  ));
+
+  return {
+    workspace: {
+      ...workspace,
+      sources: keptSources,
+      transactions,
+      matchGroups,
+      exceptions,
+      auditEvents,
+      periods: workspace.periods.filter((item) => item.tripId !== sourceTripId),
+    },
+    movedTransactions: movedTransactions.length,
+  };
 }
 
 export function cashSummary(workspace: ReconciliationWorkspace, endingCashCents: number, tripId?: ReconciliationTripId) {

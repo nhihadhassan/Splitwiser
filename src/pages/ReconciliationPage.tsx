@@ -8,6 +8,7 @@ import {
 } from "react";
 import { useStore } from "../store";
 import type {
+  Group,
   ReconciliationExceptionReason,
   ReconciliationMatchGroup,
   ReconciliationQueue,
@@ -25,6 +26,7 @@ import {
   importedTransaction,
   expenseFromReconciliationTransaction,
   linkedExpenseId,
+  mergeReconciliationPeriods,
   normalizeSearch,
   periodMeta,
   previewDelimitedImport,
@@ -107,6 +109,7 @@ export function ReconciliationPage() {
   const [showActivity, setShowActivity] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [showNewReconciliation, setShowNewReconciliation] = useState(false);
+  const [showMergePeriods, setShowMergePeriods] = useState(false);
   const [advanced, setAdvanced] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const lastLeftIndex = useRef<number | null>(null);
@@ -528,6 +531,17 @@ export function ReconciliationPage() {
     setShowNewReconciliation(false);
   }
 
+  function mergePeriod(targetTripId: ReconciliationTripId) {
+    const { workspace: merged, movedTransactions } = mergeReconciliationPeriods(workspace, trip, targetTripId);
+    if (merged === workspace) return;
+    updateWorkspace(merged);
+    setTrip(targetTripId);
+    setSelectedLeft([]);
+    setSelectedRight([]);
+    setShowMergePeriods(false);
+    setNotice(`Merged ${movedTransactions} item${movedTransactions === 1 ? "" : "s"} into ${periodMeta(merged.periods.find((item) => item.tripId === targetTripId)!, state.groups, merged.transactions).name}.`);
+  }
+
   function exportPackage() {
     const packageData = {
       schemaVersion: workspace.schemaVersion,
@@ -697,6 +711,9 @@ export function ReconciliationPage() {
         <div className="recon-title-actions">
           <button type="button" className="btn btn-secondary" onClick={() => setAdvanced(false)}>Simple review</button>
           <span className={`recon-period-status ${isClosed || isArchived ? "closed" : ""}`}>{isArchived ? "Archived" : isClosed ? "Closed" : "Open"}</span>
+          {!isLocked && workspace.periods.some((item) => item.tripId !== trip && !item.archivedAt) && (
+            <button type="button" className="btn btn-secondary" onClick={() => setShowMergePeriods(true)}>Merge into…</button>
+          )}
           <button type="button" className="btn btn-secondary" onClick={() => setShowNewReconciliation(true)}>New reconciliation</button>
           <button type="button" className="btn btn-secondary" onClick={exportPackage}>Export</button>
         </div>
@@ -976,6 +993,16 @@ export function ReconciliationPage() {
         </section>
       )}
       {showNewReconciliation && <NewReconciliationDialog onClose={() => setShowNewReconciliation(false)} onCreate={createReconciliation} />}
+      {showMergePeriods && (
+        <MergePeriodsDialog
+          currentName={currentMeta.name}
+          periods={workspace.periods.filter((item) => item.tripId !== trip && !item.archivedAt)}
+          groups={state.groups}
+          transactions={workspace.transactions}
+          onClose={() => setShowMergePeriods(false)}
+          onMerge={mergePeriod}
+        />
+      )}
     </main>
   );
 }
@@ -1378,6 +1405,53 @@ function ImportWorkspace({
       )}
       {report && <p className="recon-import-report">{report}</p>}
     </section>
+  );
+}
+
+function MergePeriodsDialog({
+  currentName,
+  periods,
+  groups,
+  transactions,
+  onClose,
+  onMerge,
+}: {
+  currentName: string;
+  periods: ReconciliationWorkspace["periods"];
+  groups: Group[];
+  transactions: ReconciliationTransaction[];
+  onClose: () => void;
+  onMerge: (targetTripId: ReconciliationTripId) => void;
+}) {
+  const [targetTripId, setTargetTripId] = useState(periods[0]?.tripId ?? "");
+
+  return (
+    <div className="recon-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="recon-dialog" role="dialog" aria-modal="true" aria-labelledby="merge-periods-title">
+        <header><div><span className="eyebrow">Duplicate trip</span><h2 id="merge-periods-title">Merge "{currentName}" into…</h2></div><button type="button" onClick={onClose} aria-label="Close">×</button></header>
+        <p>Every transaction, match, and exception from "{currentName}" moves into the trip you pick below, and this period is removed. Nothing is deleted — history moves with it.</p>
+        <label>
+          Merge into
+          <select value={targetTripId} onChange={(event) => setTargetTripId(event.target.value)}>
+            {periods.map((item) => {
+              const meta = periodMeta(item, groups, transactions);
+              return <option key={item.tripId} value={item.tripId}>{meta.name} · {meta.dates}</option>;
+            })}
+          </select>
+        </label>
+        <footer>
+          <button type="button" onClick={onClose}>Cancel</button>
+          <button
+            type="button"
+            className="recon-confirm"
+            disabled={!targetTripId}
+            onClick={() => targetTripId && onMerge(targetTripId)}
+          >
+            Merge
+          </button>
+        </footer>
+      </section>
+    </div>
   );
 }
 

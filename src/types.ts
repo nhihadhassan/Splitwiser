@@ -337,7 +337,7 @@ export interface ReconciliationException {
 export interface ReconciliationAuditEvent {
   id: string;
   tripId: ReconciliationTripId;
-  action: "migrate" | "import" | "edit" | "match" | "unmatch" | "exclude" | "support" | "adjust" | "close" | "reopen" | "archive";
+  action: "migrate" | "import" | "edit" | "match" | "unmatch" | "exclude" | "support" | "adjust" | "close" | "reopen" | "archive" | "merge";
   timestamp: string;
   summary: string;
   transactionIds: string[];

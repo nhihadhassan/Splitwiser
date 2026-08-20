@@ -12,7 +12,9 @@ import {
   generateSuggestions,
   importedTransaction,
   linkedExpenseId,
+  mergeReconciliationPeriods,
   normalizeSearch,
+  periodMeta,
   previewDelimitedImport,
   reconciliationTotals,
   removeExpenseFromReconciliation,
@@ -245,5 +247,76 @@ describe("reconciliation workspace", () => {
     const event = auditEvent("coast", "edit", "Updated item", ["one"]);
     expect(event).toMatchObject({ tripId: "coast", action: "edit", transactionIds: ["one"] });
     expect(exceptionTotal([{ id: "x", tripId: "coast", transactionIds: [], reason: "other", note: "", amountCents: 725, resolved: false, createdAt: "now" }], "coast")).toBe(725);
+  });
+
+  it("merges a duplicate trip's transactions, matches, and exceptions into the target", () => {
+    const { workspace } = fixture();
+    const suggestion = generateSuggestions(workspace, "cabin")[0];
+    const withMatch: typeof workspace = {
+      ...workspace,
+      matchGroups: [{ ...suggestion, status: "confirmed" as const }],
+      exceptions: [{
+        id: "exception-cabin-1",
+        tripId: "cabin",
+        transactionIds: [],
+        reason: "fee",
+        note: "Bank fee",
+        amountCents: 250,
+        resolved: false,
+        createdAt: new Date(0).toISOString(),
+      }],
+      sources: [
+        ...workspace.sources,
+        {
+          id: "custom-source-1",
+          tripId: "cabin",
+          type: "import" as const,
+          institution: "My Bank Import",
+          account: "acct-1",
+          currency: "CAD",
+          importedAt: new Date(0).toISOString(),
+          fingerprint: "fp",
+        },
+      ],
+    };
+    const cabinTransactionCount = withMatch.transactions.filter((item) => item.tripId === "cabin").length;
+    const coastTransactionCount = withMatch.transactions.filter((item) => item.tripId === "coast").length;
+
+    const { workspace: merged, movedTransactions } = mergeReconciliationPeriods(withMatch, "cabin", "coast");
+
+    expect(movedTransactions).toBe(cabinTransactionCount);
+    expect(merged.periods.some((item) => item.tripId === "cabin")).toBe(false);
+    expect(merged.transactions.filter((item) => item.tripId === "cabin")).toHaveLength(0);
+    expect(merged.transactions.filter((item) => item.tripId === "coast")).toHaveLength(coastTransactionCount + cabinTransactionCount);
+    expect(merged.transactions.every((item) => !item.id.includes(":cabin:"))).toBe(true);
+
+    const mergedMatch = merged.matchGroups.find((group) => group.status === "confirmed" && group.tripId === "coast");
+    expect(mergedMatch).toBeDefined();
+    expect(mergedMatch!.leftIds.every((id) => !id.includes(":cabin:"))).toBe(true);
+    expect(merged.transactions.some((item) => item.id === mergedMatch!.leftIds[0])).toBe(true);
+
+    const mergedException = merged.exceptions.find((item) => item.id === "exception-cabin-1");
+    expect(mergedException?.tripId).toBe("coast");
+
+    expect(merged.sources.some((item) => item.id === "ledger-cabin")).toBe(false);
+    const relocatedImport = merged.sources.find((item) => item.id === "custom-source-1");
+    expect(relocatedImport?.tripId).toBe("coast");
+
+    expect(merged.auditEvents.some((item) => item.action === "merge" && item.tripId === "coast")).toBe(true);
+  });
+
+  it("is a no-op when merging a period into itself or an unknown trip", () => {
+    const { workspace } = fixture();
+    expect(mergeReconciliationPeriods(workspace, "coast", "coast").workspace).toBe(workspace);
+    expect(mergeReconciliationPeriods(workspace, "coast", "not-a-trip").workspace).toBe(workspace);
+  });
+
+  it("falls back to the group name and then a title-cased slug for period display", () => {
+    const { state, workspace } = fixture();
+    const named = periodMeta({ tripId: "coast", status: "open" }, state.groups, workspace.transactions);
+    expect(named.name).toBe("Coastal Weekend");
+    const slugOnly = periodMeta({ tripId: "quebec-city", status: "open" }, [], []);
+    expect(slugOnly.name).toBe("Quebec City");
+    expect(slugOnly.dates).toBe("No dates set");
   });
 });
