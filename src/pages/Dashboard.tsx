@@ -9,6 +9,7 @@ import { relativeTime } from "../utils/dates";
 import { CategoryIcon, GroupBadge, NavIcon } from "../components/Icons";
 import { SettleUpModal } from "../components/SettleUpModal";
 import { loadSocial } from "../social";
+import { periodMeta } from "../reconciliation";
 
 export function Dashboard() {
   const { state, peopleById, currentPersonId, session, getToken } = useStore();
@@ -75,7 +76,10 @@ export function Dashboard() {
   }, [getToken, myGroups.map(({ group }) => group.id).join("|")]);
   const ongoingReconciliations = (state.reconciliation.workspace?.periods ?? []).map((period) => {
     const pending = state.reconciliation.workspace?.transactions.filter((item) => item.tripId === period.tripId && (item.status === "unmatched" || item.status === "suggested" || item.status === "exception")).length ?? 0;
-    return { key: period.tripId, name: period.name ?? period.tripId.replace(/[-_]/g, " "), pending };
+    const name = state.reconciliation.workspace
+      ? periodMeta(period, state.groups, state.reconciliation.workspace.transactions).name
+      : period.tripId;
+    return { key: period.tripId, name, pending };
   }).filter((trip) => trip.pending > 0);
   const pendingReconciliationItems = ongoingReconciliations.reduce(
     (sum, trip) => sum + trip.pending,
@@ -211,7 +215,7 @@ export function Dashboard() {
                 to={`/groups/${group.id}`}
                 className="person-row overview-group-row"
               >
-                <GroupBadge type={group.type} name={group.name} size={34} />
+                <GroupBadge type={group.type} name={group.name} icon={group.icon} size={34} />
                 <span className="name">
                   {group.name}
                   <small>

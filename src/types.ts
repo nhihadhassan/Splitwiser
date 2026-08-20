@@ -1,3 +1,5 @@
+import type { DestinationMotif } from "./utils/destinations.js";
+
 export type SplitMethod = "equally" | "exact" | "percentage" | "shares" | "adjustment";
 
 export type GroupType = "trip" | "home" | "couple" | "other";
@@ -53,6 +55,8 @@ export interface Group {
   createdBy?: string;
   /** Accounting currency for this group. Legacy groups are CAD. */
   homeCurrency?: CurrencyCode;
+  /** Manual override for the destination icon; falls back to name-based detection. */
+  icon?: DestinationMotif;
 }
 
 export interface ReceiptAttachment {

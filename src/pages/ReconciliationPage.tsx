@@ -26,6 +26,7 @@ import {
   expenseFromReconciliationTransaction,
   linkedExpenseId,
   normalizeSearch,
+  periodMeta,
   previewDelimitedImport,
   reconciliationTotals,
   statementExpenseId,
@@ -140,11 +141,16 @@ export function ReconciliationPage() {
   }
 
   const period = workspace.periods.find((item) => item.tripId === trip)!;
+  const currentPeriodMeta = periodMeta(period, state.groups, workspace.transactions);
   const currentMeta = {
-    name: period.name ?? trip.replace(/[-_]/g, " "),
-    dates: period.dates ?? "No dates set",
-    note: `${workspace.transactions.filter((item) => item.tripId === trip).length} imported items`,
+    name: currentPeriodMeta.name,
+    dates: currentPeriodMeta.dates,
+    note: `${currentPeriodMeta.itemCount} imported items`,
   };
+  function hasReconciliationContent(item: typeof period): boolean {
+    if (periodMeta(item, state.groups, workspace.transactions).itemCount > 0) return true;
+    return workspace.matchGroups.some((group) => group.tripId === item.tripId && group.status === "confirmed");
+  }
   const isClosed = period.status === "closed";
   const isArchived = Boolean(period.archivedAt);
   const isLocked = isClosed || isArchived;
@@ -484,7 +490,7 @@ export function ReconciliationPage() {
   }
 
   function archivePeriod() {
-    if (!isClosed || isArchived) return;
+    if (isArchived) return;
     const next = {
       ...workspace,
       periods: workspace.periods.map((item) => item.tripId === trip ? { ...item, archivedAt: new Date().toISOString() } : item),
@@ -599,29 +605,42 @@ export function ReconciliationPage() {
     const remaining = transactions
       .filter((item) => item.status === "unmatched" && !suggestedIds.has(item.id))
       .sort(compareReconciliationTransactions);
+    const strongSuggestions = suggestions.filter((item) => item.status === "suggested" && item.confidence !== "low");
+    const weakSuggestions = suggestions.filter((item) => !(item.status === "suggested" && item.confidence !== "low"));
     return (
       <main className="pane pane-wide reconciliation-page simple-reconciliation">
         <header className="recon-titlebar">
           <div><p className="eyebrow">Owner workspace</p><h1>Reconciliation review</h1></div>
-          <button type="button" className="btn btn-secondary" onClick={() => setAdvanced(true)}>Advanced reconciliation</button>
+          <div className="recon-title-actions">
+            {hasReconciliationContent(period) === false && !isArchived && (
+              <button type="button" className="btn btn-secondary" onClick={archivePeriod}>Archive this period</button>
+            )}
+            <button type="button" className="btn btn-secondary" onClick={() => setAdvanced(true)}>Advanced reconciliation</button>
+          </div>
         </header>
         <nav className="reconciliation-tabs" aria-label="Reconciliation periods">
-          {workspace.periods.filter((item) => !item.archivedAt).map((item) => (
-            <button key={item.tripId} type="button" className={trip === item.tripId ? "active" : ""} onClick={() => setTrip(item.tripId)}>
-              <span>{item.name ?? item.tripId.replace(/[-_]/g, " ")}</span><small>{item.dates ?? "No dates set"}</small>
-            </button>
-          ))}
+          {workspace.periods
+            .filter((item) => !item.archivedAt)
+            .filter((item) => item.tripId === trip || hasReconciliationContent(item))
+            .map((item) => {
+              const meta = periodMeta(item, state.groups, workspace.transactions);
+              return (
+                <button key={item.tripId} type="button" className={trip === item.tripId ? "active" : ""} onClick={() => setTrip(item.tripId)}>
+                  <span>{meta.name}</span><small>{meta.dates}</small>
+                </button>
+              );
+            })}
         </nav>
         <section className="recon-overview">
           <Metric label="Remaining" value={String(tripUnmatched)} detail="items awaiting a decision" />
-          <Metric label="Likely matches" value={String(suggestions.length)} detail="deterministic suggestions" />
+          <Metric label="Likely matches" value={String(strongSuggestions.length)} detail={`${weakSuggestions.length} need a closer look`} />
           <Metric label="Matched" value={`${Math.round(totals.matchRateValue * 100)}%`} detail="by value" />
           <Metric label="Needs review" value={String(totals.exceptions)} detail="supported exceptions" />
         </section>
         {notice && <button type="button" className="recon-notice" onClick={() => setNotice("")}>{notice}<span>×</span></button>}
         <section className="simple-match-list" aria-labelledby="likely-matches-title">
-          <header><div><p className="eyebrow">Suggested next</p><h2 id="likely-matches-title">Likely matches</h2></div><span>{suggestions.length} ready</span></header>
-          {suggestions.map((group) => {
+          <header><div><p className="eyebrow">Suggested next</p><h2 id="likely-matches-title">Likely matches</h2></div><span>{strongSuggestions.length} ready</span></header>
+          {strongSuggestions.map((group) => {
             const left = group.leftIds.map((id) => byId.get(id)).filter((item): item is ReconciliationTransaction => Boolean(item));
             const right = group.rightIds.map((id) => byId.get(id)).filter((item): item is ReconciliationTransaction => Boolean(item));
             return (
@@ -630,14 +649,37 @@ export function ReconciliationPage() {
                 <span aria-hidden="true">↔</span>
                 <div><small>Statement</small>{right.map((item) => <strong key={item.id}>{item.description} · {money(item.postedCadCents)}</strong>)}</div>
                 <div className="simple-match-actions">
-                  <button type="button" className="btn btn-primary" disabled={isLocked || group.status === "ambiguous"} onClick={() => confirmGroup(group)}>Confirm</button>
+                  <button type="button" className="btn btn-primary" disabled={isLocked} onClick={() => confirmGroup(group)}>Confirm</button>
                   <button type="button" className="btn btn-secondary" disabled={isLocked} onClick={() => flagSuggestion(group, "Suggested match rejected")}>Not a match</button>
                   <button type="button" className="btn btn-secondary" disabled={isLocked} onClick={() => flagSuggestion(group, "Suggested match needs review")}>Needs review</button>
                 </div>
               </article>
             );
           })}
-          {suggestions.length === 0 && <p className="recon-empty">No likely matches are waiting. Use the advanced workspace for manual grouping or imports.</p>}
+          {strongSuggestions.length === 0 && <p className="recon-empty">No likely matches are waiting. Use the advanced workspace for manual grouping or imports.</p>}
+        </section>
+        <section className="simple-match-list simple-match-list-weak" aria-labelledby="weak-matches-title">
+          <header><div><p className="eyebrow">Amount matches, but unconfirmed</p><h2 id="weak-matches-title">Needs a closer look</h2></div><span>{weakSuggestions.length} to review</span></header>
+          {weakSuggestions.map((group) => {
+            const left = group.leftIds.map((id) => byId.get(id)).filter((item): item is ReconciliationTransaction => Boolean(item));
+            const right = group.rightIds.map((id) => byId.get(id)).filter((item): item is ReconciliationTransaction => Boolean(item));
+            return (
+              <article key={group.id} className="simple-match-row simple-match-row-weak">
+                <div><small>Trip ledger</small>{left.map((item) => <strong key={item.id}>{item.description} · {money(item.postedCadCents)}</strong>)}</div>
+                <span aria-hidden="true">↔</span>
+                <div><small>Statement</small>{right.map((item) => <strong key={item.id}>{item.description} · {money(item.postedCadCents)}</strong>)}</div>
+                <ul className="simple-match-reasons">
+                  {group.explanation.map((line) => <li key={line}>{line}</li>)}
+                </ul>
+                <div className="simple-match-actions">
+                  <button type="button" className="btn btn-primary" disabled={isLocked} onClick={() => confirmGroup(group)}>Confirm</button>
+                  <button type="button" className="btn btn-secondary" disabled={isLocked} onClick={() => flagSuggestion(group, "Suggested match rejected")}>Not a match</button>
+                  <button type="button" className="btn btn-secondary" disabled={isLocked} onClick={() => flagSuggestion(group, "Suggested match needs review")}>Needs review</button>
+                </div>
+              </article>
+            );
+          })}
+          {weakSuggestions.length === 0 && <p className="recon-empty">Nothing needs a closer look right now.</p>}
         </section>
         <section className="simple-remaining" aria-labelledby="remaining-items-title">
           <header><h2 id="remaining-items-title">Remaining items</h2><span>{remaining.length}</span></header>
@@ -661,9 +703,12 @@ export function ReconciliationPage() {
       </header>
 
       <nav className="reconciliation-tabs" aria-label="Trips">
-        {workspace.periods.filter((item) => showArchived ? Boolean(item.archivedAt) : !item.archivedAt).map((item) => {
+        {workspace.periods
+          .filter((item) => showArchived ? Boolean(item.archivedAt) : !item.archivedAt)
+          .filter((item) => showArchived || item.tripId === trip || hasReconciliationContent(item))
+          .map((item) => {
           const key = item.tripId;
-          const meta = { name: item.name ?? key.replace(/[-_]/g, " "), dates: item.dates ?? "No dates set" };
+          const meta = periodMeta(item, state.groups, workspace.transactions);
           return (
           <button
             key={key}

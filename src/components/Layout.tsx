@@ -91,7 +91,7 @@ export function Layout() {
           {state.groups.length === 0 && <div className="nav-empty">No groups yet</div>}
           {state.groups.map((g) => (
             <NavLink key={g.id} to={`/groups/${g.id}`} className="nav-sub">
-              <GroupBadge type={g.type} name={g.name} size={28} /> {g.name}
+              <GroupBadge type={g.type} name={g.name} icon={g.icon} size={28} /> {g.name}
               {unread[g.id] > 0 && <span className="unread-badge">{unread[g.id]}</span>}
             </NavLink>
           ))}

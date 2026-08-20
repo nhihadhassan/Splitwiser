@@ -182,6 +182,33 @@ describe("reconciliation workspace", () => {
     expect(generateSuggestions(mismatch, left.tripId)).toHaveLength(0);
   });
 
+  it("keeps an exact-amount match ambiguous when the merchant text is unrelated", () => {
+    const { workspace } = fixture();
+    const left = workspace.transactions.find((item) => item.side === "left")!;
+    const right = workspace.transactions.find((item) => item.side === "right")!;
+    const mismatch = isolated(workspace, [
+      { ...left, postedCadCents: 5_040, description: "Rachel Sweater", merchant: "rachel sweater", reference: "expense-unrelated", notes: undefined },
+      { ...right, postedCadCents: 5_040, description: "Modern Textiles Emporium", merchant: "modern textiles emporium", reference: "card-ref-9182", notes: "card-ref-9182" },
+    ]);
+    const suggestions = generateSuggestions(mismatch, left.tripId);
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0].status).toBe("ambiguous");
+    expect(suggestions[0].confidence).toBe("low");
+  });
+
+  it("does not suggest a grouped total when member merchants are unrelated", () => {
+    const { workspace } = fixture();
+    const left = workspace.transactions.find((item) => item.side === "left")!;
+    const right = workspace.transactions.find((item) => item.side === "right")!;
+    const grouped = isolated(workspace, [
+      { ...left, id: "left-group", postedCadCents: 5_040, description: "Rachel Sweater", merchant: "rachel sweater", reference: "expense-unrelated", notes: undefined },
+      { ...right, id: "right-a", postedCadCents: 1_500, description: "Debonair Bistro", merchant: "debonair bistro", reference: "card-ref-1", notes: "card-ref-1" },
+      { ...right, id: "right-b", postedCadCents: 3_540, description: "Gyri Gift Shop", merchant: "gyri gift shop", reference: "card-ref-2", notes: "card-ref-2" },
+    ]);
+    const suggestions = generateSuggestions(grouped, left.tripId);
+    expect(suggestions.some((item) => item.status === "suggested" && item.matchType === "1 ↔ 2")).toBe(false);
+  });
+
   it("suggests bounded one-to-many exact groups", () => {
     const { workspace } = fixture();
     const left = workspace.transactions.find((item) => item.side === "left")!;

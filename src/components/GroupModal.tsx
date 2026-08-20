@@ -4,7 +4,8 @@ import type { Group, GroupType } from "../types";
 import { uid, useStore } from "../store";
 import { Modal } from "./Modal";
 import { Avatar } from "./Avatar";
-import { GroupIcon } from "./Icons";
+import { DestinationIcon, GroupIcon } from "./Icons";
+import { DESTINATION_MOTIFS, motifForGroup, type DestinationMotif } from "../utils/destinations";
 
 const GROUP_TYPES: { id: GroupType; label: string }[] = [
   { id: "trip", label: "Trip" },
@@ -27,6 +28,7 @@ export function GroupModal({ onClose, group }: { onClose: () => void; group?: Gr
   const navigate = useNavigate();
   const [name, setName] = useState(group?.name ?? "");
   const [type, setType] = useState<GroupType>(group?.type ?? "trip");
+  const [icon, setIcon] = useState<DestinationMotif | undefined>(group?.icon);
   const [memberIds, setMemberIds] = useState<Set<string>>(
     () => new Set(group?.memberIds ?? [currentPersonId]),
   );
@@ -59,6 +61,7 @@ export function GroupModal({ onClose, group }: { onClose: () => void; group?: Gr
       startDate: startDate || undefined,
       endDate: endDate || undefined,
       createdBy: group?.createdBy,
+      icon,
     };
     dispatch(group ? { type: "updateGroup", group: record } : { type: "addGroup", group: record });
     onClose();
@@ -116,6 +119,30 @@ export function GroupModal({ onClose, group }: { onClose: () => void; group?: Gr
               onClick={() => setType(t.id)}
             >
               <GroupIcon type={t.id} size={17} /> {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="field">
+        <span className="field-label" id={`${fieldId}-icon`}>Icon</span>
+        <div className="chip-row" role="group" aria-labelledby={`${fieldId}-icon`}>
+          <button
+            type="button"
+            className={`chip ${!icon ? "on" : ""}`}
+            aria-pressed={!icon}
+            onClick={() => setIcon(undefined)}
+          >
+            {motifForGroup(name) ? <DestinationIcon motif={motifForGroup(name)!} size={16} /> : <GroupIcon type={type} size={16} />} Auto
+          </button>
+          {DESTINATION_MOTIFS.map((motif) => (
+            <button
+              key={motif}
+              type="button"
+              className={`chip ${icon === motif ? "on" : ""}`}
+              aria-pressed={icon === motif}
+              onClick={() => setIcon(motif)}
+            >
+              <DestinationIcon motif={motif} size={16} />
             </button>
           ))}
         </div>

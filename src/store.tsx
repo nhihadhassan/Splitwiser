@@ -160,6 +160,7 @@ function normalizeState(
   normalized.reconciliation.workspace = ensureReconciliationWorkspace(
     normalized.reconciliation,
     normalized.expenses.filter((expense) => expense.groupId),
+    normalized.groups,
   );
   return normalized;
 }

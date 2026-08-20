@@ -17,6 +17,13 @@ export function monthLabel(date: string): string {
   return `${monthName} ${y}`;
 }
 
+export function dayLabel(date: string): string {
+  const [y, m, d] = date.split("-");
+  const parsed = new Date(Number(y), Number(m) - 1, Number(d));
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toLocaleString("en-US", { weekday: "long", month: "long", day: "numeric" });
+}
+
 export function relativeTime(timestamp: number): string {
   const seconds = Math.floor((Date.now() - timestamp) / 1000);
   if (seconds < 60) return "just now";

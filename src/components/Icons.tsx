@@ -1,4 +1,5 @@
 import type { ExpenseCategory, GroupType } from "../types";
+import { motifForGroup, type DestinationMotif } from "../utils/destinations";
 
 type IconProps = { size?: number; strokeWidth?: number };
 
@@ -55,7 +56,32 @@ export function GroupIcon({ type, size = 20 }: { type: GroupType; size?: number 
   return <span className="semantic-icon group-semantic-icon"><Svg size={size}>{icons[type]}</Svg></span>;
 }
 
-export function GroupBadge({ type, name: _name, size = 44 }: { type: GroupType; name: string; size?: number }) {
+const DESTINATION_ICONS: Record<DestinationMotif, React.ReactNode> = {
+  liberty: <><path d="M12 2v3M9 6h6l1 2H8l1-2Z" /><path d="M9 8h6v3a3 3 0 0 1-6 0V8Z" /><path d="M8 11h8v9H8z" /><path d="M10 20v-4h4v4" /></>,
+  "ruins-peak": <><path d="m3 18 6-11 4 7 2-3 6 7Z" /><path d="M9 18v-4h3v4M13 18v-3h2v3" /></>,
+  volcano: <><path d="M4 19 11 5l2 4 2-3 5 13Z" /><circle cx="12.5" cy="4" r="1.4" /></>,
+  rooster: <><path d="M8 20c0-5 2-8 5-9-1-2 0-4 2-4-1 2 0 3 1 3 2 0 3 1 3 3-3 0-4 2-4 4 3 0 5 1 5 3H8Z" /><circle cx="9" cy="9" r="1" /></>,
+  tower: <><path d="M10 21h4M9 21l1-6h4l1 6M8 15l1.5-5h5L16 15M9.5 10 11 4h2l1.5 6" /></>,
+  colosseum: <><path d="M4 18a8 8 0 0 1 16 0" /><path d="M4 18h16M6 18v-3M9 18v-4M12 18v-4.5M15 18v-4M18 18v-3" /></>,
+  torii: <><path d="M3 8h18M5 8 4 6h16l-1 2M7 8v13M17 8v13M6 12h12" /></>,
+  pyramid: <><path d="M12 4 21 20H3Z" /><path d="m9 20 3-9 3 9" /></>,
+  palm: <><path d="M12 21V11" /><path d="M12 11c0-3-2-5-5-5 1 3 2 5 5 5ZM12 11c0-3 2-5 5-5-1 3-2 5-5 5ZM12 9c0-3-1-5-3-6 2 0 4 2 3 6ZM12 9c0-3 1-5 3-6-2 0-4 2-3 6Z" /></>,
+  maple: <><path d="M12 3v4M12 3 9 6M12 3l3 3M8 8 5 7l1 3-2 1 2 2-1 3 3-1 1 2 2-3h2l2 3 1-3 3 1-1-3 2-2-2-1 1-3-3 1-2-2H9Z" /><path d="M12 15v6" /></>,
+  clocktower: <><rect x="8" y="9" width="8" height="12" /><path d="M8 9 12 3l4 6" /><circle cx="12" cy="13" r="2" /><path d="M12 13v-1.3M12 13l1 .8" /></>,
+  "opera-house": <><path d="M4 20V13c2-3 5-4 8-4s6 1 8 4v7Z" /><path d="M4 20h16M9 13.5c1-1 2-1.5 3-1.5s2 .5 3 1.5" /></>,
+  "northern-lights": <><path d="M3 17c3-6 4-10 9-13 5 3 6 7 9 13" /><path d="M5 20c2.5-4 4-6 7-6s4.5 2 7 6" /></>,
+  safari: <><path d="M12 21c-4 0-7-2-7-6 0-5 3-9 7-9s7 4 7 9c0 4-3 6-7 6Z" /><path d="M9 8 7 4M15 8l2-4M9 13h6M9 16h6" /></>,
+  windmill: <><path d="M12 12V3M12 12l7-3M12 12l-4 7M12 12l-7-4" /><circle cx="12" cy="12" r="1.5" /><path d="M12 12v9" /></>,
+  cathedral: <><path d="M12 2v3M6 21V9l6-5 6 5v12z" /><path d="M6 21h12M9 21v-6h6v6" /></>,
+};
+
+export function DestinationIcon({ motif, size = 20 }: { motif: DestinationMotif; size?: number }) {
+  return <span className="semantic-icon"><Svg size={size}>{DESTINATION_ICONS[motif]}</Svg></span>;
+}
+
+export function GroupBadge({ type, name, icon, size = 44 }: { type: GroupType; name: string; icon?: DestinationMotif; size?: number }) {
+  const motif = motifForGroup(name, icon);
+  if (motif) return <span className="semantic-icon group-semantic-icon"><Svg size={size * 0.5}>{DESTINATION_ICONS[motif]}</Svg></span>;
   return <GroupIcon type={type} size={size * 0.5} />;
 }
 

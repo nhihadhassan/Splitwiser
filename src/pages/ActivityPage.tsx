@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useStore } from "../store";
 import { formatMoney } from "../utils/money";
-import { relativeTime } from "../utils/dates";
+import { dayLabel, monthDay, relativeTime } from "../utils/dates";
 import { Avatar } from "../components/Avatar";
 import { CategoryIcon } from "../components/Icons";
 import { loadSocial } from "../social";
@@ -13,6 +13,12 @@ interface ActivityItem {
   actorId: string;
   text: JSX.Element;
   createdAt: number;
+  /** ISO date (YYYY-MM-DD) the row is sectioned and charted by. */
+  date: string;
+}
+
+function isoDate(timestamp: number): string {
+  return new Date(timestamp).toISOString().slice(0, 10);
 }
 
 export function ActivityPage() {
@@ -54,6 +60,7 @@ export function ActivityPage() {
         key: `e-${e.id}`,
         actorId: e.createdBy,
         createdAt: e.createdAt,
+        date: e.date,
         text: (
           <>
             <strong>{actor?.id === currentPersonId ? "You" : actor?.name}</strong> added{" "}
@@ -81,6 +88,7 @@ export function ActivityPage() {
         key: `s-${s.id}`,
         actorId: s.fromId,
         createdAt: s.createdAt,
+        date: s.date,
         text: (
           <>
             <strong>{from?.id === currentPersonId ? "You" : from?.name}</strong> paid{" "}
@@ -99,6 +107,7 @@ export function ActivityPage() {
         key: event.id,
         actorId: event.actorPersonId,
         createdAt: event.createdAt,
+        date: isoDate(event.createdAt),
         text: <><strong>{event.actorPersonId === currentPersonId ? "You" : actor?.name}</strong> {event.summary.toLowerCase()}</>,
       });
     }
@@ -111,6 +120,7 @@ export function ActivityPage() {
           key: `social-${item.id}`,
           actorId: item.authorPersonId,
           createdAt: item.updatedAt ?? item.createdAt,
+          date: isoDate(item.updatedAt ?? item.createdAt),
           text: <><strong>{item.authorPersonId === currentPersonId ? "You" : author?.name}</strong> {item.deletedAt ? "deleted a message" : item.scope === "expense" ? "commented on an expense" : "posted in discussion"}{groupName ? <> in <strong>{groupName}</strong></> : null}</>,
         });
         for (const reaction of item.reactions) {
@@ -118,12 +128,13 @@ export function ActivityPage() {
             key: `reaction-${item.id}-${reaction.emoji}-${personId}`,
             actorId: personId,
             createdAt: item.updatedAt ?? item.createdAt,
+            date: isoDate(item.updatedAt ?? item.createdAt),
             text: <><strong>{personId === currentPersonId ? "You" : peopleById.get(personId)?.name}</strong> reacted {reaction.emoji} to a message{groupName ? <> in <strong>{groupName}</strong></> : null}</>,
           });
         }
       }
     }
-    list.sort((a, b) => b.createdAt - a.createdAt);
+    list.sort((a, b) => (a.date === b.date ? b.createdAt - a.createdAt : a.date < b.date ? 1 : -1));
     return list;
   }, [currentPersonId, state, peopleById, groupFilter, kindFilter, socialItems]);
 
@@ -168,15 +179,26 @@ export function ActivityPage() {
           </div>
         )}
         <div className="activity-timeline">
-          {items.map((item) => (
-            <div key={item.key} className="activity-row">
-              <Avatar person={peopleById.get(item.actorId)} size={38} />
-              <div className="text">
-                <div>{item.text}</div>
-                <div className="when">{relativeTime(item.createdAt)}</div>
+          {items.map((item, index) => {
+            const showDayHeader = index === 0 || items[index - 1].date !== item.date;
+            const { month, day } = monthDay(item.date);
+            return (
+              <div key={item.key}>
+                {showDayHeader && <div className="activity-day-header">{dayLabel(item.date)}</div>}
+                <div className="activity-row">
+                  <Avatar person={peopleById.get(item.actorId)} size={38} />
+                  <div className="text">
+                    <div>{item.text}</div>
+                    <div className="when">{relativeTime(item.createdAt)}</div>
+                  </div>
+                  <div className="activity-date" aria-hidden="true">
+                    <span className="month">{month}</span>
+                    <span className="day">{day}</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </main>
     </>

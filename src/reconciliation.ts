@@ -4,6 +4,7 @@ import type {
   ReconciliationAuditEvent,
   ReconciliationException,
   ReconciliationMatchGroup,
+  ReconciliationPeriod,
   ReconciliationQueue,
   ReconciliationSource,
   ReconciliationState,
@@ -16,6 +17,11 @@ import { splitByWeights, splitEqually } from "./utils/money.js";
 
 export const RECONCILIATION_SCHEMA_VERSION = 2 as const;
 export const SUGGESTION_ROUNDING_INCREMENT_CENTS = 50;
+/** A suggestion can only reach "high" confidence when merchant text agrees at least this much. */
+export const MIN_MERCHANT_CORROBORATION = 0.45;
+/** Below this, merchant and support text are considered unrelated; an amount
+ * match alone can never clear "low"/ambiguous once both signals sit here. */
+export const WEAK_MERCHANT_FLOOR = 0.2;
 
 export function tripIdForGroup(groupId: string): ReconciliationTripId {
   return groupId.replace(/^group-/, "").replace(/^g-/, "") || groupId;
@@ -62,6 +68,48 @@ const reconciliationDateFormatter = new Intl.DateTimeFormat("en-US", {
 export function formatReconciliationDate(value: string): string {
   const timestamp = reconciliationDateTimestamp(value);
   return Number.isNaN(timestamp) ? value : reconciliationDateFormatter.format(new Date(timestamp));
+}
+
+function titleCaseSlug(slug: string): string {
+  return slug
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((word) => word.length > 3 ? word[0].toUpperCase() + word.slice(1) : word.toUpperCase())
+    .join(" ") || slug;
+}
+
+export interface ReconciliationPeriodMeta {
+  name: string;
+  dates: string;
+  itemCount: number;
+}
+
+/** Resolves a display-ready name/date range for a reconciliation period,
+ * falling back through the owning group and then the raw transactions
+ * before finally title-casing the trip slug itself. */
+export function periodMeta(
+  period: ReconciliationPeriod,
+  groups: Group[],
+  transactions: ReconciliationTransaction[],
+): ReconciliationPeriodMeta {
+  const tripTransactions = transactions.filter((item) => item.tripId === period.tripId);
+  const owningGroup = groups.find((group) => tripIdForGroup(group.id) === period.tripId);
+  const name = period.name ?? owningGroup?.name ?? titleCaseSlug(period.tripId);
+  let dates = period.dates;
+  if (!dates && owningGroup?.startDate) {
+    dates = owningGroup.endDate
+      ? `${formatReconciliationDate(owningGroup.startDate)} to ${formatReconciliationDate(owningGroup.endDate)}`
+      : formatReconciliationDate(owningGroup.startDate);
+  }
+  if (!dates && tripTransactions.length > 0) {
+    const sortedDates = tripTransactions.map((item) => item.postedDate).sort();
+    const earliest = sortedDates[0];
+    const latest = sortedDates[sortedDates.length - 1];
+    dates = earliest === latest
+      ? formatReconciliationDate(earliest)
+      : `${formatReconciliationDate(earliest)} to ${formatReconciliationDate(latest)}`;
+  }
+  return { name, dates: dates ?? "No dates set", itemCount: tripTransactions.length };
 }
 
 export function compareReconciliationTransactions(
@@ -534,10 +582,21 @@ function migrateGroups(
 export function createReconciliationWorkspace(
   state: ReconciliationState,
   expenses: Expense[],
+  groups: Group[] = [],
 ): ReconciliationWorkspace {
   const transactions = buildTransactions(state, expenses);
   const matchGroups = migrateGroups(state, transactions);
   const tripIds = [...new Set(transactions.map((item) => item.tripId))];
+  const periodMetaFor = (tripId: ReconciliationTripId) => {
+    const owningGroup = groups.find((group) => tripIdForGroup(group.id) === tripId);
+    if (!owningGroup) return { name: undefined, dates: undefined };
+    const dates = owningGroup.startDate
+      ? owningGroup.endDate
+        ? `${formatReconciliationDate(owningGroup.startDate)} to ${formatReconciliationDate(owningGroup.endDate)}`
+        : formatReconciliationDate(owningGroup.startDate)
+      : undefined;
+    return { name: owningGroup.name, dates };
+  };
   return {
     schemaVersion: RECONCILIATION_SCHEMA_VERSION,
     sources: baseSources(tripIds),
@@ -563,7 +622,11 @@ export function createReconciliationWorkspace(
       summary: "Migrated legacy reconciliation data to schema version 2",
       transactionIds: [],
     }],
-    periods: tripIds.map((tripId) => ({ tripId, status: "open" as const })),
+    periods: tripIds.map((tripId) => ({
+      tripId,
+      status: "open" as const,
+      ...periodMetaFor(tripId),
+    })),
     savedViews: [],
     importMappings: [
       { id: "card-statement", name: "Card statement", sourceType: "bank", columns: { date: "date", description: "description", amount: "amount" } },
@@ -576,11 +639,13 @@ export function createReconciliationWorkspace(
 export function ensureReconciliationWorkspace(
   state: ReconciliationState,
   expenses: Expense[],
+  groups: Group[] = [],
 ): ReconciliationWorkspace {
   if (state.workspace?.schemaVersion === RECONCILIATION_SCHEMA_VERSION) {
-    const rebuilt = createReconciliationWorkspace(state, expenses);
+    const rebuilt = createReconciliationWorkspace(state, expenses, groups);
     const rebuiltById = new Map(rebuilt.transactions.map((item) => [item.id, item]));
     const rebuiltSourcesById = new Map(rebuilt.sources.map((item) => [item.id, item]));
+    const rebuiltPeriodsByTrip = new Map(rebuilt.periods.map((item) => [item.tripId, item]));
     const existingIds = new Set(state.workspace.transactions.map((item) => item.id));
     const existingSourceIds = new Set(state.workspace.sources.map((item) => item.id));
     const existingPeriodTrips = new Set(state.workspace.periods.map((item) => item.tripId));
@@ -611,7 +676,17 @@ export function ensureReconciliationWorkspace(
       ],
       transactions: [...repairedTransactions, ...missingTransactions],
       auditEvents: state.workspace.auditEvents,
-      periods: [...state.workspace.periods, ...missingPeriods],
+      periods: [
+        ...state.workspace.periods.map((item) => {
+          const canonical = rebuiltPeriodsByTrip.get(item.tripId);
+          return {
+            ...item,
+            name: item.name ?? canonical?.name,
+            dates: item.dates ?? canonical?.dates,
+          };
+        }),
+        ...missingPeriods,
+      ],
       rules: state.workspace.rules.map((item) => item.id === "default-exact"
         ? {
             ...item,
@@ -959,13 +1034,15 @@ function maximumWeightPairs(
   return selected;
 }
 
-function confidenceFor(score: number, margin: number) {
-  if (score >= 75 && margin >= 10) return { confidence: "high" as const, ambiguous: false };
+function confidenceFor(score: number, margin: number, corroboration: number) {
+  if (corroboration < WEAK_MERCHANT_FLOOR) return { confidence: "low" as const, ambiguous: true };
+  if (score >= 75 && margin >= 10 && corroboration >= MIN_MERCHANT_CORROBORATION) return { confidence: "high" as const, ambiguous: false };
   if (score >= 55 && margin >= 5) return { confidence: "medium" as const, ambiguous: false };
   return { confidence: "low" as const, ambiguous: true };
 }
 
 function pairExplanation(candidate: ScoredPair, margin: number): string[] {
+  const corroboration = Math.max(candidate.merchant, candidate.support);
   return [
     candidate.amountDifference === 0
       ? "Exact CAD amount"
@@ -978,6 +1055,7 @@ function pairExplanation(candidate: ScoredPair, margin: number): string[] {
         : "Merchant differs",
     `Match score ${Math.round(candidate.score)}/100`,
     ...(margin < 10 ? [`Another option is within ${Math.max(0, Math.round(margin))} points`] : []),
+    ...(corroboration < WEAK_MERCHANT_FLOOR ? ["Amount matches but merchant text is unrelated"] : []),
   ];
 }
 
@@ -1013,6 +1091,9 @@ interface GroupCandidate {
   score: number;
   dateDays: number;
   merchant: number;
+  /** Weakest merchant/support corroboration across every member of the
+   * group — gates confidence so one loose word can't carry the whole group. */
+  minCorroboration: number;
   groupSpan: number;
 }
 
@@ -1043,6 +1124,8 @@ function groupedCandidates(
         if (dateDays > rule.dateToleranceDays) return;
         const merchant = Math.max(...items.map((item) => merchantScore(single, item)));
         const support = Math.max(...items.map((item) => supportScore(single, item)));
+        const minMerchant = Math.min(...items.map((item) => merchantScore(single, item)));
+        const minSupport = Math.min(...items.map((item) => supportScore(single, item)));
         const dateScore = 15 * Math.max(0, 1 - dateDays / Math.max(1, rule.dateToleranceDays + 1));
         const groupedIds = items.map((item) => item.id).sort();
         const groupedTotalCents = items.reduce((sum, item) => sum + item.postedCadCents, 0);
@@ -1054,6 +1137,7 @@ function groupedCandidates(
           score: 50 + merchant * 30 + dateScore + support * 5,
           dateDays,
           merchant,
+          minCorroboration: Math.max(minMerchant, minSupport),
           groupSpan: dateSpan(items),
         });
       });
@@ -1095,7 +1179,7 @@ export function generateSuggestions(
         .map((item) => item.score),
     );
     const margin = candidate.score - alternativeScore;
-    const { confidence, ambiguous } = confidenceFor(candidate.score, margin);
+    const { confidence, ambiguous } = confidenceFor(candidate.score, margin, Math.max(candidate.merchant, candidate.support));
     return {
       id: `suggestion:${candidate.left.id}:${candidate.right.id}`,
       tripId,
@@ -1127,7 +1211,7 @@ export function generateSuggestions(
         .map((item) => item.score),
     );
     const margin = candidate.score - alternativeScore;
-    const { confidence, ambiguous } = confidenceFor(candidate.score, margin);
+    const { confidence, ambiguous } = confidenceFor(candidate.score, margin, candidate.minCorroboration);
     ids.forEach((id) => groupedUsed.add(id));
     suggestions.push({
       id: `suggestion:${candidate.leftIds.join("+")}:${candidate.rightIds.join("+")}`,
@@ -1147,6 +1231,7 @@ export function generateSuggestions(
         candidate.merchant >= 0.25 ? "Merchant text supports the group" : "Merchant text differs",
         `Match score ${Math.round(candidate.score)}/100`,
         ...(margin < 10 ? [`Another option is within ${Math.max(0, Math.round(margin))} points`] : []),
+        ...(candidate.minCorroboration < WEAK_MERCHANT_FLOOR ? ["Amount matches but merchant text is unrelated"] : []),
       ],
       createdAt: new Date().toISOString(),
     });

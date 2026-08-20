@@ -50,7 +50,7 @@ export function GroupsPage() {
             {groups.map(({ group, expenses, myBalance, total }) => (
               <article key={group.id} className="ledger-card">
                 <div className="ledger-card-top">
-                  <span className="ledger-icon"><GroupBadge type={group.type} name={group.name} /></span>
+                  <span className="ledger-icon"><GroupBadge type={group.type} name={group.name} icon={group.icon} /></span>
                   <span className={`status-chip ${myBalance === 0 ? "settled" : "owed"}`}>
                     {myBalance === 0 ? "Settled" : myBalance > 0 ? "Owed" : "Payable"}
                   </span>

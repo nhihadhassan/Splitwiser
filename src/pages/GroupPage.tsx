@@ -79,7 +79,7 @@ export function GroupPage() {
       <main className="pane">
         <div className="pane-header">
           <h1>
-            <span className="group-page-title"><GroupBadge type={group.type} name={group.name} size={44} /> {group.name}</span>
+            <span className="group-page-title"><GroupBadge type={group.type} name={group.name} icon={group.icon} size={44} /> {group.name}</span>
             <span className="sub">{group.memberIds.length} members</span>
           </h1>
           <button className="btn btn-primary" disabled={group.status === "closed"} onClick={() => setAddingExpense(true)}>
