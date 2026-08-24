@@ -5,6 +5,7 @@ import { uid, useStore } from "../store";
 import { Modal } from "./Modal";
 import { Avatar } from "./Avatar";
 import { DestinationIcon, GroupIcon } from "./Icons";
+import { DatePicker } from "./DatePicker";
 import { DESTINATION_MOTIFS, motifForGroup, type DestinationMotif } from "../utils/destinations";
 
 const GROUP_TYPES: { id: GroupType; label: string }[] = [
@@ -104,15 +105,33 @@ export function GroupModal({ onClose, group }: { onClose: () => void; group?: Gr
         />
       </div>
       {type === "trip" && (
-        <div className="field-row">
-          <label className="field" htmlFor={`${fieldId}-start`}>
-            <span>Start date</span>
-            <input id={`${fieldId}-start`} type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
-          </label>
-          <label className="field" htmlFor={`${fieldId}-end`}>
-            <span>End date</span>
-            <input id={`${fieldId}-end`} type="date" min={startDate || undefined} value={endDate} onChange={(event) => setEndDate(event.target.value)} />
-          </label>
+        <div className="field-pair group-date-pair" role="group" aria-label="Trip dates">
+          <div className="field">
+            <label htmlFor={`${fieldId}-start`}>Start date</label>
+            <DatePicker
+              id={`${fieldId}-start`}
+              value={startDate}
+              onChange={setStartDate}
+              max={endDate || undefined}
+              placeholder="Choose start date"
+              dialogLabel="Choose trip start date"
+              clearable
+              inline
+            />
+          </div>
+          <div className="field">
+            <label htmlFor={`${fieldId}-end`}>End date</label>
+            <DatePicker
+              id={`${fieldId}-end`}
+              value={endDate}
+              onChange={setEndDate}
+              min={startDate || undefined}
+              placeholder="Choose end date"
+              dialogLabel="Choose trip end date"
+              clearable
+              inline
+            />
+          </div>
         </div>
       )}
       <div className="field">

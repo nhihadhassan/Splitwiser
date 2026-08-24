@@ -2,9 +2,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function parseDate(value: string): Date {
+function parseDate(value?: string): Date | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day);
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year
+    || date.getMonth() !== month - 1
+    || date.getDate() !== day
+  ) return null;
+  return date;
 }
 
 function formatValue(date: Date): string {
@@ -14,7 +21,8 @@ function formatValue(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function sameDay(a: Date, b: Date): boolean {
+function sameDay(a: Date, b: Date | null): boolean {
+  if (!b) return false;
   return a.getFullYear() === b.getFullYear()
     && a.getMonth() === b.getMonth()
     && a.getDate() === b.getDate();
@@ -52,17 +60,33 @@ export function DatePicker({
   id,
   value,
   onChange,
+  min,
+  max,
+  placeholder = "Select date",
+  dialogLabel = "Choose expense date",
+  clearable = false,
+  inline = false,
 }: {
   id: string;
   value: string;
   onChange: (value: string) => void;
+  min?: string;
+  max?: string;
+  placeholder?: string;
+  dialogLabel?: string;
+  clearable?: boolean;
+  inline?: boolean;
 }) {
   const selected = useMemo(() => parseDate(value), [value]);
+  const minimum = useMemo(() => parseDate(min), [min]);
+  const maximum = useMemo(() => parseDate(max), [max]);
+  const initialMonth = selected ?? minimum ?? new Date();
   const [open, setOpen] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState(
-    () => new Date(selected.getFullYear(), selected.getMonth(), 1),
+    () => new Date(initialMonth.getFullYear(), initialMonth.getMonth(), 1),
   );
   const rootRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const today = new Date();
 
   useEffect(() => {
@@ -86,8 +110,18 @@ export function DatePicker({
   }, [open]);
 
   useEffect(() => {
-    if (open) setVisibleMonth(new Date(selected.getFullYear(), selected.getMonth(), 1));
-  }, [open, selected]);
+    if (!open) return;
+    const focusDate = selected ?? minimum ?? new Date();
+    setVisibleMonth(new Date(focusDate.getFullYear(), focusDate.getMonth(), 1));
+  }, [minimum, open, selected]);
+
+  useEffect(() => {
+    if (!open || !inline) return;
+    const frame = window.requestAnimationFrame(() => {
+      popoverRef.current?.scrollIntoView({ block: "nearest" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [inline, open]);
 
   const days = useMemo(() => {
     const startOffset = visibleMonth.getDay();
@@ -102,12 +136,14 @@ export function DatePicker({
     ];
   }, [visibleMonth]);
 
-  const displayDate = new Intl.DateTimeFormat("en-CA", {
-    weekday: "short",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  }).format(selected);
+  const displayDate = selected
+    ? new Intl.DateTimeFormat("en-CA", {
+        weekday: "short",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }).format(selected)
+    : placeholder;
   const monthLabel = new Intl.DateTimeFormat("en-CA", {
     month: "long",
     year: "numeric",
@@ -122,8 +158,15 @@ export function DatePicker({
     setOpen(false);
   }
 
+  function isUnavailable(date: Date) {
+    return Boolean(
+      (minimum && date < minimum)
+      || (maximum && date > maximum),
+    );
+  }
+
   return (
-    <div className="date-picker" ref={rootRef}>
+    <div className={`date-picker ${inline ? "date-picker-inline" : ""}`} ref={rootRef}>
       <button
         id={id}
         type="button"
@@ -133,11 +176,11 @@ export function DatePicker({
         onClick={() => setOpen((current) => !current)}
       >
         <CalendarGlyph />
-        <span>{displayDate}</span>
+        <span className={selected ? undefined : "date-picker-placeholder"}>{displayDate}</span>
         <span className={`date-picker-chevron ${open ? "open" : ""}`}><Chevron direction="down" /></span>
       </button>
       {open && (
-        <div className="date-picker-popover" role="dialog" aria-label="Choose expense date">
+        <div ref={popoverRef} className="date-picker-popover" role="dialog" aria-label={dialogLabel}>
           <header>
             <button type="button" aria-label="Previous month" onClick={() => moveMonth(-1)}><Chevron direction="left" /></button>
             <strong>{monthLabel}</strong>
@@ -154,14 +197,16 @@ export function DatePicker({
                 className={`${sameDay(day, selected) ? "selected" : ""} ${sameDay(day, today) ? "today" : ""}`}
                 aria-label={new Intl.DateTimeFormat("en-CA", { dateStyle: "full" }).format(day)}
                 aria-pressed={sameDay(day, selected)}
+                disabled={isUnavailable(day)}
                 onClick={() => choose(day)}
               >
                 {day.getDate()}
               </button>
             ) : <span key={`empty-${index}`} />)}
           </div>
-          <footer>
-            <button type="button" onClick={() => choose(today)}>Today</button>
+          <footer className={clearable && selected ? "has-clear" : undefined}>
+            {clearable && selected && <button type="button" onClick={() => { onChange(""); setOpen(false); }}>Clear</button>}
+            <button type="button" disabled={isUnavailable(today)} onClick={() => choose(today)}>Today</button>
           </footer>
         </div>
       )}

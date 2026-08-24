@@ -1605,6 +1605,16 @@ a {
   gap: 12px;
 }
 
+.group-date-pair:has(.date-picker-inline .date-picker-popover) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.group-date-pair .date-picker-inline .date-picker-popover {
+  position: static;
+  width: min(320px, 100%);
+  margin-top: 7px;
+}
+
 .field label,
 .field-label {
   color: var(--color-text-tertiary);
@@ -1681,6 +1691,10 @@ a {
 
 .date-picker-trigger > svg {
   color: var(--color-accent);
+}
+
+.date-picker-placeholder {
+  color: var(--color-text-tertiary);
 }
 
 .date-picker-chevron {
@@ -1776,6 +1790,12 @@ a {
   background: var(--color-bg-subtle-hover);
 }
 
+.date-picker-days button:disabled {
+  color: color-mix(in oklch, var(--color-text-tertiary) 45%, transparent);
+  background: transparent;
+  cursor: not-allowed;
+}
+
 .date-picker-days button.today {
   border-color: var(--color-border-emphasis);
   color: var(--color-accent);
@@ -1793,6 +1813,10 @@ a {
   margin-top: 9px;
   padding-top: 9px;
   border-top: 1px solid var(--color-border-default);
+}
+
+.date-picker-popover footer.has-clear {
+  justify-content: space-between;
 }
 
 .date-picker-popover footer button {
