@@ -250,7 +250,7 @@ describe("reconciliation workspace", () => {
   });
 
   it("merges a duplicate trip's transactions, matches, and exceptions into the target", () => {
-    const { workspace } = fixture();
+    const { state, workspace } = fixture();
     const suggestion = generateSuggestions(workspace, "cabin")[0];
     const withMatch: typeof workspace = {
       ...workspace,
@@ -285,7 +285,10 @@ describe("reconciliation workspace", () => {
     const { workspace: merged, movedTransactions } = mergeReconciliationPeriods(withMatch, "cabin", "coast");
 
     expect(movedTransactions).toBe(cabinTransactionCount);
-    expect(merged.periods.some((item) => item.tripId === "cabin")).toBe(false);
+    expect(merged.periods.find((item) => item.tripId === "cabin")).toMatchObject({
+      status: "closed",
+      archivedAt: expect.any(String),
+    });
     expect(merged.transactions.filter((item) => item.tripId === "cabin")).toHaveLength(0);
     expect(merged.transactions.filter((item) => item.tripId === "coast")).toHaveLength(coastTransactionCount + cabinTransactionCount);
     expect(merged.transactions.every((item) => !item.id.includes(":cabin:"))).toBe(true);
@@ -302,7 +305,35 @@ describe("reconciliation workspace", () => {
     const relocatedImport = merged.sources.find((item) => item.id === "custom-source-1");
     expect(relocatedImport?.tripId).toBe("coast");
 
-    expect(merged.auditEvents.some((item) => item.action === "merge" && item.tripId === "coast")).toBe(true);
+    expect(merged.auditEvents.some((item) => (
+      item.action === "merge"
+      && item.tripId === "coast"
+      && item.before === "cabin"
+      && item.after === "coast"
+    ))).toBe(true);
+
+    state.reconciliation.workspace = merged;
+    const repaired = ensureReconciliationWorkspace(state.reconciliation, state.expenses, state.groups);
+    expect(repaired.transactions.some((item) => item.tripId === "cabin")).toBe(false);
+    expect(repaired.sources.some((item) => item.tripId === "cabin")).toBe(false);
+    expect(repaired.periods.find((item) => item.tripId === "cabin")?.archivedAt).toBeTruthy();
+  });
+
+  it("deduplicates target transaction ids when repairing a repeated merge", () => {
+    const { workspace } = fixture();
+    const target = workspace.transactions.find((item) => item.tripId === "coast")!;
+    const replayedSource = {
+      ...target,
+      id: target.id.replace(":coast:", ":cabin:"),
+      tripId: "cabin",
+      sourceId: target.sourceId.replace("coast", "cabin"),
+    };
+    const replayed = { ...workspace, transactions: [...workspace.transactions, replayedSource] };
+
+    const { workspace: merged } = mergeReconciliationPeriods(replayed, "cabin", "coast");
+    const ids = merged.transactions.map((item) => item.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.filter((id) => id === target.id)).toHaveLength(1);
   });
 
   it("is a no-op when merging a period into itself or an unknown trip", () => {

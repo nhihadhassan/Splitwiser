@@ -661,8 +661,15 @@ export function ensureReconciliationWorkspace(
     const existingIds = new Set(state.workspace.transactions.map((item) => item.id));
     const existingSourceIds = new Set(state.workspace.sources.map((item) => item.id));
     const existingPeriodTrips = new Set(state.workspace.periods.map((item) => item.tripId));
-    const missingTransactions = rebuilt.transactions.filter((item) => !existingIds.has(item.id));
-    const missingSources = rebuilt.sources.filter((item) => !existingSourceIds.has(item.id));
+    const archivedTripIds = new Set(
+      state.workspace.periods.filter((item) => item.archivedAt).map((item) => item.tripId),
+    );
+    const missingTransactions = rebuilt.transactions.filter((item) => (
+      !existingIds.has(item.id) && !archivedTripIds.has(item.tripId)
+    ));
+    const missingSources = rebuilt.sources.filter((item) => (
+      !existingSourceIds.has(item.id) && !archivedTripIds.has(item.tripId)
+    ));
     const missingPeriods = rebuilt.periods.filter((item) => !existingPeriodTrips.has(item.tripId));
     const repairedTransactions = state.workspace.transactions.map((item) => {
       if (Number.isFinite(item.originalAmountCents)) return item;
@@ -1262,12 +1269,13 @@ export interface MergePeriodsResult {
 }
 
 /** Merges every transaction, match, exception, and audit record from
- * `sourceTripId` into `targetTripId`, then removes the now-empty source
+ * `sourceTripId` into `targetTripId`, then archives the now-empty source
  * period. Transaction and source ids embed their tripId (e.g.
  * `wl:coast:expense-1`), so ids are rewritten to point at the target trip
  * rather than duplicated — this keeps match-group and exception references
  * consistent instead of orphaning them. Nothing is deleted: every moved
- * record keeps its history, just filed under the target trip. */
+ * record keeps its history, and the source period remains as archived
+ * merge history so workspace repair cannot recreate it. */
 export function mergeReconciliationPeriods(
   workspace: ReconciliationWorkspace,
   sourceTripId: ReconciliationTripId,
@@ -1321,9 +1329,11 @@ export function mergeReconciliationPeriods(
       tripId: targetTripId,
       sourceId: sourceIdRemap.get(item.sourceId) ?? item.sourceId,
     }));
+  const retainedTransactions = workspace.transactions.filter((item) => item.tripId !== sourceTripId);
+  const retainedTransactionIds = new Set(retainedTransactions.map((item) => item.id));
   const transactions = [
-    ...workspace.transactions.filter((item) => item.tripId !== sourceTripId),
-    ...movedTransactions,
+    ...retainedTransactions,
+    ...movedTransactions.filter((item) => !retainedTransactionIds.has(item.id)),
   ];
 
   const remapIds = (ids: string[]) => ids.map((id) => idRemap.get(id) ?? id);
@@ -1338,12 +1348,18 @@ export function mergeReconciliationPeriods(
     : event);
   const sourceName = sourcePeriod.name ?? titleCaseSlug(sourceTripId);
   const targetName = targetPeriod.name ?? titleCaseSlug(targetTripId);
-  auditEvents.push(auditEvent(
-    targetTripId,
-    "merge",
-    `Merged "${sourceName}" into "${targetName}"`,
-    movedTransactions.map((item) => item.id),
-  ));
+  auditEvents.push({
+    ...auditEvent(
+      targetTripId,
+      "merge",
+      `Merged "${sourceName}" into "${targetName}"`,
+      movedTransactions.map((item) => item.id),
+    ),
+    before: sourceTripId,
+    after: targetTripId,
+  });
+
+  const mergedAt = new Date().toISOString();
 
   return {
     workspace: {
@@ -1353,7 +1369,9 @@ export function mergeReconciliationPeriods(
       matchGroups,
       exceptions,
       auditEvents,
-      periods: workspace.periods.filter((item) => item.tripId !== sourceTripId),
+      periods: workspace.periods.map((item) => item.tripId === sourceTripId
+        ? { ...item, status: "closed" as const, closedAt: item.closedAt ?? mergedAt, archivedAt: mergedAt }
+        : item),
     },
     movedTransactions: movedTransactions.length,
   };
