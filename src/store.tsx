@@ -175,6 +175,7 @@ interface CloudControls {
   status: CloudStatus;
   error: string | null;
   lastSavedAt: string | null;
+  pendingCount: number;
   retry: () => Promise<void>;
   refresh: () => Promise<void>;
   useCloudVersion: () => Promise<void>;
@@ -193,6 +194,20 @@ interface StoreValue {
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
+
+export function canFlushCloudQueue(options: {
+  localOnly: boolean;
+  hasTokenProvider: boolean;
+  isFlushing: boolean;
+  pendingCount: number;
+  hasSession: boolean;
+}): boolean {
+  return !options.localOnly
+    && options.hasTokenProvider
+    && !options.isFlushing
+    && options.pendingCount > 0
+    && options.hasSession;
+}
 
 const LOCAL_SESSION: SessionProfile = {
   accountId: "local-owner",
@@ -229,6 +244,7 @@ export function StoreProvider({ children, accountId, getToken, localOnly = false
   const flushing = useRef(false);
   const inFlightCommandId = useRef<string | null>(null);
   const undoTimer = useRef<number | null>(null);
+  const hasSession = Boolean(session);
 
   useEffect(() => { stateRef.current = state; }, [state]);
   useEffect(() => { outboxRef.current = outbox; }, [outbox]);
@@ -236,9 +252,12 @@ export function StoreProvider({ children, accountId, getToken, localOnly = false
 
   const adoptSnapshot = useCallback((snapshot: Awaited<ReturnType<typeof loadAuthorizedState>>, pending: MutationCommand[] = []) => {
     cloudRevision.current = snapshot.revision;
+    sessionRef.current = snapshot.session;
     setSession(snapshot.session);
     const normalized = normalizeState(snapshot.state);
-    rawDispatch({ type: "hydrate", state: replayOfflineOutbox(normalized, pending, snapshot.session.personId) });
+    const hydrated = replayOfflineOutbox(normalized, pending, snapshot.session.personId);
+    stateRef.current = hydrated;
+    rawDispatch({ type: "hydrate", state: hydrated });
     setLastSavedAt(snapshot.updatedAt);
     setCloudError(null);
     setCloudStatus(pending.length ? "saving" : "synced");
@@ -283,7 +302,9 @@ export function StoreProvider({ children, accountId, getToken, localOnly = false
           cloudRevision.current = cached.revision;
           outboxRef.current = cached.outbox;
           setOutbox(cached.outbox);
-          rawDispatch({ type: "hydrate", state: normalizeState(cached.state) });
+          const cachedState = normalizeState(cached.state);
+          stateRef.current = cachedState;
+          rawDispatch({ type: "hydrate", state: cachedState });
         }
       } catch {
         // An unavailable cache must not prevent authenticated online access.
@@ -315,7 +336,13 @@ export function StoreProvider({ children, accountId, getToken, localOnly = false
   }, [accountId, bootstrapped, outbox, state]);
 
   const flushOutbox = useCallback(async () => {
-    if (localOnly || !getToken || flushing.current || !outboxRef.current.length || !sessionRef.current) return;
+    if (!canFlushCloudQueue({
+      localOnly,
+      hasTokenProvider: Boolean(getToken),
+      isFlushing: flushing.current,
+      pendingCount: outboxRef.current.length,
+      hasSession: Boolean(sessionRef.current),
+    }) || !getToken) return;
     flushing.current = true;
     setCloudStatus("saving");
     setCloudError(null);
@@ -340,7 +367,14 @@ export function StoreProvider({ children, accountId, getToken, localOnly = false
     }
   }, [adoptSnapshot, getToken, localOnly]);
 
-  useEffect(() => { void flushOutbox(); }, [flushOutbox, outbox]);
+  // A cached offline queue is restored before the authenticated session. Run
+  // again when that session arrives so those changes cannot remain stuck on
+  // "Saving…" without ever reaching the mutation endpoint. A real revision
+  // conflict must still wait for the user's explicit resolution.
+  useEffect(() => {
+    if (cloudStatus === "conflict") return;
+    void flushOutbox();
+  }, [cloudStatus, flushOutbox, hasSession, outbox.length]);
 
   const enqueueMutation = useCallback((action: FinancialMutation, offerUndo = false) => {
     const activeSession = sessionRef.current;
@@ -348,7 +382,7 @@ export function StoreProvider({ children, accountId, getToken, localOnly = false
     // Apply against the state from the current rendered interaction, then
     // advance the synchronous ref used by offline and undo bookkeeping. A
     // domain error thrown during reducer rendering would unmount the app.
-    const nextState = applyFinancialMutation(state, action, activeSession.personId);
+    const nextState = applyFinancialMutation(stateRef.current, action, activeSession.personId);
     stateRef.current = nextState;
     const command: MutationCommand = {
       id: crypto.randomUUID(),
@@ -368,7 +402,7 @@ export function StoreProvider({ children, accountId, getToken, localOnly = false
       setUndoTarget({ expenseId: action.expense.id, commandId: command.id, description: action.expense.description });
       undoTimer.current = window.setTimeout(() => setUndoTarget(null), 8_000);
     }
-  }, [localOnly, state]);
+  }, [localOnly]);
 
   const dispatch = useCallback((action: Action) => {
     if (!isMutationAction(action)) {
@@ -437,6 +471,7 @@ export function StoreProvider({ children, accountId, getToken, localOnly = false
       status: cloudStatus,
       error: cloudError,
       lastSavedAt,
+      pendingCount: outbox.length,
       retry: retryCloud,
       refresh: () => pullFromCloud(false),
       useCloudVersion,
@@ -446,6 +481,7 @@ export function StoreProvider({ children, accountId, getToken, localOnly = false
       cloudError,
       cloudStatus,
       lastSavedAt,
+      outbox.length,
       keepLocalVersion,
       pullFromCloud,
       retryCloud,

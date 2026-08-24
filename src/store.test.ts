@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createReconciliationWorkspace, resizeExpenseAmount } from "./reconciliation";
 import { seedState } from "./seed";
-import { reducer } from "./store";
+import { canFlushCloudQueue, reducer } from "./store";
 
 describe("linked expense updates", () => {
   it("keeps a resized expense balanced and synchronized with reconciliation", () => {
@@ -30,5 +30,29 @@ describe("linked expense updates", () => {
     const removed = reducer(added, { type: "deleteExpense", expenseId: excursion.id });
     expect(removed.expenses.some((item) => item.id === excursion.id)).toBe(false);
     expect(removed.reconciliation.workspace!.transactions.some((item) => item.reference === excursion.id)).toBe(false);
+  });
+});
+
+describe("cloud queue readiness", () => {
+  it("releases restored offline changes once the authenticated session arrives", () => {
+    const restoredQueue = {
+      localOnly: false,
+      hasTokenProvider: true,
+      isFlushing: false,
+      pendingCount: 1,
+    };
+
+    expect(canFlushCloudQueue({ ...restoredQueue, hasSession: false })).toBe(false);
+    expect(canFlushCloudQueue({ ...restoredQueue, hasSession: true })).toBe(true);
+  });
+
+  it("does not start a duplicate worker while a save is already running", () => {
+    expect(canFlushCloudQueue({
+      localOnly: false,
+      hasTokenProvider: true,
+      isFlushing: true,
+      pendingCount: 2,
+      hasSession: true,
+    })).toBe(false);
   });
 });

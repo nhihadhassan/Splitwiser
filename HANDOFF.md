@@ -23,7 +23,8 @@ The source tree contains synthetic fixtures only. Real production state must ent
 - Rejected financial mutations are validated before React renders them, so form and lifecycle errors remain recoverable instead of blanking the app.
 - Closed-group expenses and payments remain read-only from group and friend surfaces, and server authorization checks both the source and destination group of expense updates.
 - Group edits reject reversed trip dates and preserve members who have financial history. Reopening percentage/share splits preserves their exact saved cent allocation.
-- The verified local gate is 14 test files / 104 tests, a production build, desktop and 320 px route checks, and WCAG A/AA browser audits with zero reported violations. Signed-in production financial writes still require an authenticated owner/member verification session.
+- Restored offline changes restart automatically after the authenticated cloud session loads instead of remaining stuck at “Saving…” without reaching the mutation endpoint. The status dialog reports the pending count and provides clear save, retry, refresh, and conflict actions.
+- The verified local gate is 14 test files / 106 tests, a production build, desktop and 320 px route checks, and WCAG A/AA browser audits with zero reported violations. Signed-in production financial writes still require an authenticated owner/member verification session.
 
 ## Release sequence
 

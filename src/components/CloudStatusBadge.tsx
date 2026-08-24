@@ -32,14 +32,19 @@ export function CloudStatusBadge() {
   const { cloud } = useStore();
   const [open, setOpen] = useState(false);
   const copy = STATUS_COPY[cloud.status];
+  const detail = cloud.status === "saving" && cloud.pendingCount > 0
+    ? `Saving ${cloud.pendingCount} ${cloud.pendingCount === 1 ? "change" : "changes"} online.`
+    : copy.detail;
 
   return (
     <>
       <button
         type="button"
         className={`cloud-status-badge cloud-status-${cloud.status}`}
-        aria-label={copy.detail}
-        title={copy.detail}
+        aria-label={detail}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        title={detail}
         onClick={() => setOpen(true)}
       >
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -51,13 +56,17 @@ export function CloudStatusBadge() {
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setOpen(false)}>
           <section className="cloud-status-dialog" role="dialog" aria-modal="true" aria-labelledby="cloud-status-title" onMouseDown={(event) => event.stopPropagation()}>
             <div className="modal-head"><h2 id="cloud-status-title">{copy.label}</h2><button type="button" className="icon-btn" aria-label="Close" onClick={() => setOpen(false)}>×</button></div>
-            <p>{cloud.error ?? copy.detail}</p>
+            <p>{cloud.error ?? detail}</p>
             {cloud.lastSavedAt && <small>Last saved {new Date(cloud.lastSavedAt).toLocaleString()}</small>}
             <div className="actions">
               {cloud.status === "conflict" ? (
                 <><button className="btn btn-primary" type="button" onClick={() => void cloud.useCloudVersion().then(() => setOpen(false))}>Use online version</button><button className="btn btn-secondary" type="button" onClick={() => void cloud.keepLocalVersion().then(() => setOpen(false))}>Keep offline edits</button></>
-              ) : cloud.status !== "local" ? (
+              ) : cloud.status === "saving" && cloud.pendingCount > 0 ? (
+                <button className="btn btn-primary" type="button" onClick={() => void cloud.retry()}>Save now</button>
+              ) : cloud.status === "error" ? (
                 <button className="btn btn-primary" type="button" onClick={() => void cloud.retry()}>Retry</button>
+              ) : cloud.status === "connecting" || cloud.status === "synced" ? (
+                <button className="btn btn-primary" type="button" onClick={() => void cloud.refresh()}>Check online copy</button>
               ) : null}
             </div>
           </section>
