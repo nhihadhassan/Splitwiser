@@ -24,7 +24,8 @@ The source tree contains synthetic fixtures only. Real production state must ent
 - Closed-group expenses and payments remain read-only from group and friend surfaces, and server authorization checks both the source and destination group of expense updates.
 - Group edits reject reversed trip dates and preserve members who have financial history. Reopening percentage/share splits preserves their exact saved cent allocation.
 - Restored offline changes restart automatically after the authenticated cloud session loads instead of remaining stuck at “Saving…” without reaching the mutation endpoint. The status dialog reports the pending count and provides clear save, retry, refresh, and conflict actions.
-- The verified local gate is 14 test files / 106 tests, a production build, desktop and 320 px route checks, and WCAG A/AA browser audits with zero reported violations. Signed-in production financial writes still require an authenticated owner/member verification session.
+- Large reconciliation mutations use a compressed transport and a bounded server decoder so statement-backed changes fit within the online save limit. Failed requests stop after one attempt instead of entering a retry loop, and the cloud dialog is portaled above every page layer with the shared focus trap.
+- The verified local gate is 16 test files / 110 tests, a production build, desktop and 320 px route checks, and WCAG A/AA browser audits with zero reported violations. Signed-in production financial writes still require an authenticated owner/member verification session.
 
 ## Release sequence
 

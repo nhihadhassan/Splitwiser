@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createReconciliationWorkspace, resizeExpenseAmount } from "./reconciliation";
 import { seedState } from "./seed";
-import { canFlushCloudQueue, reducer } from "./store";
+import { canFlushCloudQueue, reducer, shouldAutoFlushCloudQueue } from "./store";
 
 describe("linked expense updates", () => {
   it("keeps a resized expense balanced and synchronized with reconciliation", () => {
@@ -54,5 +54,11 @@ describe("cloud queue readiness", () => {
       pendingCount: 2,
       hasSession: true,
     })).toBe(false);
+  });
+
+  it("waits for an explicit retry after a failed or conflicting save", () => {
+    expect(shouldAutoFlushCloudQueue("saving")).toBe(true);
+    expect(shouldAutoFlushCloudQueue("error")).toBe(false);
+    expect(shouldAutoFlushCloudQueue("conflict")).toBe(false);
   });
 });

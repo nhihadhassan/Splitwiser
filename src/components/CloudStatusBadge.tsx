@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useStore, type CloudStatus } from "../store";
+import { Modal } from "./Modal";
 
 const STATUS_COPY: Record<CloudStatus, { label: string; detail: string }> = {
   local: {
@@ -53,24 +54,24 @@ export function CloudStatusBadge() {
         <span aria-live="polite">{copy.label}</span>
       </button>
       {open && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setOpen(false)}>
-          <section className="cloud-status-dialog" role="dialog" aria-modal="true" aria-labelledby="cloud-status-title" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="modal-head"><h2 id="cloud-status-title">{copy.label}</h2><button type="button" className="icon-btn" aria-label="Close" onClick={() => setOpen(false)}>×</button></div>
+        <Modal
+          title={copy.label}
+          onClose={() => setOpen(false)}
+          footer={cloud.status === "conflict" ? (
+            <><button className="btn btn-primary" type="button" onClick={() => void cloud.useCloudVersion().then(() => setOpen(false))}>Use online version</button><button className="btn btn-secondary" type="button" onClick={() => void cloud.keepLocalVersion().then(() => setOpen(false))}>Keep offline edits</button></>
+          ) : cloud.status === "saving" && cloud.pendingCount > 0 ? (
+            <button className="btn btn-primary" type="button" onClick={() => void cloud.retry()}>Save now</button>
+          ) : cloud.status === "error" ? (
+            <button className="btn btn-primary" type="button" onClick={() => void cloud.retry()}>Retry</button>
+          ) : cloud.status === "connecting" || cloud.status === "synced" ? (
+            <button className="btn btn-primary" type="button" onClick={() => void cloud.refresh()}>Check online copy</button>
+          ) : undefined}
+        >
+          <div className="cloud-status-dialog-content">
             <p>{cloud.error ?? detail}</p>
             {cloud.lastSavedAt && <small>Last saved {new Date(cloud.lastSavedAt).toLocaleString()}</small>}
-            <div className="actions">
-              {cloud.status === "conflict" ? (
-                <><button className="btn btn-primary" type="button" onClick={() => void cloud.useCloudVersion().then(() => setOpen(false))}>Use online version</button><button className="btn btn-secondary" type="button" onClick={() => void cloud.keepLocalVersion().then(() => setOpen(false))}>Keep offline edits</button></>
-              ) : cloud.status === "saving" && cloud.pendingCount > 0 ? (
-                <button className="btn btn-primary" type="button" onClick={() => void cloud.retry()}>Save now</button>
-              ) : cloud.status === "error" ? (
-                <button className="btn btn-primary" type="button" onClick={() => void cloud.retry()}>Retry</button>
-              ) : cloud.status === "connecting" || cloud.status === "synced" ? (
-                <button className="btn btn-primary" type="button" onClick={() => void cloud.refresh()}>Check online copy</button>
-              ) : null}
-            </div>
-          </section>
-        </div>
+          </div>
+        </Modal>
       )}
     </>
   );

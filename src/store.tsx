@@ -209,6 +209,10 @@ export function canFlushCloudQueue(options: {
     && options.hasSession;
 }
 
+export function shouldAutoFlushCloudQueue(status: CloudStatus): boolean {
+  return status !== "error" && status !== "conflict";
+}
+
 const LOCAL_SESSION: SessionProfile = {
   accountId: "local-owner",
   personId: ME,
@@ -367,14 +371,16 @@ export function StoreProvider({ children, accountId, getToken, localOnly = false
     }
   }, [adoptSnapshot, getToken, localOnly]);
 
+  const autoFlushEnabled = shouldAutoFlushCloudQueue(cloudStatus);
+
   // A cached offline queue is restored before the authenticated session. Run
   // again when that session arrives so those changes cannot remain stuck on
-  // "Saving…" without ever reaching the mutation endpoint. A real revision
-  // conflict must still wait for the user's explicit resolution.
+  // "Saving…" without ever reaching the mutation endpoint. Failed requests
+  // and real revision conflicts wait for the user's explicit retry or choice.
   useEffect(() => {
-    if (cloudStatus === "conflict") return;
+    if (!autoFlushEnabled) return;
     void flushOutbox();
-  }, [cloudStatus, flushOutbox, hasSession, outbox.length]);
+  }, [autoFlushEnabled, flushOutbox, hasSession, outbox.length]);
 
   const enqueueMutation = useCallback((action: FinancialMutation, offerUndo = false) => {
     const activeSession = sessionRef.current;

@@ -32,6 +32,47 @@ export async function readJson<T>(request: Request, maxBytes = 250_000): Promise
   }
 }
 
+export async function readGzipJson<T>(request: Request, maxCompressedBytes: number, maxDecodedBytes: number): Promise<T> {
+  const declaredSize = Number(request.headers.get("content-length") ?? 0);
+  if (declaredSize > maxCompressedBytes) throw new HttpError(413, "Compressed request is too large.");
+  const compressed = await request.arrayBuffer();
+  if (compressed.byteLength > maxCompressedBytes) throw new HttpError(413, "Compressed request is too large.");
+
+  let stream: ReadableStream<Uint8Array>;
+  try {
+    stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("gzip"));
+  } catch {
+    throw new HttpError(400, "Compressed request could not be opened.");
+  }
+
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let decodedBytes = 0;
+  let text = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      decodedBytes += value.byteLength;
+      if (decodedBytes > maxDecodedBytes) {
+        await reader.cancel();
+        throw new HttpError(413, "Decoded request is too large.");
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    text += decoder.decode();
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
+    throw new HttpError(400, "Compressed request could not be opened.");
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new HttpError(400, "Request body must be valid JSON.");
+  }
+}
+
 export class HttpError extends Error {
   constructor(public readonly status: number, message: string) {
     super(message);

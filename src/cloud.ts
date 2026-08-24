@@ -2,6 +2,9 @@ import type { AuthorizedSnapshot, MutationCommand } from "./types";
 
 export type TokenProvider = () => Promise<string | null>;
 
+export const COMPRESSED_MUTATION_CONTENT_TYPE = "application/vnd.splitwiser.mutation+gzip";
+const COMPRESSION_THRESHOLD_BYTES = 200_000;
+
 export class CloudSyncError extends Error {
   status: number;
 
@@ -14,7 +17,19 @@ export class CloudSyncError extends Error {
 
 async function responseError(response: Response): Promise<CloudSyncError> {
   const body = (await response.json().catch(() => null)) as { error?: string } | null;
-  return new CloudSyncError(body?.error ?? "Private sync is temporarily unavailable.", response.status);
+  const fallback = response.status === 413
+    ? "This queued change is too large to save online. It remains safely stored on this device."
+    : "Private sync is temporarily unavailable.";
+  return new CloudSyncError(body?.error ?? fallback, response.status);
+}
+
+export async function mutationRequestBody(command: MutationCommand): Promise<{ body: BodyInit; contentType: string }> {
+  const json = JSON.stringify(command);
+  if (new TextEncoder().encode(json).byteLength < COMPRESSION_THRESHOLD_BYTES || typeof CompressionStream === "undefined") {
+    return { body: json, contentType: "application/json" };
+  }
+  const compressed = new Blob([json]).stream().pipeThrough(new CompressionStream("gzip"));
+  return { body: await new Response(compressed).blob(), contentType: COMPRESSED_MUTATION_CONTENT_TYPE };
 }
 
 async function authorizedHeaders(getToken: TokenProvider): Promise<HeadersInit> {
@@ -35,13 +50,14 @@ export async function loadAuthorizedState(getToken: TokenProvider, signal?: Abor
 }
 
 export async function sendMutation(getToken: TokenProvider, command: MutationCommand): Promise<AuthorizedSnapshot> {
+  const payload = await mutationRequestBody(command);
   const response = await fetch("/api/mutations", {
     method: "POST",
     headers: {
       ...(await authorizedHeaders(getToken)),
-      "Content-Type": "application/json",
+      "Content-Type": payload.contentType,
     },
-    body: JSON.stringify(command),
+    body: payload.body,
   });
   if (!response.ok) throw await responseError(response);
   return response.json() as Promise<AuthorizedSnapshot>;
