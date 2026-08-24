@@ -49,6 +49,9 @@ export function GroupModal({ onClose, group }: { onClose: () => void; group?: Gr
   function save() {
     if (!name.trim()) return setError("Enter a group name.");
     if (memberIds.size < 2) return setError("Add at least one friend to the group.");
+    if (type === "trip" && startDate && endDate && endDate < startDate) {
+      return setError("End date cannot be before the start date.");
+    }
     const record: Group = {
       id: group?.id ?? uid(),
       name: name.trim(),
@@ -58,12 +61,17 @@ export function GroupModal({ onClose, group }: { onClose: () => void; group?: Gr
       simplifyDebts: simplify,
       status: group?.status ?? "open",
       closedAt: group?.closedAt,
-      startDate: startDate || undefined,
-      endDate: endDate || undefined,
+      startDate: type === "trip" ? startDate || undefined : undefined,
+      endDate: type === "trip" ? endDate || undefined : undefined,
       createdBy: group?.createdBy,
       icon,
     };
-    dispatch(group ? { type: "updateGroup", group: record } : { type: "addGroup", group: record });
+    try {
+      dispatch(group ? { type: "updateGroup", group: record } : { type: "addGroup", group: record });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "This group could not be saved.");
+      return;
+    }
     onClose();
     if (!group) navigate(`/groups/${record.id}`);
   }

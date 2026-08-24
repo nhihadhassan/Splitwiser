@@ -3,6 +3,7 @@ import type {
   Expense,
   FinancialActivityEvent,
   FinancialMutation,
+  Group,
 } from "./types.js";
 import {
   removeExpenseFromReconciliation,
@@ -10,6 +11,7 @@ import {
   tripIdForGroup,
 } from "./reconciliation.js";
 import { identityFx, normalizedCurrency } from "./utils/currency.js";
+import { buildLedger, rawDebts, simplifyDebts } from "./utils/balances.js";
 
 const ACTIVITY_LIMIT = 1_000;
 
@@ -49,10 +51,13 @@ function validateSettlementReferences(state: AppState, fromId: string, toId: str
   }
 }
 
-function validateGroupReferences(state: AppState, memberIds: string[], name: string): void {
+function validateGroupReferences(state: AppState, group: Group): void {
   const people = new Set(state.people.map((person) => person.id));
-  if (!name.trim() || memberIds.length < 2 || new Set(memberIds).size !== memberIds.length || memberIds.some((id) => !people.has(id))) {
+  if (!group.name.trim() || group.memberIds.length < 2 || new Set(group.memberIds).size !== group.memberIds.length || group.memberIds.some((id) => !people.has(id))) {
     throw new Error("Group members or name are invalid.");
+  }
+  if (group.type === "trip" && group.startDate && group.endDate && group.endDate < group.startDate) {
+    throw new Error("Trip end date cannot be before its start date.");
   }
 }
 
@@ -108,13 +113,20 @@ export function applyFinancialMutation(
       break;
     case "addGroup":
       if (state.groups.some((group) => group.id === mutation.group.id)) return state;
-      validateGroupReferences(state, mutation.group.memberIds, mutation.group.name);
+      validateGroupReferences(state, mutation.group);
       next = { ...state, groups: [...state.groups, { ...mutation.group, homeCurrency: normalizedCurrency(mutation.group.homeCurrency ?? state.defaultCurrency), createdBy: actorPersonId }] };
       break;
     case "updateGroup": {
       const previous = state.groups.find((group) => group.id === mutation.group.id);
       if (!previous) throw new Error("Group was not found.");
-      validateGroupReferences(state, mutation.group.memberIds, mutation.group.name);
+      validateGroupReferences(state, mutation.group);
+      const removedMemberIds = new Set(previous.memberIds.filter((personId) => !mutation.group.memberIds.includes(personId)));
+      const removedMemberHasHistory = state.expenses.some((expense) =>
+        expense.groupId === previous.id && expense.splits.some((split) => removedMemberIds.has(split.personId)),
+      ) || state.settlements.some((settlement) =>
+        settlement.groupId === previous.id && (removedMemberIds.has(settlement.fromId) || removedMemberIds.has(settlement.toId)),
+      );
+      if (removedMemberHasHistory) throw new Error("Members with expense or payment history cannot be removed from the group.");
       const hasFinancialHistory = state.expenses.some((expense) => expense.groupId === previous.id) || state.settlements.some((settlement) => settlement.groupId === previous.id);
       if (hasFinancialHistory && normalizedCurrency(mutation.group.homeCurrency) !== normalizedCurrency(previous.homeCurrency ?? state.defaultCurrency)) throw new Error("A group's home currency locks after its first expense or settlement.");
       const group = { ...mutation.group, homeCurrency: normalizedCurrency(mutation.group.homeCurrency ?? previous.homeCurrency ?? state.defaultCurrency), createdAt: previous.createdAt, createdBy: previous.createdBy };
@@ -199,7 +211,8 @@ export function applyFinancialMutation(
       const group = state.groups.find((item) => item.id === mutation.groupId);
       if (!group) throw new Error("Group was not found.");
       if (group.type === "trip" && mutation.status === "closed") {
-        const unsettled = state.expenses.some((expense) => expense.groupId === group.id && expense.splits.some((split) => split.owes !== split.paid));
+        const ledger = buildLedger(state, { groupId: group.id });
+        const unsettled = (group.simplifyDebts ? simplifyDebts(ledger) : rawDebts(ledger)).length > 0;
         if (unsettled) throw new Error("Record or settle all repayments before closing this trip.");
       }
       const workspace = state.reconciliation.workspace;

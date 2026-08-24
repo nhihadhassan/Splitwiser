@@ -50,19 +50,24 @@ export function SettleUpModal({ onClose, groupId, prefill }: Props) {
     const amount = parseMoney(amountText);
     if (fromId === toId) return setError("Payer and recipient must be different people.");
     if (Number.isNaN(amount) || amount <= 0) return setError("Enter a valid amount.");
-    dispatch({
-      type: "addSettlement",
-      settlement: {
-        id: uid(),
-        fromId,
-        toId,
-        amount,
-        date,
-        groupId: groupId ?? null,
-        createdAt: Date.now(),
-        createdBy: currentPersonId,
-      },
-    });
+    try {
+      dispatch({
+        type: "addSettlement",
+        settlement: {
+          id: uid(),
+          fromId,
+          toId,
+          amount,
+          date,
+          groupId: groupId ?? null,
+          createdAt: Date.now(),
+          createdBy: currentPersonId,
+        },
+      });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "This payment could not be recorded.");
+      return;
+    }
     onClose();
   }
 

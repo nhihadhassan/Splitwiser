@@ -55,3 +55,14 @@ export function splitByWeights(total: number, weights: number[]): number[] {
   }
   return result;
 }
+
+/** Recreate editable percentages from exact minor-unit allocations without
+ * turning a saved 3-way split into 99% or 101% after rounding. */
+export function percentageInputsFromAmounts(amounts: number[], total: number): string[] {
+  if (total <= 0 || amounts.length === 0 || amounts.some((amount) => amount < 0)) {
+    return amounts.map(() => "0");
+  }
+  const values = amounts.map((amount) => Number(((amount / total) * 100).toFixed(6)));
+  values[values.length - 1] = Number((100 - values.slice(0, -1).reduce((sum, value) => sum + value, 0)).toFixed(6));
+  return values.map((value) => String(value));
+}

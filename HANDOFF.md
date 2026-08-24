@@ -17,6 +17,14 @@ The source tree contains synthetic fixtures only. Real production state must ent
 - Redis failure cannot block financial reads or writes.
 - Receipt OCR is local and suggestions are never saved without confirmation.
 
+## Latest bug sweep (2026-08-23)
+
+- Trip closure now checks the same simplified or raw repayment model shown in the group UI, includes recorded payments, and explicitly confirms when unfinished reconciliation will be locked.
+- Rejected financial mutations are validated before React renders them, so form and lifecycle errors remain recoverable instead of blanking the app.
+- Closed-group expenses and payments remain read-only from group and friend surfaces, and server authorization checks both the source and destination group of expense updates.
+- Group edits reject reversed trip dates and preserve members who have financial history. Reopening percentage/share splits preserves their exact saved cent allocation.
+- The verified local gate is 14 test files / 104 tests, a production build, desktop and 320 px route checks, and WCAG A/AA browser audits with zero reported violations. Signed-in production financial writes still require an authenticated owner/member verification session.
+
 ## Release sequence
 
 1. Provision Clerk restricted sign-up, the replacement private Blob store, and a no-card Upstash Free database.

@@ -86,6 +86,50 @@ describe("workspace authorization", () => {
     expect(() => authorizeMutation(source, session, command({ type: "deleteExpense", expenseId: closed.id }))).toThrowError(/closed/i);
   });
 
+  it("does not let an update bypass a closed or unauthorized source group", () => {
+    const source = envelope();
+    const closed = source.state.expenses.find((expense) => expense.groupId === "group-city")!;
+    const movedToOpenGroup = {
+      ...closed,
+      groupId: "group-coast",
+      splits: closed.splits.map((split) => split.personId === "person-jules" ? split : { ...split, personId: "me" }),
+    };
+    expect(() => authorizeMutation(source, sessionFor(source, "account-owner"), command({ type: "updateExpense", expense: movedToOpenGroup }))).toThrowError(/closed/i);
+    try {
+      authorizeMutation(source, sessionFor(source, "account-sam"), command({ type: "updateExpense", expense: movedToOpenGroup }));
+      throw new Error("expected source-group denial");
+    } catch (error) {
+      expect(status(error)).toBe(403);
+    }
+  });
+
+  it("rejects updates for missing financial items", () => {
+    const source = envelope();
+    const sample = source.state.expenses[0]!;
+    expect(() => authorizeMutation(source, sessionFor(source, "account-owner"), command({
+      type: "updateExpense",
+      expense: { ...sample, id: "missing-expense" },
+    }))).toThrowError(/not found/i);
+  });
+
+  it("does not let a member delete someone else's non-group payment", () => {
+    const source = envelope();
+    source.state.settlements.push({
+      id: "settlement-direct-private",
+      fromId: "me",
+      toId: "person-jules",
+      amount: 1_000,
+      date: "2027-03-02",
+      groupId: null,
+      createdAt: 11,
+      createdBy: "me",
+    });
+    expect(() => authorizeMutation(source, sessionFor(source, "account-sam"), command({
+      type: "deleteSettlement",
+      settlementId: "settlement-direct-private",
+    }))).toThrowError(/cannot change/i);
+  });
+
   it("includes every participant needed to render an authorized non-group item", () => {
     const source = envelope();
     source.state.expenses.push({

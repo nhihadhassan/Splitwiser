@@ -30,6 +30,11 @@ export function ActivityPage() {
   );
   const [socialItems, setSocialItems] = useState<SocialItem[]>([]);
   const [socialUnread, setSocialUnread] = useState(0);
+  const requestedType = searchParams.get("type");
+
+  useEffect(() => {
+    setKindFilter(requestedType === "expense" ? "expenses" : "all");
+  }, [requestedType]);
 
   useEffect(() => {
     if (!getToken) return;
@@ -70,8 +75,7 @@ export function ActivityPage() {
             ({formatMoney(e.amount)}){groupName ? <> in <strong>{groupName}</strong></> : null}
             {mySplit && myNet !== 0 && (
               <span className={myNet > 0 ? "pos" : "neg"}>
-                {" "}
-                , {myNet > 0 ? "you get back" : "you owe"} {formatMoney(Math.abs(myNet))}
+                {", "}{myNet > 0 ? "you get back" : "you owe"} {formatMoney(Math.abs(myNet))}
               </span>
             )}
           </>

@@ -62,7 +62,7 @@ export function Modal({
 
       if (e.key !== "Tab" || !dialog) return;
       const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
-        .filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true");
+        .filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true" && element.getClientRects().length > 0);
       if (focusable.length === 0) {
         e.preventDefault();
         dialog.focus();

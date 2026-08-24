@@ -107,6 +107,7 @@ export function ExpenseList({
 
         if (item.kind === "settlement") {
           const s = item.settlement;
+          const settlementReadOnly = readOnly || Boolean(s.groupId && state.groups.find((group) => group.id === s.groupId)?.status === "closed");
           const from = peopleById.get(s.fromId);
           const to = peopleById.get(s.toId);
           const { month: m, day } = monthDay(s.date);
@@ -123,13 +124,13 @@ export function ExpenseList({
                   <strong>{from?.id === currentPersonId ? "You" : from?.name}</strong> paid{" "}
                   <strong>{to?.id === currentPersonId ? "you" : to?.name}</strong> {formatMoney(s.amount)}
                 </div>
-                <button
+                {!settlementReadOnly && <button
                   className="btn-link-danger"
                   title="Delete payment"
                   onClick={() => dispatch({ type: "deleteSettlement", settlementId: s.id })}
                 >
                   ×
-                </button>
+                </button>}
               </div>
             </div>
           );
@@ -145,6 +146,7 @@ export function ExpenseList({
         const groupName = e.groupId
           ? state.groups.find((g) => g.id === e.groupId)?.name
           : undefined;
+        const expenseReadOnly = readOnly || Boolean(e.groupId && state.groups.find((group) => group.id === e.groupId)?.status === "closed");
         const isOpen = openId === e.id;
         const notePreview = e.notes?.replace(/^Imported from Wanderlog:\s*/i, "") ?? "No note";
         const fullSplitId = e.splits.find(
@@ -239,7 +241,7 @@ export function ExpenseList({
                     );
                   })}
                 </ul>
-                {!readOnly && e.groupId && e.splits.length >= 2 && (
+                {!expenseReadOnly && e.groupId && e.splits.length >= 2 && (
                   <div className="inline-quick-split">
                     <span className="field-label" id={`quick-split-${e.id}`}>Quick split</span>
                     <div className="quick-action-row" role="group" aria-labelledby={`quick-split-${e.id}`}>
@@ -269,7 +271,7 @@ export function ExpenseList({
                     </div>
                   </div>
                 )}
-                {!readOnly && <div className="actions">
+                {!expenseReadOnly && <div className="actions">
                   <button
                     className="btn btn-secondary"
                     onClick={(ev) => {
@@ -291,7 +293,7 @@ export function ExpenseList({
                     Delete expense
                   </button>
                 </div>}
-                {e.groupId && <SocialThread groupId={e.groupId} scope="expense" scopeId={e.id} readOnly={readOnly} />}
+                {e.groupId && <SocialThread groupId={e.groupId} scope="expense" scopeId={e.id} readOnly={expenseReadOnly} />}
               </div>
             )}
           </div>

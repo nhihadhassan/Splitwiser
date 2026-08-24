@@ -112,28 +112,21 @@ export function authorizedSnapshot(
   return { version: 3, revision: envelope.revision, updatedAt: envelope.updatedAt, session, state };
 }
 
-function groupForMutation(state: AppState, mutation: FinancialMutation): string | null | undefined {
+function financialGroupIdsForMutation(state: AppState, mutation: FinancialMutation): Array<string | null | undefined> {
   switch (mutation.type) {
     case "addExpense":
+      return [mutation.expense.groupId];
     case "updateExpense":
     case "updateLinkedExpense":
-      return mutation.expense.groupId;
+      return [state.expenses.find((expense) => expense.id === mutation.expense.id)?.groupId, mutation.expense.groupId];
     case "deleteExpense":
-      return state.expenses.find((expense) => expense.id === mutation.expenseId)?.groupId;
+      return [state.expenses.find((expense) => expense.id === mutation.expenseId)?.groupId];
     case "addSettlement":
-      return mutation.settlement.groupId;
+      return [mutation.settlement.groupId];
     case "deleteSettlement":
-      return state.settlements.find((settlement) => settlement.id === mutation.settlementId)?.groupId;
-    case "addGroup":
-    case "updateGroup":
-      return mutation.group.id;
-    case "deleteGroup":
-      return mutation.groupId;
-    case "setTripStatus":
-      return mutation.groupId;
-    case "addPerson":
-    case "updateReconciliation":
-      return undefined;
+      return [state.settlements.find((settlement) => settlement.id === mutation.settlementId)?.groupId];
+    default:
+      return [];
   }
 }
 
@@ -144,39 +137,51 @@ export function authorizeMutation(
 ): void {
   const mutation = command.mutation;
   if (session.role === "owner") {
-    const ownerGroupId = groupForMutation(envelope.state, mutation);
-    if (typeof ownerGroupId === "string") {
+    const ownerGroupIds = financialGroupIdsForMutation(envelope.state, mutation);
+    if (ownerGroupIds.some((groupId) => groupId === undefined)) throw new HttpError(404, "Financial item was not found.");
+    for (const ownerGroupId of new Set(ownerGroupIds.filter((groupId): groupId is string => typeof groupId === "string"))) {
       const group = envelope.state.groups.find((item) => item.id === ownerGroupId);
-      const isFinancialMutation = mutation.type === "addExpense" || mutation.type === "updateExpense" || mutation.type === "updateLinkedExpense" || mutation.type === "deleteExpense" || mutation.type === "addSettlement" || mutation.type === "deleteSettlement";
-      if (isFinancialMutation && group?.status === "closed") throw new HttpError(409, "This group is closed and read-only.");
+      if (!group) throw new HttpError(404, "Group was not found.");
+      if (group.status === "closed") throw new HttpError(409, "This group is closed and read-only.");
     }
     return;
   }
   if (mutation.type === "addPerson" || mutation.type === "addGroup" || mutation.type === "updateGroup" || mutation.type === "deleteGroup" || mutation.type === "setTripStatus" || mutation.type === "updateReconciliation" || mutation.type === "updateLinkedExpense") {
     throw new HttpError(403, "Only the owner can make this change.");
   }
-  const groupId = groupForMutation(envelope.state, mutation);
-  if (groupId === undefined) throw new HttpError(404, "Financial item was not found.");
-  if (groupId === null) {
+  const financialGroupIds = financialGroupIdsForMutation(envelope.state, mutation);
+  if (financialGroupIds.some((groupId) => groupId === undefined)) throw new HttpError(404, "Financial item was not found.");
+  const stringGroupIds = new Set(financialGroupIds.filter((groupId): groupId is string => typeof groupId === "string"));
+  for (const groupId of stringGroupIds) {
+    const group = envelope.state.groups.find((item) => item.id === groupId);
+    if (!group || !group.memberIds.includes(session.personId)) throw new HttpError(403, "You are not a member of this group.");
+    if (group.status === "closed") throw new HttpError(409, "This group is closed and read-only.");
+  }
+  if (financialGroupIds.includes(null)) {
     if (mutation.type === "addSettlement") {
       const { fromId, toId } = mutation.settlement;
       if (fromId !== session.personId && toId !== session.personId) throw new HttpError(403, "You cannot change this settlement.");
-      return;
     }
-    const expense = mutation.type === "deleteExpense"
+    if (mutation.type === "deleteSettlement") {
+      const settlement = envelope.state.settlements.find((item) => item.id === mutation.settlementId);
+      if (!settlement || (settlement.fromId !== session.personId && settlement.toId !== session.personId)) {
+        throw new HttpError(403, "You cannot change this settlement.");
+      }
+    }
+    const existingExpense = mutation.type === "deleteExpense"
       ? envelope.state.expenses.find((item) => item.id === mutation.expenseId)
-      : mutation.type === "addExpense" || mutation.type === "updateExpense" ? mutation.expense : undefined;
-    if (expense?.splits.some((split) => split.personId === session.personId)) {
+      : mutation.type === "updateExpense"
+        ? envelope.state.expenses.find((item) => item.id === mutation.expense.id)
+        : undefined;
+    const submittedExpense = mutation.type === "addExpense" || mutation.type === "updateExpense" ? mutation.expense : undefined;
+    for (const expense of [existingExpense, submittedExpense].filter((item): item is NonNullable<typeof item> => Boolean(item))) {
+      if (!expense.splits.some((split) => split.personId === session.personId)) throw new HttpError(403, "You cannot change this financial item.");
       if (expense.splits.some((split) => !envelope.state.people.some((person) => person.id === split.personId))) throw new HttpError(400, "Expense participant was not found.");
-      return;
     }
-    throw new HttpError(403, "You cannot change this financial item.");
   }
-  const group = envelope.state.groups.find((item) => item.id === groupId);
-  if (!group || !group.memberIds.includes(session.personId)) throw new HttpError(403, "You are not a member of this group.");
-  if (group.status === "closed") throw new HttpError(409, "This group is closed and read-only.");
   if (mutation.type === "addExpense" || mutation.type === "updateExpense") {
-    if (mutation.expense.splits.some((split) => !group.memberIds.includes(split.personId))) {
+    const targetGroup = mutation.expense.groupId ? envelope.state.groups.find((group) => group.id === mutation.expense.groupId) : null;
+    if (targetGroup && mutation.expense.splits.some((split) => !targetGroup.memberIds.includes(split.personId))) {
       throw new HttpError(400, "Every expense participant must belong to the group.");
     }
   }

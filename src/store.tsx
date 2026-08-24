@@ -345,13 +345,18 @@ export function StoreProvider({ children, accountId, getToken, localOnly = false
   const enqueueMutation = useCallback((action: FinancialMutation, offerUndo = false) => {
     const activeSession = sessionRef.current;
     if (!activeSession) return;
+    // Apply against the state from the current rendered interaction, then
+    // advance the synchronous ref used by offline and undo bookkeeping. A
+    // domain error thrown during reducer rendering would unmount the app.
+    const nextState = applyFinancialMutation(state, action, activeSession.personId);
+    stateRef.current = nextState;
     const command: MutationCommand = {
       id: crypto.randomUUID(),
       baseRevision: cloudRevision.current + outboxRef.current.length,
       createdAt: Date.now(),
       mutation: action,
     };
-    rawDispatch({ type: "applyCommand", mutation: action, actorPersonId: activeSession.personId });
+    rawDispatch({ type: "hydrate", state: nextState });
     if (!localOnly) {
       const pending = [...outboxRef.current, command];
       outboxRef.current = pending;
@@ -363,7 +368,7 @@ export function StoreProvider({ children, accountId, getToken, localOnly = false
       setUndoTarget({ expenseId: action.expense.id, commandId: command.id, description: action.expense.description });
       undoTimer.current = window.setTimeout(() => setUndoTarget(null), 8_000);
     }
-  }, [localOnly]);
+  }, [localOnly, state]);
 
   const dispatch = useCallback((action: Action) => {
     if (!isMutationAction(action)) {

@@ -26,6 +26,7 @@ export function GroupPage() {
   const [settlingBlank, setSettlingBlank] = useState(false);
   const [editingGroup, setEditingGroup] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "expenses" | "discussion">("overview");
+  const [lifecycleError, setLifecycleError] = useState("");
 
   const group = state.groups.find((g) => g.id === groupId);
 
@@ -62,16 +63,41 @@ export function GroupPage() {
   function toggleClosed() {
     if (!group) return;
     if (group.status === "closed") {
-      const reason = window.prompt("Why are you reopening this trip?");
+      const reason = window.prompt(`Why are you reopening this ${group.type === "trip" ? "trip" : "group"}?`);
       if (!reason?.trim()) return;
-      dispatch({ type: "setTripStatus", groupId: group.id, status: "open", reason: reason.trim() });
+      try {
+        dispatch({ type: "setTripStatus", groupId: group.id, status: "open", reason: reason.trim() });
+        setLifecycleError("");
+      } catch (error) {
+        setLifecycleError(error instanceof Error ? error.message : "This group could not be reopened.");
+      }
       return;
     }
     const canClose = window.confirm(group.type === "trip"
       ? "Close this trip after confirming repayments are settled. If its reconciliation still has open items, you will be asked to resolve or explicitly skip them."
       : "Close this group? Its ledger will become read-only.");
     if (!canClose) return;
-    dispatch({ type: "setTripStatus", groupId: group.id, status: "closed", allowUnreconciled: false });
+    try {
+      dispatch({ type: "setTripStatus", groupId: group.id, status: "closed", allowUnreconciled: false });
+      setLifecycleError("");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "This group could not be closed.";
+      if (/resolve reconciliation/i.test(message)) {
+        const skip = window.confirm("This trip still has unfinished reconciliation items. Close it anyway? They will be locked until you reopen the trip.");
+        if (!skip) {
+          setLifecycleError(message);
+          return;
+        }
+        try {
+          dispatch({ type: "setTripStatus", groupId: group.id, status: "closed", allowUnreconciled: true });
+          setLifecycleError("");
+        } catch (retryError) {
+          setLifecycleError(retryError instanceof Error ? retryError.message : "This trip could not be closed.");
+        }
+        return;
+      }
+      setLifecycleError(message);
+    }
   }
 
   return (
@@ -96,6 +122,7 @@ export function GroupPage() {
             </button>
           ))}
         </div>
+        {lifecycleError && <div className="form-error lifecycle-error" role="alert">{lifecycleError}</div>}
         {activeTab === "overview" && (
           <section className="group-overview" aria-label="Group overview">
             <div className="overview-totals">
@@ -184,7 +211,9 @@ export function GroupPage() {
               Edit group
             </button>
             <button className="btn btn-secondary" onClick={toggleClosed}>
-              {group.status === "closed" ? "Reopen trip" : "Close trip"}
+              {group.status === "closed"
+                ? `Reopen ${group.type === "trip" ? "trip" : "group"}`
+                : `Close ${group.type === "trip" ? "trip" : "group"}`}
             </button>
             <button className="btn-link-danger" onClick={deleteGroup}>
               Delete group

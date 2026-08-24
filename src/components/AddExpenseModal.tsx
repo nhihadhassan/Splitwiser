@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import type { Expense, ReceiptAttachment, SplitMethod } from "../types";
 import { uid, useStore } from "../store";
-import { centsToInput, formatMoney, parseMoney, splitByWeights, splitEqually } from "../utils/money";
+import { centsToInput, formatMoney, parseMoney, percentageInputsFromAmounts, splitByWeights, splitEqually } from "../utils/money";
 import { CATEGORIES, CATEGORY_META, normalizeExpenseCategory, type SelectableExpenseCategory } from "../utils/categories";
 import { CategoryIcon } from "./Icons";
 import { today } from "../utils/dates";
@@ -85,11 +85,13 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
   function initFromExpense(forMethod: SplitMethod): Record<string, string> {
     const result: Record<string, string> = {};
     if (splitTemplate && splitTemplate.splitMethod === forMethod) {
-      for (const s of splitTemplate.splits) {
+      const percentageInputs = forMethod === "percentage"
+        ? percentageInputsFromAmounts(splitTemplate.splits.map((split) => split.owes), splitTemplate.amount)
+        : [];
+      for (const [index, s] of splitTemplate.splits.entries()) {
         if (forMethod === "exact") result[s.personId] = centsToInput(s.owes);
-        else if (forMethod === "percentage")
-          result[s.personId] = String(Math.round((s.owes / splitTemplate.amount) * 100));
-        else result[s.personId] = "1";
+        else if (forMethod === "percentage") result[s.personId] = percentageInputs[index] ?? "0";
+        else result[s.personId] = String(s.owes);
       }
     }
     return result;
@@ -277,6 +279,7 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
       return setError(reason instanceof Error ? reason.message : "Receipt could not be attached.");
     }
     const record: Expense = {
+      ...expense,
       id: expense?.id ?? uid(),
       description: description.trim(),
       amount,
@@ -291,10 +294,17 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
       })),
       notes: notes.trim() || undefined,
       receipt,
+      originalAmountMinor: expense?.fx?.rate === "1" && expense.originalCurrency === expense.homeCurrency
+        ? amount
+        : expense?.originalAmountMinor,
       createdAt: expense?.createdAt ?? Date.now(),
       createdBy: expense?.createdBy ?? currentPersonId,
     };
-    dispatch({ type: expense ? "updateExpense" : "addExpense", expense: record });
+    try {
+      dispatch({ type: expense ? "updateExpense" : "addExpense", expense: record });
+    } catch (reason) {
+      return setError(reason instanceof Error ? reason.message : "This expense could not be saved.");
+    }
     onClose();
   }
 

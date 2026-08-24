@@ -52,7 +52,7 @@ function AuthenticatedProduct() {
         <section className="auth-intro" aria-labelledby="auth-title">
           <p className="eyebrow">Private shared ledger</p>
           <h1 id="auth-title">{joining ? "You’re invited to Splitwiser." : "Settle the trip, keep the friendship."}</h1>
-          <p>{joining ? "Sign in or create your account. Your invitation securely connects it to the person your host selected, then you’ll see the shared trips you belong to." : "Splitwiser is invitation-only. Sign in with the account connected to your person record."}</p>
+          <p>{joining ? "Sign in or create your account. Your invitation securely connects it to the person your host selected, then you’ll see the shared trips you belong to." : "Splitwiser is invitation-only. Sign in with the account that received your invitation."}</p>
           {joining && <p className="muted-copy">One account belongs to one person. The invitation expires after seven days.</p>}
         </section>
         <SignIn routing="hash" />

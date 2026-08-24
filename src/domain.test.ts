@@ -3,6 +3,7 @@ import { applyFinancialMutation, isBalancedExpense } from "./domain";
 import { cancelQueuedExpenseCreate, replayOfflineOutbox } from "./offline";
 import { seedState } from "./seed";
 import type { Expense, MutationCommand, SplitMethod } from "./types";
+import { buildLedger, simplifyDebts } from "./utils/balances";
 
 function expense(method: SplitMethod, owes: number[], payer = 0): Expense {
   return {
@@ -70,6 +71,47 @@ describe("financial mutation invariants", () => {
     const activity = next.financialActivity ?? [];
     expect(next.expenses.find((entry) => entry.id === item.id)).toMatchObject({ createdBy: "person-sam", updatedBy: "person-sam" });
     expect(activity[activity.length - 1]).toMatchObject({ kind: "expense-created", actorPersonId: "person-sam", entityId: item.id });
+  });
+
+  it("closes a trip after its actual group ledger is settled", () => {
+    const state = seedState();
+    const debts = simplifyDebts(buildLedger(state, { groupId: "group-coast" }));
+    const settled = {
+      ...state,
+      settlements: [
+        ...state.settlements,
+        ...debts.map((debt, index) => ({
+          id: `settlement-close-${index}`,
+          fromId: debt.fromId,
+          toId: debt.toId,
+          amount: debt.amount,
+          date: "2027-01-19",
+          groupId: "group-coast",
+          createdAt: 1_804_100_000_000 + index,
+          createdBy: "me",
+        })),
+      ],
+    };
+    expect(simplifyDebts(buildLedger(settled, { groupId: "group-coast" }))).toHaveLength(0);
+    const closed = applyFinancialMutation(settled, { type: "setTripStatus", groupId: "group-coast", status: "closed", allowUnreconciled: true }, "me");
+    expect(closed.groups.find((group) => group.id === "group-coast")?.status).toBe("closed");
+  });
+
+  it("keeps trips open while their group ledger still has a balance", () => {
+    expect(() => applyFinancialMutation(seedState(), { type: "setTripStatus", groupId: "group-coast", status: "closed", allowUnreconciled: true }, "me")).toThrow(/repayments/i);
+  });
+
+  it("rejects invalid trip dates and removal of members with financial history", () => {
+    const state = seedState();
+    const group = state.groups.find((item) => item.id === "group-coast")!;
+    expect(() => applyFinancialMutation(state, {
+      type: "updateGroup",
+      group: { ...group, startDate: "2027-01-20", endDate: "2027-01-10" },
+    }, "me")).toThrow(/end date/i);
+    expect(() => applyFinancialMutation(state, {
+      type: "updateGroup",
+      group: { ...group, memberIds: group.memberIds.filter((id) => id !== "person-sam") },
+    }, "me")).toThrow(/history/i);
   });
 
   it("replays an offline outbox in order", () => {
