@@ -1,5 +1,5 @@
-import type { AppState, Expense, Settlement } from "../types";
-import { splitByWeights } from "./money";
+import type { AppState, Expense, Settlement } from "../types.js";
+import { splitByWeights } from "./money.js";
 
 /**
  * Pairwise ledger: ledger[a][b] = cents that `a` owes `b` (net, >= 0 on one
