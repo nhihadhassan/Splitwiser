@@ -8,6 +8,7 @@ import { Avatar } from "./Avatar";
 import { AddExpenseModal } from "./AddExpenseModal";
 import { CategoryIcon, PaymentIcon } from "./Icons";
 import { SocialThread } from "./SocialThread";
+import { ConfirmDialog } from "./Dialog";
 
 type FeedItem =
   | { kind: "expense"; date: string; createdAt: number; expense: Expense }
@@ -31,6 +32,7 @@ export function ExpenseList({
   const { state, dispatch, peopleById, currentPersonId, getToken } = useStore();
   const [openId, setOpenId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Expense | null>(null);
+  const [deleting, setDeleting] = useState<Expense | null>(null);
   const [receiptError, setReceiptError] = useState<string | null>(null);
 
   async function openReceipt(expense: Expense) {
@@ -285,9 +287,7 @@ export function ExpenseList({
                     className="btn-link-danger"
                     onClick={(ev) => {
                       ev.stopPropagation();
-                      if (confirm(`Delete "${e.description}"?`)) {
-                        dispatch({ type: "deleteExpense", expenseId: e.id });
-                      }
+                      setDeleting(e);
                     }}
                   >
                     Delete expense
@@ -300,6 +300,19 @@ export function ExpenseList({
         );
       })}
       {editing && <AddExpenseModal expense={editing} onClose={() => setEditing(null)} />}
+      {deleting && (
+        <ConfirmDialog
+          title="Delete expense?"
+          description={`Delete "${deleting.description}"? This cannot be undone.`}
+          confirmLabel="Delete expense"
+          tone="danger"
+          onCancel={() => setDeleting(null)}
+          onConfirm={() => {
+            dispatch({ type: "deleteExpense", expenseId: deleting.id });
+            setDeleting(null);
+          }}
+        />
+      )}
     </div>
   );
 }

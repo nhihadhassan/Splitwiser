@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Splitwiser private shared expenses</title>
+  <desc id="desc">A warm charcoal ledger design with the Splitwiser mark in muted gold and green.</desc>
+  <defs>
+    <radialGradient id="warm-glow" cx="0" cy="0" r="1" gradientTransform="translate(908 84) rotate(132) scale(530 430)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#82682D" stop-opacity=".30"/>
+      <stop offset="1" stop-color="#191B1D" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="green-glow" cx="0" cy="0" r="1" gradientTransform="translate(170 618) rotate(-47) scale(455 350)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3D8067" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#191B1D" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rule" x1="176" y1="0" x2="1060" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E7BF67" stop-opacity=".34"/>
+      <stop offset=".55" stop-color="#E7BF67" stop-opacity=".10"/>
+      <stop offset="1" stop-color="#E7BF67" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" rx="36" fill="#191B1D"/>
+  <rect width="1200" height="630" rx="36" fill="url(#warm-glow)"/>
+  <rect width="1200" height="630" rx="36" fill="url(#green-glow)"/>
+  <g opacity=".28" stroke="#F0E8D9">
+    <path d="M176 190H1080"/>
+    <path d="M176 266H1080"/>
+    <path d="M176 342H1080"/>
+    <path d="M176 418H1080"/>
+  </g>
+  <path d="M176 190H1080" stroke="url(#rule)" stroke-width="2"/>
+  <g transform="translate(78 77) scale(2.35)">
+    <path d="M7 9C9 5 14 3 20 4h13l-7 8H16c-2 0-3 1-3 3 0 2 2 3 5 3h6l-5 6h-5C8 24 4 21 4 16c0-3 1-5 3-7Z" fill="#E7BF67"/>
+    <path d="M33 31c-2 4-7 6-13 5H7l7-8h10c2 0 3-1 3-3 0-2-2-3-5-3h-5l5-6h5c5 0 9 3 9 8 0 3-1 5-3 7Z" fill="#8BE0B6"/>
+  </g>
+  <text x="176" y="143" fill="#F0E8D9" font-family="Arial, Helvetica, sans-serif" font-size="31" font-weight="700" letter-spacing="7">SPLITWISER</text>
+  <text x="176" y="320" fill="#F0E8D9" font-family="Georgia, 'Times New Roman', serif" font-size="76" font-weight="600">Shared expenses,</text>
+  <text x="176" y="400" fill="#F0E8D9" font-family="Georgia, 'Times New Roman', serif" font-size="76" font-weight="600">kept private.</text>
+  <text x="180" y="481" fill="#CFC4B0" font-family="Arial, Helvetica, sans-serif" font-size="25" letter-spacing="1.2">TRIPS  ·  GROUPS  ·  FRIENDS</text>
+  <g transform="translate(941 458)">
+    <circle cx="0" cy="0" r="28" fill="#E7BF67"/>
+    <circle cx="54" cy="0" r="28" fill="#8BE0B6"/>
+    <circle cx="108" cy="0" r="28" fill="#645C50"/>
+    <path d="M-14 0h28M0-14v28" stroke="#382D18" stroke-width="4" stroke-linecap="round" opacity=".72"/>
+    <path d="m43 1 8 8 16-18" fill="none" stroke="#173C30" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M96 0h24" stroke="#E7DDD0" stroke-width="4" stroke-linecap="round" opacity=".72"/>
+  </g>
+  <rect x="1" y="1" width="1198" height="628" rx="35" fill="none" stroke="#F0E8D9" stroke-opacity=".10" stroke-width="2"/>
+</svg>

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 
 const FOCUSABLE_SELECTOR = [
@@ -15,11 +15,21 @@ export function Modal({
   onClose,
   children,
   footer,
+  description,
+  initialFocusRef,
+  closeOnBackdrop = true,
+  variant = "default",
+  tone = "default",
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  description?: ReactNode;
+  initialFocusRef?: RefObject<HTMLElement | null>;
+  closeOnBackdrop?: boolean;
+  variant?: "default" | "sheet" | "wide";
+  tone?: "default" | "danger";
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -27,6 +37,7 @@ export function Modal({
     document.activeElement instanceof HTMLElement ? document.activeElement : null,
   );
   const titleId = useId();
+  const descriptionId = useId();
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -47,6 +58,7 @@ export function Modal({
 
     if (!dialog?.contains(document.activeElement)) {
       const initialFocus =
+        initialFocusRef?.current ??
         dialog?.querySelector<HTMLElement>("[autofocus]") ??
         dialog?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) ??
         dialog;
@@ -90,21 +102,22 @@ export function Modal({
       }
       returnFocusRef.current?.focus();
     };
-  }, []);
+  }, [initialFocusRef]);
 
   return createPortal(
     <div
-      className="modal-backdrop"
+      className={`modal-backdrop modal-backdrop-${variant}`}
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onCloseRef.current();
+        if (closeOnBackdrop && e.target === e.currentTarget) onCloseRef.current();
       }}
     >
       <div
         ref={dialogRef}
-        className="modal"
+        className={`modal modal-${variant} modal-${tone}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-describedby={description ? descriptionId : undefined}
         tabIndex={-1}
       >
         <div className="modal-header">
@@ -113,7 +126,10 @@ export function Modal({
             ×
           </button>
         </div>
-        <div className="modal-body">{children}</div>
+        <div className="modal-body">
+          {description && <div className="modal-description" id={descriptionId}>{description}</div>}
+          {children}
+        </div>
         {footer && <div className="modal-footer">{footer}</div>}
       </div>
     </div>,

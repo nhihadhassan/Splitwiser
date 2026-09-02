@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useStore } from "../store";
 import {
   buildLedger,
@@ -16,6 +16,13 @@ import { SettleUpModal } from "../components/SettleUpModal";
 import { GroupModal } from "../components/GroupModal";
 import { GroupBadge } from "../components/Icons";
 import { SocialThread } from "../components/SocialThread";
+import { ConfirmDialog, TextPromptDialog } from "../components/Dialog";
+import { NotFoundPage } from "./NotFoundPage";
+
+type LifecycleDialog =
+  | { type: "delete" | "close" | "reopen" }
+  | { type: "close-unreconciled"; message: string }
+  | null;
 
 export function GroupPage() {
   const { groupId } = useParams();
@@ -27,6 +34,7 @@ export function GroupPage() {
   const [editingGroup, setEditingGroup] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "expenses" | "discussion">("overview");
   const [lifecycleError, setLifecycleError] = useState("");
+  const [lifecycleDialog, setLifecycleDialog] = useState<LifecycleDialog>(null);
 
   const group = state.groups.find((g) => g.id === groupId);
 
@@ -35,7 +43,7 @@ export function GroupPage() {
     [state, group],
   );
 
-  if (!group) return <Navigate to="/" replace />;
+  if (!group) return <NotFoundPage />;
 
   const expenses = state.expenses.filter((e) => e.groupId === group.id);
   const settlements = state.settlements.filter((s) => s.groupId === group.id);
@@ -50,53 +58,43 @@ export function GroupPage() {
   }
 
   function deleteGroup() {
-    if (
-      confirm(
-        `Delete "${group!.name}"? This removes the group and all ${expenses.length} of its expenses.`,
-      )
-    ) {
-      dispatch({ type: "deleteGroup", groupId: group!.id });
-      navigate("/");
-    }
+    dispatch({ type: "deleteGroup", groupId: group!.id });
+    navigate("/");
   }
 
   function toggleClosed() {
     if (!group) return;
-    if (group.status === "closed") {
-      const reason = window.prompt(`Why are you reopening this ${group.type === "trip" ? "trip" : "group"}?`);
-      if (!reason?.trim()) return;
-      try {
-        dispatch({ type: "setTripStatus", groupId: group.id, status: "open", reason: reason.trim() });
-        setLifecycleError("");
-      } catch (error) {
-        setLifecycleError(error instanceof Error ? error.message : "This group could not be reopened.");
-      }
-      return;
-    }
-    const canClose = window.confirm(group.type === "trip"
-      ? "Close this trip after confirming repayments are settled. If its reconciliation still has open items, you will be asked to resolve or explicitly skip them."
-      : "Close this group? Its ledger will become read-only.");
-    if (!canClose) return;
+    setLifecycleDialog({ type: group.status === "closed" ? "reopen" : "close" });
+  }
+
+  function closeGroup(allowUnreconciled: boolean) {
     try {
-      dispatch({ type: "setTripStatus", groupId: group.id, status: "closed", allowUnreconciled: false });
+      dispatch({ type: "setTripStatus", groupId: group!.id, status: "closed", allowUnreconciled });
       setLifecycleError("");
+      setLifecycleDialog(null);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "This group could not be closed.";
-      if (/resolve reconciliation/i.test(message)) {
-        const skip = window.confirm("This trip still has unfinished reconciliation items. Close it anyway? They will be locked until you reopen the trip.");
-        if (!skip) {
-          setLifecycleError(message);
-          return;
-        }
-        try {
-          dispatch({ type: "setTripStatus", groupId: group.id, status: "closed", allowUnreconciled: true });
-          setLifecycleError("");
-        } catch (retryError) {
-          setLifecycleError(retryError instanceof Error ? retryError.message : "This trip could not be closed.");
-        }
+      const message = error instanceof Error
+        ? error.message
+        : allowUnreconciled
+          ? "This trip could not be closed."
+          : "This group could not be closed.";
+      if (!allowUnreconciled && /resolve reconciliation/i.test(message)) {
+        setLifecycleDialog({ type: "close-unreconciled", message });
         return;
       }
       setLifecycleError(message);
+      setLifecycleDialog(null);
+    }
+  }
+
+  function reopenGroup(reason: string) {
+    try {
+      dispatch({ type: "setTripStatus", groupId: group!.id, status: "open", reason });
+      setLifecycleError("");
+      setLifecycleDialog(null);
+    } catch (error) {
+      setLifecycleError(error instanceof Error ? error.message : "This group could not be reopened.");
+      setLifecycleDialog(null);
     }
   }
 
@@ -215,7 +213,7 @@ export function GroupPage() {
                 ? `Reopen ${group.type === "trip" ? "trip" : "group"}`
                 : `Close ${group.type === "trip" ? "trip" : "group"}`}
             </button>
-            <button className="btn-link-danger" onClick={deleteGroup}>
+            <button className="btn-link-danger" onClick={() => setLifecycleDialog({ type: "delete" })}>
               Delete group
             </button>
           </div>
@@ -232,6 +230,50 @@ export function GroupPage() {
         <SettleUpModal groupId={group.id} prefill={settling} onClose={() => setSettling(null)} />
       )}
       {editingGroup && <GroupModal group={group} onClose={() => setEditingGroup(false)} />}
+      {lifecycleDialog?.type === "delete" && (
+        <ConfirmDialog
+          title={`Delete ${group.type === "trip" ? "trip" : "group"}?`}
+          description={`Delete "${group.name}" and all ${expenses.length} of its expenses? This cannot be undone.`}
+          confirmLabel={`Delete ${group.type === "trip" ? "trip" : "group"}`}
+          tone="danger"
+          onCancel={() => setLifecycleDialog(null)}
+          onConfirm={deleteGroup}
+        />
+      )}
+      {lifecycleDialog?.type === "close" && (
+        <ConfirmDialog
+          title={`Close this ${group.type === "trip" ? "trip" : "group"}?`}
+          description={group.type === "trip"
+            ? "Confirm repayments are settled before closing. If reconciliation still has open items, you will be asked before they are locked."
+            : "Its ledger will become read-only until the group is reopened."}
+          confirmLabel={`Close ${group.type === "trip" ? "trip" : "group"}`}
+          onCancel={() => setLifecycleDialog(null)}
+          onConfirm={() => closeGroup(false)}
+        />
+      )}
+      {lifecycleDialog?.type === "close-unreconciled" && (
+        <ConfirmDialog
+          title="Close with unfinished reconciliation?"
+          description="This trip still has unfinished reconciliation items. Closing it will lock them until you reopen the trip."
+          confirmLabel="Close anyway"
+          tone="danger"
+          onCancel={() => {
+            setLifecycleError(lifecycleDialog.message);
+            setLifecycleDialog(null);
+          }}
+          onConfirm={() => closeGroup(true)}
+        />
+      )}
+      {lifecycleDialog?.type === "reopen" && (
+        <TextPromptDialog
+          title={`Reopen this ${group.type === "trip" ? "trip" : "group"}`}
+          description="Add a reason for the activity history before making the ledger editable again."
+          label="Reason for reopening"
+          confirmLabel="Reopen"
+          onCancel={() => setLifecycleDialog(null)}
+          onConfirm={reopenGroup}
+        />
+      )}
     </>
   );
 }

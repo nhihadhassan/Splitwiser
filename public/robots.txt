@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /$
+Allow: /favicon.svg
+Allow: /social-share.png
+Disallow: /

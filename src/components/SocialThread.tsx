@@ -4,6 +4,7 @@ import { createSocial, deleteSocial, editSocial, loadSocial, markSocialRead, rea
 import { useStore } from "../store";
 import { relativeTime } from "../utils/dates";
 import { Avatar } from "./Avatar";
+import { TextPromptDialog } from "./Dialog";
 
 const REACTIONS: Reaction["emoji"][] = ["👍", "❤️", "😂", "👀", "✅"];
 
@@ -21,6 +22,7 @@ export function SocialThread({ groupId, scope, scopeId, readOnly = false }: Prop
   const [error, setError] = useState<string | null>(null);
   const [serviceReadOnly, setServiceReadOnly] = useState(!getToken || !navigator.onLine);
   const [saving, setSaving] = useState(false);
+  const [editingItem, setEditingItem] = useState<SocialItem | null>(null);
   const activeUntil = useRef(0);
 
   const refresh = useCallback(async () => {
@@ -97,17 +99,19 @@ export function SocialThread({ groupId, scope, scopeId, readOnly = false }: Prop
     }
   }
 
-  async function updateItem(item: SocialItem, action: "edit" | "delete" | "react", emoji?: Reaction["emoji"]) {
+  async function updateItem(
+    item: SocialItem,
+    action: "edit" | "delete" | "react",
+    emoji?: Reaction["emoji"],
+    nextBody?: string,
+  ) {
     if (!getToken) return;
     try {
       let updated: SocialItem;
       if (action === "delete") updated = await deleteSocial(getToken, item.id);
       else if (action === "react" && emoji) updated = await reactSocial(getToken, item.id, emoji);
-      else {
-        const next = prompt("Edit message", item.body)?.trim();
-        if (!next) return;
-        updated = await editSocial(getToken, item.id, next);
-      }
+      else if (nextBody) updated = await editSocial(getToken, item.id, nextBody);
+      else return;
       setItems((current) => current.map((entry) => entry.id === updated.id ? updated : entry));
       activeUntil.current = Date.now() + 60_000;
     } catch (reason) {
@@ -117,37 +121,55 @@ export function SocialThread({ groupId, scope, scopeId, readOnly = false }: Prop
 
   const disabled = readOnly || serviceReadOnly;
   return (
-    <section className="social-thread" aria-label={scope === "group" ? "Group discussion" : "Expense comments"}>
-      <div className="social-list" aria-live="polite">
-        {visibleItems.length === 0 && <p className="empty-inline">No messages yet.</p>}
-        {visibleItems.map((item) => {
-          const author = peopleById.get(item.authorPersonId);
-          const canManage = item.authorPersonId === currentPersonId || session.capabilities.moderateSocial;
-          return (
-            <article className="social-item" key={item.id}>
-              <Avatar person={author} size={28} />
-              <div>
-                <div className="social-meta"><strong>{item.authorPersonId === currentPersonId ? "You" : author?.name}</strong><span>{relativeTime(item.createdAt)}</span></div>
-                <p className={item.deletedAt ? "social-tombstone" : ""}>{item.deletedAt ? "Message deleted" : item.body}</p>
-                {!item.deletedAt && <div className="reaction-row">
-                  {REACTIONS.map((emoji) => {
-                    const reaction = item.reactions.find((entry) => entry.emoji === emoji);
-                    return <button key={emoji} type="button" aria-label={`React ${emoji}`} aria-pressed={reaction?.personIds.includes(currentPersonId) ?? false} onClick={() => void updateItem(item, "react", emoji)} disabled={disabled}>{emoji}{reaction?.personIds.length ? ` ${reaction.personIds.length}` : ""}</button>;
-                  })}
-                  {canManage && <button type="button" onClick={() => void updateItem(item, "edit")} disabled={disabled}>Edit</button>}
-                  {canManage && <button type="button" onClick={() => void updateItem(item, "delete")} disabled={disabled}>Delete</button>}
-                </div>}
-              </div>
-            </article>
-          );
-        })}
-      </div>
-      {error && <p className="form-error" role="status">{error}</p>}
-      <div className="social-composer">
-        <label className="sr-only" htmlFor={`social-${scopeId}`}>Write a message</label>
-        <textarea id={`social-${scopeId}`} rows={2} maxLength={2000} value={body} onChange={(event) => setBody(event.target.value)} placeholder={disabled ? "Discussion is temporarily read-only" : "Write a message"} disabled={disabled} />
-        <button className="btn btn-primary" type="button" onClick={() => void submit()} disabled={disabled || saving || !body.trim()}>{saving ? "Sending…" : "Send"}</button>
-      </div>
-    </section>
+    <>
+      <section className="social-thread" aria-label={scope === "group" ? "Group discussion" : "Expense comments"}>
+        <div className="social-list" aria-live="polite">
+          {visibleItems.length === 0 && <p className="empty-inline">No messages yet.</p>}
+          {visibleItems.map((item) => {
+            const author = peopleById.get(item.authorPersonId);
+            const canManage = item.authorPersonId === currentPersonId || session.capabilities.moderateSocial;
+            return (
+              <article className="social-item" key={item.id}>
+                <Avatar person={author} size={28} />
+                <div>
+                  <div className="social-meta"><strong>{item.authorPersonId === currentPersonId ? "You" : author?.name}</strong><span>{relativeTime(item.createdAt)}</span></div>
+                  <p className={item.deletedAt ? "social-tombstone" : ""}>{item.deletedAt ? "Message deleted" : item.body}</p>
+                  {!item.deletedAt && <div className="reaction-row">
+                    {REACTIONS.map((emoji) => {
+                      const reaction = item.reactions.find((entry) => entry.emoji === emoji);
+                      return <button key={emoji} type="button" aria-label={`React ${emoji}`} aria-pressed={reaction?.personIds.includes(currentPersonId) ?? false} onClick={() => void updateItem(item, "react", emoji)} disabled={disabled}>{emoji}{reaction?.personIds.length ? ` ${reaction.personIds.length}` : ""}</button>;
+                    })}
+                    {canManage && <button type="button" onClick={() => setEditingItem(item)} disabled={disabled}>Edit</button>}
+                    {canManage && <button type="button" onClick={() => void updateItem(item, "delete")} disabled={disabled}>Delete</button>}
+                  </div>}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+        {error && <p className="form-error" role="status">{error}</p>}
+        <div className="social-composer">
+          <label className="sr-only" htmlFor={`social-${scopeId}`}>Write a message</label>
+          <textarea id={`social-${scopeId}`} rows={2} maxLength={2000} value={body} onChange={(event) => setBody(event.target.value)} placeholder={disabled ? "Discussion is temporarily read-only" : "Write a message"} disabled={disabled} />
+          <button className="btn btn-primary" type="button" onClick={() => void submit()} disabled={disabled || saving || !body.trim()}>{saving ? "Sending…" : "Send"}</button>
+        </div>
+      </section>
+      {editingItem && (
+        <TextPromptDialog
+          title="Edit message"
+          description="Update the message for everyone in this discussion."
+          label="Message"
+          confirmLabel="Save changes"
+          initialValue={editingItem.body}
+          multiline
+          onCancel={() => setEditingItem(null)}
+          onConfirm={(nextBody) => {
+            const item = editingItem;
+            setEditingItem(null);
+            void updateItem(item, "edit", undefined, nextBody);
+          }}
+        />
+      )}
+    </>
   );
 }

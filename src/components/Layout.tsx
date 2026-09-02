@@ -12,6 +12,7 @@ import { GroupModal } from "./GroupModal";
 import { InvitationModal } from "./InvitationModal";
 import { BrandMark, GroupBadge, NavIcon } from "./Icons";
 import { loadSocialUnreadSummary } from "../social";
+import { Modal } from "./Modal";
 
 export function Layout() {
   const { state, peopleById, currentPersonId, session, undo, getToken } = useStore();
@@ -152,18 +153,14 @@ export function Layout() {
       </nav>
 
       {showingMore && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowingMore(false)}>
-          <section className="mobile-more-sheet" role="dialog" aria-modal="true" aria-labelledby="more-title" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="modal-head">
-              <h2 id="more-title">More</h2>
-              <button className="icon-btn" type="button" aria-label="Close" onClick={() => setShowingMore(false)}>×</button>
-            </div>
+        <Modal title="More" variant="sheet" onClose={() => setShowingMore(false)}>
+          <div className="mobile-more-sheet">
             <NavLink to="/activity?type=expense" onClick={() => setShowingMore(false)}><NavIcon type="expenses" /> All expenses</NavLink>
             <NavLink to="/?settle=1" onClick={() => setShowingMore(false)}><NavIcon type="settlements" /> Settlements</NavLink>
             {session.capabilities.manageInvites && <button type="button" onClick={() => { setShowingMore(false); setInviting(true); }}><NavIcon type="groups" /> Invitations</button>}
             {session.capabilities.reconcile && <NavLink to="/reconciliation" onClick={() => setShowingMore(false)}><NavIcon type="reconciliation" /> Advanced reconciliation</NavLink>}
-          </section>
-        </div>
+          </div>
+        </Modal>
       )}
 
       {undo && (

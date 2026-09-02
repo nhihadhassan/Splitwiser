@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Navigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useStore } from "../store";
 import { buildLedger, pairBalance } from "../utils/balances";
 import { formatMoney } from "../utils/money";
@@ -7,6 +7,7 @@ import { Avatar } from "../components/Avatar";
 import { ExpenseList } from "../components/ExpenseList";
 import { AddExpenseModal } from "../components/AddExpenseModal";
 import { SettleUpModal } from "../components/SettleUpModal";
+import { NotFoundPage } from "./NotFoundPage";
 
 export function FriendPage() {
   const { friendId } = useParams();
@@ -23,7 +24,7 @@ export function FriendPage() {
     return -pairBalance(ledger, currentPersonId, friend.id);
   }, [currentPersonId, state, friend]);
 
-  if (!friend || friend.id === currentPersonId) return <Navigate to="/" replace />;
+  if (!friend || friend.id === currentPersonId) return <NotFoundPage />;
 
   const expenses = state.expenses.filter(
     (e) =>

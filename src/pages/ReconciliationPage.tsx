@@ -36,6 +36,8 @@ import {
   type ImportPreviewRow,
 } from "../reconciliation";
 import { centsToInput, formatMoney, parseMoney } from "../utils/money";
+import { TextPromptDialog } from "../components/Dialog";
+import { Modal } from "../components/Modal";
 import "./ReconciliationPage.css";
 
 type QueueTab = "unmatched" | "suggested" | "exception" | "reconciled" | "excluded";
@@ -110,6 +112,8 @@ export function ReconciliationPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [showNewReconciliation, setShowNewReconciliation] = useState(false);
   const [showMergePeriods, setShowMergePeriods] = useState(false);
+  const [showSaveView, setShowSaveView] = useState(false);
+  const [showReopenPeriod, setShowReopenPeriod] = useState(false);
   const [advanced, setAdvanced] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const lastLeftIndex = useRef<number | null>(null);
@@ -460,12 +464,15 @@ export function ReconciliationPage() {
 
   function saveView() {
     if (!query.trim()) return;
-    const name = window.prompt("Name this saved search", query.trim());
-    if (!name) return;
+    setShowSaveView(true);
+  }
+
+  function commitSavedView(name: string) {
     updateWorkspace({
       ...workspace,
       savedViews: [...workspace.savedViews, { id: uid("view"), name, query, queue }],
     });
+    setShowSaveView(false);
   }
 
   function closePeriod() {
@@ -482,14 +489,13 @@ export function ReconciliationPage() {
     updateWorkspace(withAudit(next, "close", `Closed ${currentMeta.name} reconciliation`, []));
   }
 
-  function reopenPeriod() {
-    const reason = window.prompt("Why are you reopening this trip?");
-    if (!reason) return;
+  function reopenPeriod(reason: string) {
     const next = {
       ...workspace,
       periods: workspace.periods.map((item) => item.tripId === trip ? { ...item, status: "open" as const, reopenedAt: new Date().toISOString(), closeSnapshot: undefined } : item),
     };
     updateWorkspace(withAudit(next, "reopen", `Reopened trip: ${reason}`, []));
+    setShowReopenPeriod(false);
   }
 
   function archivePeriod() {
@@ -978,7 +984,7 @@ export function ReconciliationPage() {
           {isArchived
             ? <button type="button" onClick={revisitPeriod}>Revisit reconciliation</button>
             : isClosed
-              ? <><button type="button" onClick={reopenPeriod}>Reopen with reason</button><button type="button" onClick={archivePeriod}>Archive for reference</button></>
+              ? <><button type="button" onClick={() => setShowReopenPeriod(true)}>Reopen with reason</button><button type="button" onClick={archivePeriod}>Archive for reference</button></>
             : <button type="button" className="recon-confirm" disabled={!canClose} onClick={closePeriod}>Close and snapshot</button>}
           <button type="button" onClick={() => setShowActivity(!showActivity)}>{showActivity ? "Hide" : "View"} activity</button>
         </div>
@@ -993,6 +999,27 @@ export function ReconciliationPage() {
         </section>
       )}
       {showNewReconciliation && <NewReconciliationDialog onClose={() => setShowNewReconciliation(false)} onCreate={createReconciliation} />}
+      {showSaveView && (
+        <TextPromptDialog
+          title="Save this view"
+          description="Give this search a short name so you can return to it later."
+          label="View name"
+          confirmLabel="Save view"
+          initialValue={query.trim()}
+          onCancel={() => setShowSaveView(false)}
+          onConfirm={commitSavedView}
+        />
+      )}
+      {showReopenPeriod && (
+        <TextPromptDialog
+          title="Reopen this trip"
+          description="Add a reason for the audit history before unlocking this reconciliation."
+          label="Reason for reopening"
+          confirmLabel="Reopen"
+          onCancel={() => setShowReopenPeriod(false)}
+          onConfirm={reopenPeriod}
+        />
+      )}
       {showMergePeriods && (
         <MergePeriodsDialog
           currentName={currentMeta.name}
@@ -1424,34 +1451,32 @@ function MergePeriodsDialog({
   onMerge: (targetTripId: ReconciliationTripId) => void;
 }) {
   const [targetTripId, setTargetTripId] = useState(periods[0]?.tripId ?? "");
+  const targetRef = useRef<HTMLSelectElement>(null);
 
   return (
-    <div className="recon-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section className="recon-dialog" role="dialog" aria-modal="true" aria-labelledby="merge-periods-title">
-        <header><div><span className="eyebrow">Duplicate trip</span><h2 id="merge-periods-title">Merge "{currentName}" into…</h2></div><button type="button" onClick={onClose} aria-label="Close">×</button></header>
-        <p>Every transaction, match, and exception from "{currentName}" moves into the trip you pick below, and this period is removed. Nothing is deleted — history moves with it.</p>
-        <label>
+    <Modal
+      title={`Merge "${currentName}" into another trip`}
+      description={`Every transaction, match, and exception from "${currentName}" moves into the trip you pick below. Nothing is deleted; history moves with it.`}
+      variant="wide"
+      onClose={onClose}
+      initialFocusRef={targetRef}
+      footer={(
+        <>
+          <button className="btn btn-secondary" type="button" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" type="button" disabled={!targetTripId} onClick={() => targetTripId && onMerge(targetTripId)}>Merge</button>
+        </>
+      )}
+    >
+        <label className="field recon-dialog-field">
           Merge into
-          <select value={targetTripId} onChange={(event) => setTargetTripId(event.target.value)}>
+          <select ref={targetRef} value={targetTripId} onChange={(event) => setTargetTripId(event.target.value)}>
             {periods.map((item) => {
               const meta = periodMeta(item, groups, transactions);
               return <option key={item.tripId} value={item.tripId}>{meta.name} · {meta.dates}</option>;
             })}
           </select>
         </label>
-        <footer>
-          <button type="button" onClick={onClose}>Cancel</button>
-          <button
-            type="button"
-            className="recon-confirm"
-            disabled={!targetTripId}
-            onClick={() => targetTripId && onMerge(targetTripId)}
-          >
-            Merge
-          </button>
-        </footer>
-      </section>
-    </div>
+    </Modal>
   );
 }
 
@@ -1465,6 +1490,7 @@ function NewReconciliationDialog({
   const [name, setName] = useState("");
   const [dates, setDates] = useState("");
   const [error, setError] = useState("");
+  const nameRef = useRef<HTMLInputElement>(null);
 
   function create() {
     if (!name.trim()) {
@@ -1475,15 +1501,22 @@ function NewReconciliationDialog({
   }
 
   return (
-    <div className="recon-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section className="recon-dialog" role="dialog" aria-modal="true" aria-labelledby="new-reconciliation-title">
-        <header><div><span className="eyebrow">New workspace</span><h2 id="new-reconciliation-title">Create a reconciliation</h2></div><button type="button" onClick={onClose} aria-label="Close">×</button></header>
-        <p>Start a private workspace for a new trip or statement period. Import the trip ledger and bank files when you are ready.</p>
-        <label>Name<input value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Mexico 2027" autoFocus /></label>
-        <label>Dates<input value={dates} onChange={(event) => setDates(event.target.value)} placeholder="e.g. Feb 3 – Feb 18, 2027" /></label>
+    <Modal
+      title="Create a reconciliation"
+      description="Start a private workspace for a new trip or statement period. Import the trip ledger and bank files when you are ready."
+      variant="wide"
+      onClose={onClose}
+      initialFocusRef={nameRef}
+      footer={(
+        <>
+          <button className="btn btn-secondary" type="button" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" type="button" onClick={create}>Create reconciliation</button>
+        </>
+      )}
+    >
+        <label className="field recon-dialog-field">Name<input ref={nameRef} value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Mexico 2027" /></label>
+        <label className="field recon-dialog-field">Dates<input value={dates} onChange={(event) => setDates(event.target.value)} placeholder="e.g. Feb 3 to Feb 18, 2027" /></label>
         {error && <div className="form-error" role="alert">{error}</div>}
-        <footer><button type="button" onClick={onClose}>Cancel</button><button type="button" className="recon-confirm" onClick={create}>Create reconciliation</button></footer>
-      </section>
-    </div>
+    </Modal>
   );
 }
