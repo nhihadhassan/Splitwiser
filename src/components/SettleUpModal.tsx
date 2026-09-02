@@ -77,10 +77,10 @@ export function SettleUpModal({ onClose, groupId, prefill }: Props) {
       onClose={onClose}
       footer={
         <>
-          <button className="btn btn-secondary" onClick={onClose}>
+          <button className="btn btn-secondary" type="button" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn btn-primary" onClick={save}>
+          <button className="btn btn-primary" type="button" onClick={save}>
             Record payment
           </button>
         </>

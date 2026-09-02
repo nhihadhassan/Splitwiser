@@ -5,7 +5,7 @@ import { useStore } from "../store";
 import { balancesWith, buildLedger } from "../utils/balances";
 import { formatMoney } from "../utils/money";
 import { Avatar } from "./Avatar";
-import { AddExpenseModal } from "./AddExpenseModal";
+import { DeferredAddExpenseModal, preloadAddExpenseModal } from "./DeferredAddExpenseModal";
 import { AddFriendModal } from "./AddFriendModal";
 import { CloudStatusBadge } from "./CloudStatusBadge";
 import { GroupModal } from "./GroupModal";
@@ -50,6 +50,10 @@ export function Layout() {
         {showGlobalAddExpense && (
           <button
             className="btn btn-secondary top-action"
+            type="button"
+            onPointerEnter={preloadAddExpenseModal}
+            onFocus={preloadAddExpenseModal}
+            onPointerDown={preloadAddExpenseModal}
             onClick={() => setAddingExpense(true)}
             aria-label="Add expense"
           >
@@ -138,7 +142,15 @@ export function Layout() {
           <span><NavIcon type="groups" /></span>
           Groups
         </NavLink>
-        <button className="mobile-add" type="button" onClick={() => setAddingExpense(true)} aria-label="Add expense">
+        <button
+          className="mobile-add"
+          type="button"
+          onPointerEnter={preloadAddExpenseModal}
+          onFocus={preloadAddExpenseModal}
+          onPointerDown={preloadAddExpenseModal}
+          onClick={() => setAddingExpense(true)}
+          aria-label="Add expense"
+        >
           <span aria-hidden="true">+</span>
           Add
         </button>
@@ -172,7 +184,7 @@ export function Layout() {
 
       {addingFriend && <AddFriendModal onClose={() => setAddingFriend(false)} />}
       {addingGroup && <GroupModal onClose={() => setAddingGroup(false)} />}
-      {addingExpense && <AddExpenseModal onClose={() => setAddingExpense(false)} />}
+      {addingExpense && <DeferredAddExpenseModal onClose={() => setAddingExpense(false)} />}
       {inviting && <InvitationModal onClose={() => setInviting(false)} />}
     </>
   );

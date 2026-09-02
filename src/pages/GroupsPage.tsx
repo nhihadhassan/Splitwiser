@@ -4,7 +4,7 @@ import { useStore } from "../store";
 import { buildLedger, netBalances } from "../utils/balances";
 import { formatMoney } from "../utils/money";
 import { Avatar } from "../components/Avatar";
-import { AddExpenseModal } from "../components/AddExpenseModal";
+import { DeferredAddExpenseModal, preloadAddExpenseModal } from "../components/DeferredAddExpenseModal";
 import { GroupModal } from "../components/GroupModal";
 import { GroupBadge } from "../components/Icons";
 
@@ -82,7 +82,15 @@ export function GroupsPage() {
                   <Link className="btn btn-secondary" to={`/groups/${group.id}`}>
                     Open
                   </Link>
-                  <button className="btn btn-primary" disabled={group.status === "closed"} onClick={() => setAddingExpenseFor(group.id)}>
+                  <button
+                    className="btn btn-primary"
+                    type="button"
+                    disabled={group.status === "closed"}
+                    onPointerEnter={preloadAddExpenseModal}
+                    onFocus={preloadAddExpenseModal}
+                    onPointerDown={preloadAddExpenseModal}
+                    onClick={() => setAddingExpenseFor(group.id)}
+                  >
                     Add expense
                   </button>
                 </div>
@@ -93,7 +101,7 @@ export function GroupsPage() {
       </main>
       {addingGroup && <GroupModal onClose={() => setAddingGroup(false)} />}
       {addingExpenseFor && (
-        <AddExpenseModal groupId={addingExpenseFor} onClose={() => setAddingExpenseFor(null)} />
+        <DeferredAddExpenseModal groupId={addingExpenseFor} onClose={() => setAddingExpenseFor(null)} />
       )}
     </>
   );

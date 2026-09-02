@@ -12,9 +12,14 @@
     }
   ],
   "rewrites": [
-    {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
-    }
+    { "source": "/activity", "destination": "/index.html" },
+    { "source": "/all", "destination": "/index.html" },
+    { "source": "/groups", "destination": "/index.html" },
+    { "source": "/groups/:groupId", "destination": "/index.html" },
+    { "source": "/friends/:friendId", "destination": "/index.html" },
+    { "source": "/settlements", "destination": "/index.html" },
+    { "source": "/reconciliation", "destination": "/index.html" },
+    { "source": "/join", "destination": "/index.html" },
+    { "source": "/join/:path*", "destination": "/index.html" }
   ]
 }

@@ -8,7 +8,7 @@ import { today } from "../utils/dates";
 import { Modal } from "./Modal";
 import { Avatar } from "./Avatar";
 import { DatePicker } from "./DatePicker";
-import { prepareReceiptImage, scanReceipt, type ParsedReceipt } from "../receiptOcr";
+import type { ParsedReceipt } from "../receiptOcr";
 
 const METHOD_LABELS: { id: SplitMethod; label: string }[] = [
   { id: "equally", label: "Equally" },
@@ -17,7 +17,7 @@ const METHOD_LABELS: { id: SplitMethod; label: string }[] = [
   { id: "shares", label: "Shares" },
 ];
 
-interface Props {
+export interface AddExpenseModalProps {
   onClose: () => void;
   /** preselect a group */
   groupId?: string | null;
@@ -27,7 +27,7 @@ interface Props {
   expense?: Expense;
 }
 
-export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) {
+export function AddExpenseModal({ onClose, groupId, friendId, expense }: AddExpenseModalProps) {
   const { state, dispatch, peopleById, currentPersonId, getToken, session } = useStore();
   const fieldId = useId();
   const initialGroupId = expense?.groupId ?? groupId ?? state.groups.find((item) => item.status !== "closed" && item.memberIds.includes(currentPersonId))?.id ?? "";
@@ -207,6 +207,7 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: Props) 
     setError("");
     setScanProgress(0);
     try {
+      const { prepareReceiptImage, scanReceipt } = await import("../receiptOcr");
       const prepared = await prepareReceiptImage(file);
       const result = await scanReceipt(prepared.blob, setScanProgress);
       setPreparedReceipt({ ...prepared, fileName: file.name, id: uid() });

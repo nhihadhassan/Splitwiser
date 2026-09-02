@@ -5,7 +5,7 @@ import { buildLedger, pairBalance } from "../utils/balances";
 import { formatMoney } from "../utils/money";
 import { Avatar } from "../components/Avatar";
 import { ExpenseList } from "../components/ExpenseList";
-import { AddExpenseModal } from "../components/AddExpenseModal";
+import { DeferredAddExpenseModal, preloadAddExpenseModal } from "../components/DeferredAddExpenseModal";
 import { SettleUpModal } from "../components/SettleUpModal";
 import { NotFoundPage } from "./NotFoundPage";
 
@@ -47,7 +47,14 @@ export function FriendPage() {
           <h1>
             <Avatar person={friend} size={34} /> {friend.name}
           </h1>
-          <button className="btn btn-primary" onClick={() => setAddingExpense(true)}>
+          <button
+            className="btn btn-primary"
+            type="button"
+            onPointerEnter={preloadAddExpenseModal}
+            onFocus={preloadAddExpenseModal}
+            onPointerDown={preloadAddExpenseModal}
+            onClick={() => setAddingExpense(true)}
+          >
             Add expense
           </button>
           <button className="btn btn-primary" onClick={() => setSettling(true)}>
@@ -93,7 +100,7 @@ export function FriendPage() {
       </aside>
 
       {addingExpense && (
-        <AddExpenseModal friendId={friend.id} onClose={() => setAddingExpense(false)} />
+        <DeferredAddExpenseModal friendId={friend.id} onClose={() => setAddingExpense(false)} />
       )}
       {settling && (
         <SettleUpModal

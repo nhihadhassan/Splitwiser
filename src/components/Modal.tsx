@@ -122,7 +122,7 @@ export function Modal({
       >
         <div className="modal-header">
           <h2 id={titleId}>{title}</h2>
-          <button className="close" onClick={() => onCloseRef.current()} aria-label={`Close ${title}`}>
+          <button type="button" className="close" onClick={() => onCloseRef.current()} aria-label={`Close ${title}`}>
             ×
           </button>
         </div>

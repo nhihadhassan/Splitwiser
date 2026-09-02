@@ -5,7 +5,7 @@ import { formatMoney, splitEqually } from "../utils/money";
 import { monthDay, monthLabel } from "../utils/dates";
 import { CATEGORY_META } from "../utils/categories";
 import { Avatar } from "./Avatar";
-import { AddExpenseModal } from "./AddExpenseModal";
+import { DeferredAddExpenseModal, preloadAddExpenseModal } from "./DeferredAddExpenseModal";
 import { CategoryIcon, PaymentIcon } from "./Icons";
 import { SocialThread } from "./SocialThread";
 import { ConfirmDialog } from "./Dialog";
@@ -33,6 +33,7 @@ export function ExpenseList({
   const [openId, setOpenId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Expense | null>(null);
   const [deleting, setDeleting] = useState<Expense | null>(null);
+  const [deletingSettlement, setDeletingSettlement] = useState<Settlement | null>(null);
   const [receiptError, setReceiptError] = useState<string | null>(null);
 
   async function openReceipt(expense: Expense) {
@@ -128,8 +129,10 @@ export function ExpenseList({
                 </div>
                 {!settlementReadOnly && <button
                   className="btn-link-danger"
+                  type="button"
+                  aria-label={`Delete payment from ${from?.id === currentPersonId ? "you" : from?.name ?? "member"} to ${to?.id === currentPersonId ? "you" : to?.name ?? "member"}`}
                   title="Delete payment"
-                  onClick={() => dispatch({ type: "deleteSettlement", settlementId: s.id })}
+                  onClick={() => setDeletingSettlement(s)}
                 >
                   ×
                 </button>}
@@ -276,6 +279,10 @@ export function ExpenseList({
                 {!expenseReadOnly && <div className="actions">
                   <button
                     className="btn btn-secondary"
+                    type="button"
+                    onPointerEnter={preloadAddExpenseModal}
+                    onFocus={preloadAddExpenseModal}
+                    onPointerDown={preloadAddExpenseModal}
                     onClick={(ev) => {
                       ev.stopPropagation();
                       setEditing(e);
@@ -299,7 +306,7 @@ export function ExpenseList({
           </div>
         );
       })}
-      {editing && <AddExpenseModal expense={editing} onClose={() => setEditing(null)} />}
+      {editing && <DeferredAddExpenseModal expense={editing} onClose={() => setEditing(null)} />}
       {deleting && (
         <ConfirmDialog
           title="Delete expense?"
@@ -310,6 +317,19 @@ export function ExpenseList({
           onConfirm={() => {
             dispatch({ type: "deleteExpense", expenseId: deleting.id });
             setDeleting(null);
+          }}
+        />
+      )}
+      {deletingSettlement && (
+        <ConfirmDialog
+          title="Delete payment?"
+          description={`Delete the ${formatMoney(deletingSettlement.amount)} payment? This cannot be undone.`}
+          confirmLabel="Delete payment"
+          tone="danger"
+          onCancel={() => setDeletingSettlement(null)}
+          onConfirm={() => {
+            dispatch({ type: "deleteSettlement", settlementId: deletingSettlement.id });
+            setDeletingSettlement(null);
           }}
         />
       )}

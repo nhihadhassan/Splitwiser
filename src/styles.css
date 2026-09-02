@@ -1791,7 +1791,7 @@ a {
 }
 
 .date-picker-weekdays,
-.date-picker-days {
+.date-picker-week {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 3px;
@@ -1805,8 +1805,13 @@ a {
   text-align: center;
 }
 
+.date-picker-days {
+  display: grid;
+  gap: 3px;
+}
+
 .date-picker-days button,
-.date-picker-days > span {
+.date-picker-week > span {
   aspect-ratio: 1;
 }
 
