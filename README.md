@@ -1,5 +1,8 @@
 # Splitwiser
 
+**Live:** https://splitwiser-xi.vercel.app · *(invitation-only — the live app opens a sign-in wall;
+run it locally for a synthetic demo workspace, see below)*
+
 Splitwiser is a private, invitation-only shared-expense app for small groups. It keeps money in integer cents, supports exact payer and owed-share accounting, preserves closed-group history, and includes an owner-only reconciliation workspace.
 
 This public repository contains synthetic people, groups, expenses, statements, and receipts only. Production financial data and identity links live in private infrastructure and must never be committed.
@@ -15,6 +18,17 @@ This public repository contains synthetic people, groups, expenses, statements, 
 - Browser-only Tesseract receipt OCR with deterministic merchant, date, and total suggestions
 - Authenticated private receipt attachments capped at 1 MB and 1600 px
 - Simple reconciliation review plus the preserved advanced dual-ledger workspace
+
+## Stack
+
+| Concern | Choice |
+| --- | --- |
+| Framework | Next.js (App Router), React, TypeScript |
+| Auth | Clerk, with authorized-party validation on every financial API |
+| Storage | Vercel Blob (private receipts), Upstash Redis / KV (social data) |
+| Offline | Account-scoped IndexedDB snapshots plus a mutation outbox |
+| OCR | Tesseract, running entirely in the browser |
+| Money | Integer cents throughout — no floating-point arithmetic on balances |
 
 ## Local development
 
@@ -50,3 +64,7 @@ Release verification must use an isolated synthetic preview workspace. Never run
 ## Security boundary
 
 Every financial API requires a Clerk session and validates authorized parties. Members receive only groups they belong to and never receive account links or reconciliation data. Social data is independently group-authorized; Redis failure leaves financial features operational and makes discussion read-only. Receipts are delivered only through membership-checking Functions.
+
+## Licence
+
+Released under the [MIT License](LICENSE).
