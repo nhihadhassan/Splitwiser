@@ -81,7 +81,7 @@ export function SettleUpModal({ onClose, groupId, prefill }: Props) {
             Cancel
           </button>
           <button className="btn btn-primary" type="button" onClick={save}>
-            Record payment
+            {group && remainingDebts.length === 0 ? "Record manual payment" : "Record payment"}
           </button>
         </>
       }
@@ -93,7 +93,7 @@ export function SettleUpModal({ onClose, groupId, prefill }: Props) {
             <strong>Remaining group balance</strong>
             <span>
               {remainingDebts.length === 0
-                ? "This group is fully settled."
+                ? "No repayment is currently due. Recording a manual payment will change the group balances."
                 : remainingDebts.length === 1
                   ? "Use the full outstanding amount."
                   : "Choose an outstanding repayment."}

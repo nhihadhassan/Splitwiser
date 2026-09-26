@@ -17,6 +17,7 @@ import { GroupModal } from "../components/GroupModal";
 import { GroupBadge } from "../components/Icons";
 import { SocialThread } from "../components/SocialThread";
 import { ConfirmDialog, TextPromptDialog } from "../components/Dialog";
+import { Modal } from "../components/Modal";
 import { NotFoundPage } from "./NotFoundPage";
 
 type LifecycleDialog =
@@ -289,11 +290,11 @@ export function GroupPage() {
       )}
       {editingGroup && <GroupModal group={group} onClose={() => setEditingGroup(false)} />}
       {lifecycleDialog?.type === "delete" && (
-        <ConfirmDialog
-          title={`Delete ${group.type === "trip" ? "trip" : "group"}?`}
-          description={`Delete "${group.name}" and all ${expenses.length} of its expenses? This cannot be undone.`}
-          confirmLabel={`Delete ${group.type === "trip" ? "trip" : "group"}`}
-          tone="danger"
+        <DeleteGroupDialog
+          name={group.name}
+          type={group.type === "trip" ? "trip" : "group"}
+          expenseCount={expenses.length}
+          settlementCount={settlements.length}
           onCancel={() => setLifecycleDialog(null)}
           onConfirm={deleteGroup}
         />
@@ -333,5 +334,47 @@ export function GroupPage() {
         />
       )}
     </>
+  );
+}
+
+function DeleteGroupDialog({
+  name,
+  type,
+  expenseCount,
+  settlementCount,
+  onCancel,
+  onConfirm,
+}: {
+  name: string;
+  type: "trip" | "group";
+  expenseCount: number;
+  settlementCount: number;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const [confirmation, setConfirmation] = useState("");
+  const confirmationInput = useRef<HTMLInputElement>(null);
+  const title = `Permanently delete ${type}?`;
+  return (
+    <Modal
+      title={title}
+      description={`This permanently deletes “${name}”, its ${expenseCount} expense${expenseCount === 1 ? "" : "s"}, ${settlementCount} payment${settlementCount === 1 ? "" : "s"}, and reconciliation links to those expenses. This cannot be undone. Close the ${type} to keep its history.`}
+      tone="danger"
+      onClose={onCancel}
+      initialFocusRef={confirmationInput}
+      footer={(
+        <>
+          <button className="btn btn-secondary" type="button" onClick={onCancel}>Cancel</button>
+          <button className="btn btn-danger" type="button" onClick={onConfirm} disabled={confirmation !== name}>
+            Permanently delete {type}
+          </button>
+        </>
+      )}
+    >
+      <label className="field">
+        <span>Type <strong>{name}</strong> to confirm</span>
+        <input ref={confirmationInput} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off" />
+      </label>
+    </Modal>
   );
 }

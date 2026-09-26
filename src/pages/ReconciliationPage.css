@@ -266,6 +266,27 @@
   text-align: left;
 }
 
+.recon-saved-view-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.recon-saved-view-item button:first-child {
+  flex: 1;
+}
+
+.recon-saved-view-item button:last-child {
+  color: var(--color-text-tertiary);
+  font-size: 11px;
+}
+
+.recon-saved-view-empty {
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  padding: 10px;
+}
+
 .recon-more input {
   display: none;
 }

@@ -365,7 +365,7 @@ export interface ReconciliationWorkspace {
   exceptions: ReconciliationException[];
   auditEvents: ReconciliationAuditEvent[];
   periods: ReconciliationPeriod[];
-  savedViews: Array<{ id: string; name: string; query: string; queue: ReconciliationQueue }>;
+  savedViews: Array<{ id: string; name: string; query: string; queue: ReconciliationQueue; tripId?: ReconciliationTripId }>;
   importMappings: Array<{ id: string; name: string; sourceType: string; columns: Record<string, string> }>;
 }
 

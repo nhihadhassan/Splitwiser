@@ -23,18 +23,43 @@ function isoDate(timestamp: number): string {
 
 export function ActivityPage() {
   const { state, peopleById, currentPersonId, getToken } = useStore();
-  const [searchParams] = useSearchParams();
-  const [groupFilter, setGroupFilter] = useState("all");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [groupFilter, setGroupFilter] = useState(() => searchParams.get("group") || "all");
   const [kindFilter, setKindFilter] = useState<"all" | "expenses" | "payments" | "changes" | "social">(
     searchParams.get("type") === "expense" ? "expenses" : "all",
   );
   const [socialItems, setSocialItems] = useState<SocialItem[]>([]);
   const [socialUnread, setSocialUnread] = useState(0);
   const requestedType = searchParams.get("type");
+  const requestedGroup = searchParams.get("group");
 
   useEffect(() => {
-    setKindFilter(requestedType === "expense" ? "expenses" : "all");
-  }, [requestedType]);
+    const nextType = requestedType === "expense" ? "expenses"
+      : requestedType === "payments" || requestedType === "changes" || requestedType === "social" ? requestedType
+        : "all";
+    setKindFilter(nextType);
+    setGroupFilter(requestedGroup || "all");
+  }, [requestedType, requestedGroup]);
+
+  function updateTypeFilter(value: typeof kindFilter) {
+    setKindFilter(value);
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (value === "all") next.delete("type");
+      else next.set("type", value === "expenses" ? "expense" : value);
+      return next;
+    });
+  }
+
+  function updateGroupFilter(value: string) {
+    setGroupFilter(value);
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (value === "all") next.delete("group");
+      else next.set("group", value);
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (!getToken) return;
@@ -153,7 +178,7 @@ export function ActivityPage() {
           <select
             id="activity-type-filter"
             value={kindFilter}
-            onChange={(event) => setKindFilter(event.target.value as typeof kindFilter)}
+            onChange={(event) => updateTypeFilter(event.target.value as typeof kindFilter)}
           >
             <option value="all">All Activity</option>
             <option value="expenses">Expenses</option>
@@ -165,7 +190,7 @@ export function ActivityPage() {
           <select
             id="activity-group-filter"
             value={groupFilter}
-            onChange={(event) => setGroupFilter(event.target.value)}
+            onChange={(event) => updateGroupFilter(event.target.value)}
           >
             <option value="all">All Groups</option>
             <option value="none">Non-group</option>

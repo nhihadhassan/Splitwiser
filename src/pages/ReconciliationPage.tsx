@@ -36,7 +36,7 @@ import {
   type ImportPreviewRow,
 } from "../reconciliation";
 import { centsToInput, formatMoney, parseMoney } from "../utils/money";
-import { TextPromptDialog } from "../components/Dialog";
+import { ConfirmDialog, TextPromptDialog } from "../components/Dialog";
 import { Modal } from "../components/Modal";
 import "./ReconciliationPage.css";
 
@@ -113,6 +113,8 @@ export function ReconciliationPage() {
   const [showNewReconciliation, setShowNewReconciliation] = useState(false);
   const [showMergePeriods, setShowMergePeriods] = useState(false);
   const [showSaveView, setShowSaveView] = useState(false);
+  const [recoveryCandidate, setRecoveryCandidate] = useState<ReconciliationWorkspace | null>(null);
+  const [showAllRemaining, setShowAllRemaining] = useState(false);
   const [showReopenPeriod, setShowReopenPeriod] = useState(false);
   const [advanced, setAdvanced] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -470,9 +472,25 @@ export function ReconciliationPage() {
   function commitSavedView(name: string) {
     updateWorkspace({
       ...workspace,
-      savedViews: [...workspace.savedViews, { id: uid("view"), name, query, queue }],
+      savedViews: [...(workspace.savedViews ?? []), { id: uid("view"), name, query, queue, tripId: trip }],
     });
     setShowSaveView(false);
+  }
+
+  function applySavedView(view: ReconciliationWorkspace["savedViews"][number]) {
+    setQuery(view.query);
+    setQueue(view.queue as QueueTab);
+    setSelectedLeft([]);
+    setSelectedRight([]);
+    setSourceFilter("all");
+    setCategoryFilter("all");
+    setMinAmount("");
+    setMaxAmount("");
+  }
+
+  function removeSavedView(id: string) {
+    const next = { ...workspace, savedViews: (workspace.savedViews ?? []).filter((view) => view.id !== id) };
+    updateWorkspace(withAudit(next, "edit", "Removed a saved reconciliation view", []));
   }
 
   function closePeriod() {
@@ -587,16 +605,27 @@ export function ReconciliationPage() {
   function restoreRecovery(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    event.target.value = "";
     void file.text().then((text) => {
-      const parsed = JSON.parse(text) as { schemaVersion?: number; transactions?: unknown[]; matchGroups?: unknown[] };
-      if (parsed.schemaVersion !== 2 || !Array.isArray(parsed.transactions) || !Array.isArray(parsed.matchGroups)) {
+      const parsed: unknown = JSON.parse(text);
+      if (!isRecoveryWorkspace(parsed)) {
         setNotice("That recovery file is not a valid reconciliation workspace.");
         return;
       }
-      const recovered = parsed as unknown as ReconciliationWorkspace;
-      updateWorkspace(recovered);
-      setNotice("Recovery workspace restored.");
+      setRecoveryCandidate(parsed);
     }).catch(() => setNotice("The recovery file could not be read."));
+  }
+
+  function restoreRecoveryWorkspace() {
+    if (!recoveryCandidate) return;
+    updateWorkspace(recoveryCandidate);
+    setTrip(recoveryCandidate.periods[0]!.tripId);
+    setSelectedLeft([]);
+    setSelectedRight([]);
+    setQueue("unmatched");
+    setQuery("");
+    setRecoveryCandidate(null);
+    setNotice("Recovery workspace restored.");
   }
 
   function flagSuggestion(group: ReconciliationMatchGroup, note: string) {
@@ -703,7 +732,8 @@ export function ReconciliationPage() {
         </section>
         <section className="simple-remaining" aria-labelledby="remaining-items-title">
           <header><h2 id="remaining-items-title">Remaining items</h2><span>{remaining.length}</span></header>
-          {remaining.slice(0, 12).map((item) => <div key={item.id}><span><strong>{item.description}</strong><small>{formatReconciliationDate(item.date)} · {item.side === "left" ? "Trip ledger" : "Statement"}</small></span><strong>{money(item.postedCadCents)}</strong></div>)}
+          {remaining.slice(0, showAllRemaining ? undefined : 12).map((item) => <div key={item.id}><span><strong>{item.description}</strong><small>{formatReconciliationDate(item.date)} · {item.side === "left" ? "Trip ledger" : "Statement"}</small></span><strong>{money(item.postedCadCents)}</strong></div>)}
+          {remaining.length > 12 && <button type="button" className="btn btn-secondary" onClick={() => setShowAllRemaining(!showAllRemaining)}>{showAllRemaining ? "Show fewer" : `Show all ${remaining.length} remaining items`}</button>}
           {remaining.length === 0 && <p className="recon-empty">Every remaining item is matched, excluded, or under review.</p>}
         </section>
       </main>
@@ -779,6 +809,18 @@ export function ReconciliationPage() {
         </label>
         <button type="button" className="recon-tool-button" onClick={() => setShowImport(!showImport)}>Import</button>
         <button type="button" className="recon-tool-button" onClick={saveView} disabled={!query.trim()}>Save view</button>
+        <details className="recon-more recon-saved-views">
+          <summary>Saved views {(workspace.savedViews ?? []).filter((view) => !view.tripId || view.tripId === trip).length}</summary>
+          <div>
+            {(workspace.savedViews ?? []).filter((view) => !view.tripId || view.tripId === trip).map((view) => (
+              <span className="recon-saved-view-item" key={view.id}>
+                <button type="button" onClick={() => applySavedView(view)}>{view.name} · {queueLabels[view.queue as QueueTab] ?? "Unmatched"}</button>
+                <button type="button" aria-label={`Delete saved view ${view.name}`} onClick={() => removeSavedView(view.id)}>Delete</button>
+              </span>
+            ))}
+            {(workspace.savedViews ?? []).filter((view) => !view.tripId || view.tripId === trip).length === 0 && <span className="recon-saved-view-empty">No saved views for this trip yet.</span>}
+          </div>
+        </details>
         <details className="recon-more">
           <summary>More</summary>
           <div>
@@ -1010,6 +1052,16 @@ export function ReconciliationPage() {
           onConfirm={commitSavedView}
         />
       )}
+      {recoveryCandidate && (
+        <ConfirmDialog
+          title="Restore this recovery workspace?"
+          description={`This will replace the current reconciliation workspace with ${recoveryCandidate.periods.length} period${recoveryCandidate.periods.length === 1 ? "" : "s"}, ${recoveryCandidate.transactions.length} transaction${recoveryCandidate.transactions.length === 1 ? "" : "s"}, and ${recoveryCandidate.matchGroups.length} match group${recoveryCandidate.matchGroups.length === 1 ? "" : "s"}. Download the current recovery file first if you may need it later.`}
+          confirmLabel="Restore workspace"
+          tone="danger"
+          onCancel={() => setRecoveryCandidate(null)}
+          onConfirm={restoreRecoveryWorkspace}
+        />
+      )}
       {showReopenPeriod && (
         <TextPromptDialog
           title="Reopen this trip"
@@ -1032,6 +1084,81 @@ export function ReconciliationPage() {
       )}
     </main>
   );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isRecoveryWorkspace(value: unknown): value is ReconciliationWorkspace {
+  if (!isRecord(value) || value.schemaVersion !== 2) return false;
+  const arrayFields = ["sources", "transactions", "matchGroups", "rules", "exceptions", "auditEvents", "periods", "savedViews", "importMappings"];
+  if (!arrayFields.every((field) => Array.isArray(value[field]))) return false;
+  const periods = value.periods as unknown[];
+  if (periods.length === 0 || !periods.every((item) => isRecord(item) && typeof item.tripId === "string" && (item.status === "open" || item.status === "closed"))) return false;
+  const periodIds = periods.map((item) => (item as Record<string, unknown>).tripId as string);
+  if (new Set(periodIds).size !== periodIds.length) return false;
+  const sources = value.sources as unknown[];
+  if (!sources.every((item) => isRecord(item) && typeof item.id === "string" && typeof item.tripId === "string" && periodIds.includes(item.tripId))) return false;
+  const sourceIds = new Set(sources.map((item) => (item as Record<string, unknown>).id as string));
+  if (sourceIds.size !== sources.length) return false;
+  const transactions = value.transactions as unknown[];
+  if (!transactions.every((item) => isRecord(item)
+    && typeof item.id === "string"
+    && typeof item.tripId === "string"
+    && periodIds.includes(item.tripId)
+    && typeof item.sourceId === "string"
+    && sourceIds.has(item.sourceId)
+    && (item.side === "left" || item.side === "right")
+    && typeof item.description === "string"
+    && typeof item.date === "string"
+    && Number.isInteger(item.originalAmountCents)
+    && Number.isInteger(item.postedCadCents)
+    && ["unmatched", "suggested", "exception", "reconciled", "excluded"].includes(String(item.status)))) return false;
+  const transactionById = new Map((transactions as Array<Record<string, unknown>>).map((item) => [item.id as string, item]));
+  if (transactionById.size !== transactions.length) return false;
+  const matchGroups = value.matchGroups as unknown[];
+  if (!matchGroups.every((item) => isRecord(item)
+    && typeof item.id === "string"
+    && typeof item.tripId === "string"
+    && periodIds.includes(item.tripId)
+    && Array.isArray(item.leftIds)
+    && item.leftIds.every((id) => typeof id === "string" && transactionById.get(id)?.side === "left" && transactionById.get(id)?.tripId === item.tripId)
+    && Array.isArray(item.rightIds)
+    && item.rightIds.every((id) => typeof id === "string" && transactionById.get(id)?.side === "right" && transactionById.get(id)?.tripId === item.tripId))) return false;
+  const exceptions = value.exceptions as unknown[];
+  if (!exceptions.every((item) => isRecord(item)
+    && typeof item.id === "string"
+    && typeof item.tripId === "string"
+    && periodIds.includes(item.tripId)
+    && Array.isArray(item.transactionIds)
+    && item.transactionIds.every((id) => typeof id === "string" && transactionById.get(id)?.tripId === item.tripId))) return false;
+  const validIds = (items: unknown[]) => {
+    const ids = items.map((item) => isRecord(item) && typeof item.id === "string" ? item.id : null);
+    return ids.every((id) => id !== null) && new Set(ids).size === ids.length;
+  };
+  const rules = value.rules as unknown[];
+  if (!validIds(rules) || !rules.every((item) => isRecord(item)
+    && typeof item.name === "string"
+    && Number.isInteger(item.priority)
+    && (item.tripId === undefined || (typeof item.tripId === "string" && periodIds.includes(item.tripId)))
+    && Array.isArray(item.sourceIds)
+    && item.sourceIds.every((id) => typeof id === "string" && sourceIds.has(id)))) return false;
+  const auditEvents = value.auditEvents as unknown[];
+  const savedViews = value.savedViews as unknown[];
+  const importMappings = value.importMappings as unknown[];
+  return validIds(matchGroups)
+    && validIds(exceptions)
+    && validIds(auditEvents)
+    && auditEvents.every((item) => isRecord(item) && typeof item.tripId === "string" && periodIds.includes(item.tripId) && typeof item.summary === "string")
+    && savedViews.every((item) => isRecord(item)
+      && typeof item.id === "string"
+      && typeof item.name === "string"
+      && typeof item.query === "string"
+      && ["unmatched", "suggested", "exception", "reconciled", "excluded"].includes(String(item.queue))
+      && (item.tripId === undefined || (typeof item.tripId === "string" && periodIds.includes(item.tripId))))
+    && validIds(importMappings)
+    && importMappings.every((item) => isRecord(item) && typeof item.name === "string" && typeof item.sourceType === "string" && isRecord(item.columns));
 }
 
 function Metric({ label, value, detail }: { label: string; value: string; detail: string }) {

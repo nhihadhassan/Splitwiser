@@ -30,7 +30,7 @@ export interface AddExpenseModalProps {
 export function AddExpenseModal({ onClose, groupId, friendId, expense }: AddExpenseModalProps) {
   const { state, dispatch, peopleById, currentPersonId, getToken, session } = useStore();
   const fieldId = useId();
-  const initialGroupId = expense?.groupId ?? groupId ?? state.groups.find((item) => item.status !== "closed" && item.memberIds.includes(currentPersonId))?.id ?? "";
+  const initialGroupId = expense?.groupId ?? groupId ?? "";
   const splitTemplate = expense ?? [...state.expenses]
     .filter((item) => item.groupId === (initialGroupId || null))
     .sort((a, b) => b.createdAt - a.createdAt)
