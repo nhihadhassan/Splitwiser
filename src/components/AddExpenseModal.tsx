@@ -356,12 +356,26 @@ export function AddExpenseModal({ onClose, groupId, friendId, expense }: AddExpe
       <div className="field">
         <span className="field-label" id={`${fieldId}-participants`}>People</span>
         <div className="chip-row" role="group" aria-labelledby={`${fieldId}-participants`}>
-          {candidates.map((p) => (
-            <button key={p.id} type="button" className={`chip ${participants.has(p.id) ? "on" : ""}`} aria-pressed={participants.has(p.id)} onClick={() => p.id !== currentPersonId && toggleParticipant(p.id)}>
-              <Avatar person={p} size={18} /> {p.id === currentPersonId ? "You" : p.name}
-            </button>
-          ))}
+          {candidates.map((p) => {
+            const isPayer = p.id === payerId;
+            const label = p.id === currentPersonId ? "You" : p.name;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                className={`chip ${participants.has(p.id) ? "on" : ""}`}
+                aria-label={isPayer ? `${label}, payer and participant` : label}
+                aria-pressed={participants.has(p.id)}
+                disabled={isPayer}
+                title={isPayer ? "The payer must be included in the split." : undefined}
+                onClick={() => toggleParticipant(p.id)}
+              >
+                <Avatar person={p} size={18} /> {label}
+              </button>
+            );
+          })}
         </div>
+        <small className="muted-copy">The payer must be included. Choose a different payer to exclude them.</small>
       </div>
 
       <div className="field-pair">
